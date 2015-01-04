@@ -1,9 +1,5 @@
-h2 {
-	font-size:50px;
-}
-
 #top {
-	background-color:#141414;
+	background-color:#dfdfdf;
 }
 
 #top h1 {
@@ -11,9 +7,19 @@ h2 {
 }
 
 #top h2 {
-	font-color:#dfdfdf;
+	font-color:#ffffff;
+	font-size:50px;
+}
+
+#top img {
+	filter: invert(100%);
+	-webkit-filter: invert(100%);
 }
 
 #main h3 {
-	tranform-text:uppercase;
+	text-transform:uppercase;
+}
+
+a {
+	color: #00b0ff;
 }
