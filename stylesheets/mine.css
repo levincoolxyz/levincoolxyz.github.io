@@ -50,14 +50,6 @@ a {
 	text-shadow: 0px 0px 3px #000;
 }
 
-#resume a {
-	color: white;
-}
-
-#courses a {
-	color: white;
-}
-
 .jumbotron {
 	background-image:url(../images/duoduo.jpg);
 	background-repeat: no-repeat;
