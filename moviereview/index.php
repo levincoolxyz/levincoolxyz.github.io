@@ -2,11 +2,11 @@
 <html>
 <head>
    <meta charset="UTF-8">
-   <link rel="shortcut icon" href="./.favicon.ico">
+   <link rel="shortcut icon" href=".favicon.ico">
    <title>Directory Contents</title>
 
-   <link rel="stylesheet" href="./.style.css">
-   <script src="./.sorttable.js"></script>
+   <link rel="stylesheet" href=".style.css">
+   <script src=".sorttable.js"></script>
 </head>
 
 <body>
@@ -34,7 +34,7 @@
 		return $size;
 	}
 
- 	// Checks to see if veiwing hidden files is enabled
+ 	// Checks to see if viewing hidden files is enabled
 	if($_SERVER['QUERY_STRING']=="hidden")
 	{$hide="";
 	 $ahref="./";
@@ -112,19 +112,20 @@
 				case "jpeg": $extn="JPEG Image"; break;
 				case "svg": $extn="SVG Image"; break;
 				case "gif": $extn="GIF Image"; break;
-				case "ico": $extn="Windows Icon"; break;
+				case "ico": $extn="Icon Image"; break;
 
 				case "txt": $extn="Text File"; break;
+				case "sh": $extn="Shell script"; break;
 				case "log": $extn="Log File"; break;
 				case "htm": $extn="HTML File"; break;
 				case "html": $extn="HTML File"; break;
 				case "xhtml": $extn="HTML File"; break;
 				case "shtml": $extn="HTML File"; break;
 				case "php": $extn="PHP Script"; break;
-				case "js": $extn="Javascript File"; break;
+				case "js": $extn="Javascript"; break;
 				case "css": $extn="Stylesheet"; break;
 
-				case "pdf": $extn="PDF Document"; break;
+				case "pdf": $extn="PDF"; break;
 				case "xls": $extn="Spreadsheet"; break;
 				case "xlsx": $extn="Spreadsheet"; break;
 				case "doc": $extn="Microsoft Word Document"; break;
