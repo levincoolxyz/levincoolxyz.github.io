@@ -2,18 +2,18 @@ h2 {
 	font-size:50px;
 }
 
-#title {
+#top {
 	background-color:#141414;
 }
 
-#title h1 {
+#top h1 {
 	font-color:#ffffff;
 }
 
-#title h2 {
+#top h2 {
 	font-color:#dfdfdf;
 }
 
-h3 {
+#main h3 {
 	tranform-text:uppercase;
 }
