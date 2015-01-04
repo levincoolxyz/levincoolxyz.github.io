@@ -30,5 +30,5 @@ a {
 }
 
 .jumbotron {
-	background-image:images/duoduo.jpg;
+	background-image:url('images/duoduo.jpg');
 }
