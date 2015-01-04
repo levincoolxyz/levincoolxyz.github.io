@@ -40,15 +40,27 @@ a {
 }
 
 #main p {
-	font-family:garamond;
 	color: white;
 	font-size:18px;
 	text-shadow: 0px 0px 3px #000;
 }
 
 #main a {
-	text-shadow: 0px 0px 1px #000;
+	text-shadow: 0px 0px 3px #000;
 }
+
+#resume {
+	color: white;
+}
+
+#courses {
+	color: white;
+}
+
+#drp {
+	color: white;
+}
+
 
 .jumbotron {
 	background-image:url(../images/duoduo.jpg);
