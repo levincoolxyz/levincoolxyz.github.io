@@ -63,7 +63,7 @@ th a {
 }
 
 td:first-of-type a {
-	background: url(./.images/file.png) no-repeat 10px 50%;
+	background: url(../images/file.png) no-repeat 10px 50%;
 	padding-left: 35px;
 }
 th:first-of-type {
@@ -98,15 +98,15 @@ table tr td:first-of-type a[href$=".png"],
 table tr td:first-of-type a[href$=".gif"], 
 table tr td:first-of-type a[href$=".svg"], 
 table tr td:first-of-type a[href$=".jpeg"]
-{background-image: url(./.images/image.png);}
+{background-image: url(../images/image.png);}
 
 /* zips */
 table tr td:first-of-type a[href$=".zip"] 
-{background-image: url(./.images/zip.png);}
+{background-image: url(../images/zip.png);}
 
 /* css */
 table tr td:first-of-type a[href$=".css"] 
-{background-image: url(./.images/css.png);}
+{background-image: url(../images/css.png);}
 
 /* docs */
 table tr td:first-of-type a[href$=".doc"],
@@ -117,7 +117,7 @@ table tr td:first-of-type a[href$=".pps"],
 table tr td:first-of-type a[href$=".ppsx"],
 table tr td:first-of-type a[href$=".xls"],
 table tr td:first-of-type a[href$=".xlsx"]
-{background-image: url(./.images/office.png)}
+{background-image: url(../images/office.png)}
 
 /* videos */
 table tr td:first-of-type a[href$=".avi"], 
@@ -125,27 +125,27 @@ table tr td:first-of-type a[href$=".wmv"],
 table tr td:first-of-type a[href$=".mp4"], 
 table tr td:first-of-type a[href$=".mov"], 
 table tr td:first-of-type a[href$=".m4a"]
-{background-image: url(./.images/video.png);}
+{background-image: url(../images/video.png);}
 
 /* audio */
 table tr td:first-of-type a[href$=".mp3"], 
 table tr td:first-of-type a[href$=".ogg"], 
 table tr td:first-of-type a[href$=".aac"], 
 table tr td:first-of-type a[href$=".wma"] 
-{background-image: url(./.images/audio.png);}
+{background-image: url(../images/audio.png);}
 
 /* web pages */
 table tr td:first-of-type a[href$=".html"],
 table tr td:first-of-type a[href$=".htm"],
 table tr td:first-of-type a[href$=".xml"]
-{background-image: url(./.images/xml.png);}
+{background-image: url(../images/xml.png);}
 
 table tr td:first-of-type a[href$=".php"] 
-{background-image: url(./.images/php.png);}
+{background-image: url(../images/php.png);}
 
 table tr td:first-of-type a[href$=".js"] 
-{background-image: url(./.images/script.png);}
+{background-image: url(../images/script.png);}
 
 /* directories */
 table tr.dir td:first-of-type a
-{background-image: url(./.images/folder.png);}
+{background-image: url(../images/folder.png);}
