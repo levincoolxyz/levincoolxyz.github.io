@@ -215,8 +215,5 @@ pip-log.txt
 #Mr Developer
 .mr.developer.cfg
 
-examples/
-src/
-tests/
-composer.json
-LISCENSE
+#Jekyll
+_site/
