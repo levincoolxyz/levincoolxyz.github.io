@@ -32,4 +32,4 @@ reasonable film just as some redditor reviewed. solid story. pretty faces. too b
   
   
   
-#TAG SCORE: 10  
+#TAG SCORE: **10**{: style:"color:yellow; font-size:50px;"}  

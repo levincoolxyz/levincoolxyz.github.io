@@ -39,4 +39,4 @@ Watching the transformation of Davi reminded me my personal transformation relat
   
   
   
-#TAG SCORE: 22  
+#TAG SCORE: **22**{: style:"color:yellow; font-size:50px;"}  

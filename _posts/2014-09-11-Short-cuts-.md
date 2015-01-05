@@ -27,4 +27,4 @@ and why is there NO explaination why Jerry went crazy for no fucking reason at t
   
   
   
-#TAG SCORE: 6  
+#TAG SCORE: **6**{: style:"color:yellow; font-size:50px;"}  

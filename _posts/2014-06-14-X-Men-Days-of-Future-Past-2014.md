@@ -32,4 +32,4 @@ seriously, the storyline is rather entertaining and interesting. like the ripple
   
   
   
-#TAG SCORE: 13  
+#TAG SCORE: **13**{: style:"color:yellow; font-size:50px;"}  

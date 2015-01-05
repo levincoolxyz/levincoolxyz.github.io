@@ -31,4 +31,4 @@ Too bad that the transgender character does not have a factual basis. But I supp
   
   
   
-#TAG SCORE: 23  
+#TAG SCORE: **23**{: style:"color:yellow; font-size:50px;"}  

@@ -28,4 +28,4 @@ good discussion on nature of intelligence and self-awareness, nothing new too me
   
   
   
-#TAG SCORE: 15  
+#TAG SCORE: **15**{: style:"color:yellow; font-size:50px;"}  

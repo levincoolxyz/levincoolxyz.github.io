@@ -38,4 +38,4 @@ I well expected Walter Mitty himself to be the subject of the cover photo at lea
   
   
   
-#TAG SCORE: 13  
+#TAG SCORE: **13**{: style:"color:yellow; font-size:50px;"}  

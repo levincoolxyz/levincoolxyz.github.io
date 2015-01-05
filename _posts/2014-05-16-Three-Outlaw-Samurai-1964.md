@@ -28,4 +28,4 @@ well solid action film. good story, interesting moral, and great fight scenes.
   
   
   
-#TAG SCORE: 10  
+#TAG SCORE: **10**{: style:"color:yellow; font-size:50px;"}  

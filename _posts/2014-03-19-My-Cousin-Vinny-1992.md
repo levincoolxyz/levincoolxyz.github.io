@@ -27,4 +27,4 @@ LOVE THAT ACENT! pretty entertaining film. esp. the beginning scenes (e.g. the v
   
   
   
-#TAG SCORE: 7  
+#TAG SCORE: **7**{: style:"color:yellow; font-size:50px;"}  

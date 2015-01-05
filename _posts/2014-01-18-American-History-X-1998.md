@@ -29,4 +29,4 @@ Personal problem with these neo-nazism, why would you worship someone like Hitle
   
   
   
-#TAG SCORE: 6  
+#TAG SCORE: **6**{: style:"color:yellow; font-size:50px;"}  
