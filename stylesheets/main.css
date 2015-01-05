@@ -7,7 +7,7 @@ a {
 }
 
 #top {
-	margin-bottom:-30px;
+	margin-bottom:-25px;
 }
 
 .nav li {
@@ -94,10 +94,11 @@ footer img {
 }
 
 .jumbotron #txtbg {
-	background-color: rgba(100,100,100,.4);
+	background-color: rgba(100,100,100,.5);
 }
 
 #cp {
+	color: white;
 	padding-top: 50px;
 }
 
