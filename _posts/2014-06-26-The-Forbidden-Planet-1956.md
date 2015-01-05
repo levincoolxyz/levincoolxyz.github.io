@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Forbidden-Planet-(1956)"
+title: "The Forbidden Planet (1956)"
 date: 2014-06-26
 ---
 

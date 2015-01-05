@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Stardust-Memories-(1980)"
+title: "Stardust Memories (1980)"
 date: 2014-08-03
 ---
 

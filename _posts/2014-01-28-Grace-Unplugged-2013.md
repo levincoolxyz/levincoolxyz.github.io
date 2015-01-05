@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Grace-Unplugged-(2013)"
+title: "Grace Unplugged (2013)"
 date: 2014-01-28
 ---
 

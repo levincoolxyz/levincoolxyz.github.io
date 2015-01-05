@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Hungover-Games-(2013)"
+title: "The Hungover Games (2013)"
 date: 2014-02-01
 ---
 

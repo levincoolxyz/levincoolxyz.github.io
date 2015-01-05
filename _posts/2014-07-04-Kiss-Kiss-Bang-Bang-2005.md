@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Kiss-Kiss-Bang-Bang-(2005)"
+title: "Kiss Kiss Bang Bang (2005)"
 date: 2014-07-04
 ---
 

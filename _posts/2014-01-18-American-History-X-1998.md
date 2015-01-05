@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "American-History-X-(1998)"
+title: "American History X (1998)"
 date: 2014-01-18
 ---
 

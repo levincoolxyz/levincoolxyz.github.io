@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Purge:-Anarchy-(2014)"
+title: "The Purge: Anarchy (2014)"
 date: 2014-10-12
 ---
 

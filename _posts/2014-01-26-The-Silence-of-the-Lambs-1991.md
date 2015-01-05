@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Silence-of-the-Lambs-(1991)"
+title: "The Silence of the Lambs (1991)"
 date: 2014-01-26
 ---
 

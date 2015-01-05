@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Inside-Llewyn-Davis-(2013)"
+title: "Inside Llewyn Davis (2013)"
 date: 2014-01-22
 ---
 

@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Blue-Valentine-(2010)"
+title: "Blue Valentine (2010)"
 date: 2014-03-01
 ---
 

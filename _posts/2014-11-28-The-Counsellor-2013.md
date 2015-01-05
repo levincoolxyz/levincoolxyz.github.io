@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Counsellor-(2013)"
+title: "The Counsellor (2013)"
 date: 2014-11-28
 ---
 

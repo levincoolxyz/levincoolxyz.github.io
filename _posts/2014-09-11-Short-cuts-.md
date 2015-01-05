@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Short-cuts-("
+title: "Short cuts ("
 date: 2014-09-11
 ---
 

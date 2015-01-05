@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "My-Cousin-Vinny-(1992)"
+title: "My Cousin Vinny (1992)"
 date: 2014-03-19
 ---
 

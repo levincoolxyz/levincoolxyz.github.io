@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Hunger-Games:-Catching-Fire-(2013)"
+title: "The Hunger Games: Catching Fire (2013)"
 date: 2014-01-19
 ---
 

@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "La-reconstruction"
+title: "La reconstruction"
 date: 2014-07-16
 ---
 

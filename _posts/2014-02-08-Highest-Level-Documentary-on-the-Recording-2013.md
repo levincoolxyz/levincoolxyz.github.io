@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Highest-Level:-Documentary-on-the-Recording-(2013)"
+title: "Highest Level: Documentary on the Recording (2013)"
 date: 2014-02-08
 ---
 

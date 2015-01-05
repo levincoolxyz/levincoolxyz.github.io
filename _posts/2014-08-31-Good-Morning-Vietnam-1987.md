@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Good-Morning-Vietnam-(1987)"
+title: "Good Morning Vietnam (1987)"
 date: 2014-08-31
 ---
 

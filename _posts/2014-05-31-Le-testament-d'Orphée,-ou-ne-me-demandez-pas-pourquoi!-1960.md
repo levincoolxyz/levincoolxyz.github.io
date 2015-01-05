@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Le-testament-d'Orphée,-ou-ne-me-demandez-pas-pourquoi!-(1960)"
+title: "Le testament d'Orphée, ou ne me demandez pas pourquoi! (1960)"
 date: 2014-05-31
 ---
 

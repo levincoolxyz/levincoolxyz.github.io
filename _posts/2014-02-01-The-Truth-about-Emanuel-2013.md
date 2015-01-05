@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Truth-about-Emanuel-(2013)"
+title: "The Truth about Emanuel (2013)"
 date: 2014-02-01
 ---
 

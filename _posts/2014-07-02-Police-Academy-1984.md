@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Police-Academy-(1984)"
+title: "Police Academy (1984)"
 date: 2014-07-02
 ---
 

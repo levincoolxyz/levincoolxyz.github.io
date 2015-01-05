@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Secret-Life-of-Walter-Mitty-(2013)"
+title: "The Secret Life of Walter Mitty (2013)"
 date: 2014-01-09
 ---
 

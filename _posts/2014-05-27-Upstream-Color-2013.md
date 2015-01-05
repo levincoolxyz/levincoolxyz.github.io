@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "Upstream-Color-(2013)"
+title: "Upstream Color (2013)"
 date: 2014-05-27
 ---
 

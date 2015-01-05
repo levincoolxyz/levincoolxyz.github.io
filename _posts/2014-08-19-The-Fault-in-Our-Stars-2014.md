@@ -1,6 +1,6 @@
 ---
 layout: review
-title: "The-Fault-in-Our-Stars-(2014)"
+title: "The Fault in Our Stars (2014)"
 date: 2014-08-19
 ---
 
