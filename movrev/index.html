@@ -4,9 +4,9 @@ title: Shitty Film Reviews
 ---
 	<h1>{{ page.title }}</h1>
 	<h3>Warning: Unnecessary profanity ahead. Proceed with caution</h3>
-	<ul class="movrev">
+	<ul class="review">
 
-	  {% for movrev in site.movrev %}
-	    <li><span>{{ movrev.date | date_to_string }}</span> &raquo; <a href="{{ movrev.url }}" title="{{ movrev.title }}">{{ movrev.title }}</a></li>
+	  {% for review in site.review %}
+	    <li><span>{{ review.date | date_to_string }}</span> &raquo; <a href="{{ review.url }}" title="{{ review.title }}">{{ review.title }}</a></li>
 	  {% endfor %}
 	</ul>
