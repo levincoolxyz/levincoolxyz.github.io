@@ -1,1 +1,7 @@
-console.log('This would be the main JS file.');
+var main = function() {
+  $('.dropdown-toggle').click(function() {
+    $('.dropdown-menu').toggle();
+  });
+}
+
+$(document).ready(main);
