@@ -1,41 +1,60 @@
 <!DOCTYPE html>
-	<html>
-	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" >
-		<head>
-			<title>{{ page.title }}</title>
-			
-			<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
-			<link rel="stylesheet" type="text/css" href="/stylesheets/mine.css">
-		</head>
-		<body>
-			<div class="nav">
-				<div class="container">
-					<div class="row">
-						<ul>
-							<li><a href="/">Home</a></li>
-							<li><a href="/cv">CV</a></li>
-							<li><a href="http://stomachfullofwyzdom.blogspot.com/">Blog</a></li>
-							<li><a href="/movrev">Film Reviews</a></li>
-						</ul>
-					</div>
-				</div>
-			<div>
-			<div id="main" class="jumbotron">
-				<div class="container">
-				
-				{{ content }}
-				
+<html>
+
+	<head>
+		<meta charset='utf-8'>
+		<link rel="shortcut icon" href="/images/barking-256x256.png">
+		<meta http-equiv="X-UA-Compatible" content="chrome=1">
+		<meta name="description" content="FENG LING personal">
+
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+		<link rel="stylesheet" type="text/css" media="screen" href="/stylesheets/mine.css">
+		<title>FENG LING</title>
+	</head>
+
+	<body>		
+		<div class="nav">
+			<div id="top" class="container">
+				<div class="container col-md-4"><h1>FENG LING</h1></div>
+			</div>
+			<div class="container col-md-4 col-md-offset-7">
+				<div class="row">
+					<ul class="nav nav-tabs">
+						<li class="active"><a href="/">Home</a></li>
+						<li><a href="/cv">CV</a></li>
+						<li class="dropdown">
+							<a href="#" data-toggle="dropdown" class="dropdown-toggle">Posts <b class="caret"></b></a>
+							<ul class="dropdown-menu">
+								<li><a href="http://stomachfullofwyzdom.blogspot.com/">Blogspot</a></li>
+								<li><a href="/movrev">Film Reviews</a></li>
+							</ul>
+						</li>
+					</ul>
 				</div>
 			</div>
-			<footer>
-				<div class="container">
-					<div class="row">
-						<ul>
-							<li><a href="mailto:levincoolxyz@gmail.com">email</a></li>
-							<li><a href="https://github.com/levincoolxyz">github.com/levincoolxyz</a></li>
-						</ul>
+		</div>
+
+		<div id="main" class="jumbotron">
+			<div id="txtbg" class="container">
+				{{ content }}
+			</div>
+		</div>
+		
+		
+		<footer>
+			<div class="container">
+				<div class="row">
+					<div id="mobile" class="container col-md-4">
+						<h4>Mobile: <img src="/images/(.png">713<img src="/images/).png">666<img src="/images/-.png">2935</h4>
+					</div>
+					<div id="email" class="container col-md-4">
+						<h4><a href="mailto:levincoolxyz@gmail.com">Email: FLing<img src="/images/@.jpg">utexas.edu</a></h4>
+					</div>
+					<div id="github" class="container col-md-4">
+						<h4><a href="https://github.com/levincoolxyz">github.com/levincoolxyz</a></h4>
 					</div>
 				</div>
-			</footer>
-		</body>
-	</html>
+			</div>
+		</footer>
+	</body>
+</html>
