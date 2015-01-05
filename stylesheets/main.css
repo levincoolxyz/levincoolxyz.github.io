@@ -15,7 +15,12 @@ a {
 	font-size:20px;
 }
 
-#top h1,h2,h3,h4,h5,h6 {
+#top h1,
+#top h2,
+#top h3,
+#top h4,
+#top h5,
+#top h6 {
 	font-family:garamond;
 	color: white;
 }
@@ -29,7 +34,12 @@ footer img {
 	-webkit-filter: invert(100%);
 }
 
-#main h1,h2,h3,h4,h5,h6 {
+#main h1,
+#main h2,
+#main h3,
+#main h4,
+#main h5,
+#main h6 {
 	color: white;
 	font-weight: bold;
 	text-shadow: 0px 0px 3px #000;
@@ -71,7 +81,9 @@ footer img {
     display: block;
 }
 
-.nav-tabs .dropdown-menu, .nav-pills .dropdown-menu, .navbar .dropdown-menu {
+.nav-tabs .dropdown-menu,
+.nav-pills .dropdown-menu,
+.navbar .dropdown-menu {
     margin-top: 0;
 }
 
@@ -89,7 +101,10 @@ footer img {
 	padding-top: 50px;
 }
 
-#review-page li {
+#review-list li,
+#review-list li,
+#review-list a {
+	font-family: monospace;
 	color: white;
 	font-size: 14px;
 }
