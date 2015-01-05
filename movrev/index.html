@@ -7,6 +7,6 @@ title: Shitty Movie Reviews
 	<ul class="movrev">
 
 	  {% for movrev in site.movrev %}
-	    <li><span>{{ movrev.date | date_to_string }}</span> » <a href="{{ movrev.url }}" title="{{ movrev.title }}">{{ movrev.title }}</a></li>
+	    <li><span>{{ movrev.date | date_to_string }}</span> Â» <a href="{{ movrev.url }}" title="{{ movrev.title }}">{{ movrev.title }}</a></li>
 	  {% endfor %}
 	</ul>
