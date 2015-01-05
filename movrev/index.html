@@ -6,7 +6,7 @@ title: Shitty Film Reviews
 	<h3>Warning: Unnecessary profanity ahead. Proceed with caution</h3>
 	<ul class="review">
 
-	  {% for review in site.movrev %}
+	  {% for review in site.posts %}
 	    <li><span>{{ review.date | date_to_string }}</span> &raquo; <a href="{{ review.url }}" title="{{ review.title }}">{{ review.title }}</a></li>
 	  {% endfor %}
 	</ul>
