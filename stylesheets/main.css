@@ -7,7 +7,7 @@ a {
 }
 
 #top {
-	margin-bottom:-30px;
+	margin-bottom:-35px;
 }
 
 .nav li {
@@ -53,6 +53,12 @@ footer img {
 	color: rgb(255,200,0);
 	text-shadow: 0px 0px 3px #000;
 }
+
+#main span {
+	color: white;
+	text-shadow: 0px 0px 3px #000;
+}
+
 
 .jumbotron {
 	background-image:url(../images/duoduo.jpg);
