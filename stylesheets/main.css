@@ -35,10 +35,6 @@ footer img {
 	text-shadow: 0px 0px 3px #000;
 }
 
-#main h3 {
-	text-transform:uppercase;
-}
-
 #main h4 {
 	font-size:20px;
 }
@@ -59,6 +55,9 @@ footer img {
 	text-shadow: 0px 0px 3px #000;
 }
 
+.dropdown:hover .dropdown-menu {
+    display: block;
+}
 
 .jumbotron {
 	background-image:url(../images/duoduo.jpg);
