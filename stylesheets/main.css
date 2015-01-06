@@ -70,7 +70,7 @@ footer img {
     position: absolute;
     top: 0;
     visibility: hidden;
-    
+    margin-top: -1px;
 }
 
 .dropdown-menu li:hover .sub-menu {
