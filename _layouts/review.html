@@ -5,13 +5,13 @@ layout: default
 	<div class="clear">&nbsp;</div>
 	<div class="pull-left">
 		{% if page.previous.url %}
-			<a href="{{page.previous.url}}" title="{{page.previous.date}}">&laquo; Previous Post:{{page.previous.title}}</a>
+			<a href="{{page.previous.url}}" title="{{page.previous.id}}"><strong>&laquo;</strong> Previous Post: {{page.previous.title}}</a>
 		{% endif %}
 	</div>
 	
 	<div class="pull-right">
 		{% if page.next.url %}
-			<a href="{{page.next.url}}" title="{{page.next.date}}">&raquo; Next Post:{{page.next.title}}</a>
+			<a href="{{page.next.url}}" title="{{page.next.id}}">Next Post: {{page.next.title}} <strong>&raquo;</strong></a>
 		{% endif %}
 	</div>
 	<div class="clear">&nbsp;</div>
