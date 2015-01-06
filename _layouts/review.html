@@ -1,17 +1,17 @@
 ---
 layout: default
 ---
-<div id="page-navigation">
+<div id="page-nav">
 	<div class="clear">&nbsp;</div>
-	<div class="left">
+	<div class="pull-left">
 		{% if page.previous.url %}
-			<a href="{{page.previous.url}}" title="Previous Post:{{page.previous.title}}">&laquo; {{page.previous.title}}</a>
+			<a href="{{page.previous.url}}" title="{{page.previous.date}}">&laquo; Previous Post:{{page.previous.title}}</a>
 		{% endif %}
 	</div>
 	
-	<div class="right">
+	<div class="pull-right">
 		{% if page.next.url %}
-			<a href="{{page.next.url}}" title="Next Post:{{page.next.title}}">&laquo; {{page.next.title}}</a>
+			<a href="{{page.next.url}}" title="{{page.next.date}}">&raquo; Next Post:{{page.next.title}}</a>
 		{% endif %}
 	</div>
 	<div class="clear">&nbsp;</div>
