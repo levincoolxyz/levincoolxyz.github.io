@@ -10,6 +10,10 @@ a {
 	margin-bottom:-25px;
 }
 
+.nav-tabs ul {
+	padding-bottom: 1px;
+}
+
 .nav li {
 	display: inline;
 	font-size:20px;
