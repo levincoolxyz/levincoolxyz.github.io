@@ -11,7 +11,7 @@ a {
 }
 
 .nav-tabs ul {
-	border-bottom: 0px;
+	border-bottom: none;
 }
 
 .nav li {
