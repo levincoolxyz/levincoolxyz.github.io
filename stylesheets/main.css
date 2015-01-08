@@ -11,8 +11,7 @@ a {
 }
 
 .nav-tabs ul {
-	background-color: black;
-	border: 0px;
+	border-bottom: 0px;
 }
 
 .nav li {
