@@ -119,8 +119,8 @@ span {
 	background-color: rgba(100,100,100,.65);
 }
 
-.IN-widget a,
-.IN-widget span {
+#main .IN-widget a,
+#main .IN-widget span {
 	color: black;
 	text-shadow: 0px 0px 0px #000;
 }
