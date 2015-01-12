@@ -119,8 +119,8 @@ span {
 	background-color: rgba(100,100,100,.65);
 }
 
-#linkedin a,
-#linkedin span {
+.IN-widget a,
+.IN-widget span {
 	color: black;
 }
 
