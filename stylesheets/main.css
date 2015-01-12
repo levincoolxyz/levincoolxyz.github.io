@@ -6,11 +6,11 @@ a {
 	color: rgb(255,160,0);
 }
 
-a:hover:before {
+a:hover {
 	color: rgb(191, 87,0);
 }
 
-a:visited:before {
+a:visited {
 	color: rgb(220,145,0);
 }
 
