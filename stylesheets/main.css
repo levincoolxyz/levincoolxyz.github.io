@@ -3,6 +3,16 @@ body {
 }
 
 a {
+	color: rgb(255,160,0);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
 	color: white;
 }
 
@@ -19,17 +29,8 @@ a {
 	font-size:20px;
 }
 
-#top h1,
-#top h2,
-#top h3,
-#top h4,
-#top h5,
-#top h6 {
-	font-family:garamond;
-	color: white;
-}
-
 #top h1 {
+	font-family:garamond;
 	font-size:50px;
 }
 
@@ -44,7 +45,6 @@ footer img {
 #main h4,
 #main h5,
 #main h6 {
-	color: white;
 	font-weight: bold;
 	text-shadow: 0px 0px 3px #000;
 }
@@ -54,13 +54,11 @@ footer img {
 }
 
 #main p {
-	color: white;
 	font-size:18px;
 	text-shadow: 0px 0px 3px #000;
 }
 
 #main a {
-	color: rgb(255,160,0);
 	text-shadow: 0px 0px 3px #000;
 }
 
@@ -98,7 +96,7 @@ footer img {
 }
 
 .jumbotron #txtbg {
-	background-color: rgba(100,100,100,.7);
+	background-color: rgba(100,100,100,.65);
 }
 
 #cp {
