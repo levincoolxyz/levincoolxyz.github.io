@@ -12,7 +12,9 @@ h3,
 h4,
 h5,
 h6,
-p {
+p,
+li,
+span {
 	color: white;
 }
 
@@ -63,7 +65,6 @@ footer img {
 }
 
 #main span {
-	color: white;
 	text-shadow: 0px 0px 3px #000;
 }
 
@@ -99,16 +100,10 @@ footer img {
 	background-color: rgba(100,100,100,.65);
 }
 
-#cp {
-	color: white;
-	padding-top: 50px;
-}
-
 #review-list li,
 #review-list li,
 #review-list a {
 	font-family: monospace;
-	color: white;
 	font-size: 16px;
 }
 
