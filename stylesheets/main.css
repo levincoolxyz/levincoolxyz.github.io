@@ -1,13 +1,49 @@
+/* site-style */
+
 body {
 	background-color: black;
 }
 
 a {
+	color: rgb(255,160,0);
+}
+
+a:hover {
+	color: rgb(191, 87,0);
+}
+
+a:visited {
+	color: rgb(220,125,0);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li,
+span {
 	color: white;
 }
 
+/* header-style */
+
 #top {
-	margin-bottom:-25px;
+	margin-bottom:-30px;
+}
+
+#nav {
+	margin-top:-20px;
+}
+
+#appoint {
+	padding-top:20px;
+}
+
+.nav-tabs {
+	border-bottom: none;
 }
 
 .nav li {
@@ -15,55 +51,12 @@ a {
 	font-size:20px;
 }
 
-#top h1,
-#top h2,
-#top h3,
-#top h4,
-#top h5,
-#top h6 {
-	font-family:garamond;
-	color: white;
-}
-
 #top h1 {
+	font-family:garamond;
 	font-size:50px;
 }
 
-footer img {
-	filter: invert(100%);
-	-webkit-filter: invert(100%);
-}
-
-#main h1,
-#main h2,
-#main h3,
-#main h4,
-#main h5,
-#main h6 {
-	color: white;
-	font-weight: bold;
-	text-shadow: 0px 0px 3px #000;
-}
-
-#main h4 {
-	font-size:20px;
-}
-
-#main p {
-	color: white;
-	font-size:18px;
-	text-shadow: 0px 0px 3px #000;
-}
-
-#main a {
-	color: rgb(255,160,0);
-	text-shadow: 0px 0px 3px #000;
-}
-
-#main span {
-	color: white;
-	text-shadow: 0px 0px 3px #000;
-}
+/* dropdown-menu */
 
 .dropdown-menu .sub-menu {
     left: 100%;
@@ -87,6 +80,35 @@ footer img {
     margin-top: 0;
 }
 
+/* main */
+
+#main h1,
+#main h2,
+#main h3,
+#main h4,
+#main h5,
+#main h6 {
+	font-weight: bold;
+	text-shadow: 0px 0px 3px #000;
+}
+
+#main h4 {
+	font-size:20px;
+}
+
+#main p {
+	font-size:18px;
+	text-shadow: 0px 0px 3px #000;
+}
+
+#main a {
+	text-shadow: 0px 0px 3px #000;
+}
+
+#main span {
+	text-shadow: 0px 0px 3px #000;
+}
+
 .jumbotron {
 	background-image:url(../images/duoduo.jpg);
 	background-repeat: no-repeat;
@@ -94,19 +116,28 @@ footer img {
 }
 
 .jumbotron #txtbg {
-	background-color: rgba(100,100,100,.5);
+	background-color: rgba(100,100,100,.65);
 }
 
-#cp {
-	color: white;
-	padding-top: 50px;
+#main .IN-widget a,
+#main .IN-widget span {
+	color: black;
+	text-shadow: 0px 0px 0px #000;
 }
+
+/* footer-style */
+
+footer img {
+	filter: invert(100%);
+	-webkit-filter: invert(100%);
+}
+
+/* review index page */
 
 #review-list li,
 #review-list li,
 #review-list a {
 	font-family: monospace;
-	color: white;
 	font-size: 16px;
 }
 
