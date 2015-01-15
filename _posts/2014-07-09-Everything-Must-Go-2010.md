@@ -2,6 +2,7 @@
 layout: review  
 title: "Everything Must Go (2010)"  
 date: 2014-07-09  
+tags:movrev  
 ---  
   
 #TAGS:  

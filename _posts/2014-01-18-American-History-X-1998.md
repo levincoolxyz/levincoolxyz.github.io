@@ -2,6 +2,7 @@
 layout: review  
 title: "American History X (1998)"  
 date: 2014-01-18  
+tags:movrev  
 ---  
   
 #TAGS:  

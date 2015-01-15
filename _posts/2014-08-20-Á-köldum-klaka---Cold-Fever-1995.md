@@ -2,6 +2,7 @@
 layout: review  
 title: "Á köldum klaka - Cold Fever (1995)"  
 date: 2014-08-20  
+tags:movrev  
 ---  
   
 #TAGS:  

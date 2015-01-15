@@ -2,6 +2,7 @@
 layout: review  
 title: "The Silence of the Lambs (1991)"  
 date: 2014-01-26  
+tags:movrev  
 ---  
   
 #TAGS:  

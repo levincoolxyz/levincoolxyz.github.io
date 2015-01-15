@@ -2,6 +2,7 @@
 layout: review  
 title: "Love and Other Drugs (2010)"  
 date: 2014-06-24  
+tags:movrev  
 ---  
   
 #TAGS:  

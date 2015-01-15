@@ -2,6 +2,7 @@
 layout: review  
 title: "Ghost in the Shell (1995)"  
 date: 2014-08-03  
+tags:movrev  
 ---  
   
 #TAGS:  

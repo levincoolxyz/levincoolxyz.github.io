@@ -2,6 +2,7 @@
 layout: review  
 title: "X-Men: Days of Future Past (2014)"  
 date: 2014-06-14  
+tags:movrev  
 ---  
   
 #TAGS:  
