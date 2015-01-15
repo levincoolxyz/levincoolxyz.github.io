@@ -2,7 +2,6 @@
 layout: review  
 title: "fresa y chocolate (1993)"  
 date: 2014-04-19  
-tags:movrev  
 ---  
   
 #TAGS:  

@@ -2,7 +2,6 @@
 layout: review  
 title: "The Seventh Seal (1957)"  
 date: 2014-09-06  
-tags:movrev  
 ---  
   
 #TAGS:  

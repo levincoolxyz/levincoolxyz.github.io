@@ -2,7 +2,6 @@
 layout: review  
 title: "Blue Valentine (2010)"  
 date: 2014-03-01  
-tags:movrev  
 ---  
   
 #TAGS:  

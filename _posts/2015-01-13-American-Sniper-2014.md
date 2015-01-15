@@ -2,7 +2,6 @@
 layout: review  
 title: "American Sniper (2014)"  
 date: 2015-01-13  
-tags:movrev  
 ---  
   
 #TAGS:  

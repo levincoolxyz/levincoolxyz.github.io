@@ -2,7 +2,6 @@
 layout: review  
 title: "The Counsellor (2013)"  
 date: 2014-11-28  
-tags:movrev  
 ---  
   
 #TAGS:  

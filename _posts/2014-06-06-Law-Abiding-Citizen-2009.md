@@ -2,7 +2,6 @@
 layout: review  
 title: "Law Abiding Citizen (2009)"  
 date: 2014-06-06  
-tags:movrev  
 ---  
   
 #TAGS:  

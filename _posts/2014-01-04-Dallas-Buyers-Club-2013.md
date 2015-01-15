@@ -2,7 +2,6 @@
 layout: review  
 title: "Dallas Buyers Club (2013)"  
 date: 2014-01-04  
-tags:movrev  
 ---  
   
 #TAGS:  

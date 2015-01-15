@@ -2,7 +2,6 @@
 layout: review  
 title: "The Secret Life of Walter Mitty (2013)"  
 date: 2014-01-09  
-tags:movrev  
 ---  
   
 #TAGS:  

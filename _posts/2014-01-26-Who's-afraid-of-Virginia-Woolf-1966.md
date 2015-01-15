@@ -2,7 +2,6 @@
 layout: review  
 title: "Who's afraid of Virginia Woolf (1966)"  
 date: 2014-01-26  
-tags:movrev  
 ---  
   
 #TAGS:  

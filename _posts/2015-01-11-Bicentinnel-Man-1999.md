@@ -2,7 +2,6 @@
 layout: review  
 title: "Bicentinnel Man (1999)"  
 date: 2015-01-11  
-tags:movrev  
 ---  
   
 #TAGS:  
