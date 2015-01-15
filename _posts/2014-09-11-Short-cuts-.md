@@ -2,7 +2,6 @@
 layout: review  
 title: "Short cuts ("  
 date: 2014-09-11  
-tags:movrev  
 ---  
   
 #TAGS:  

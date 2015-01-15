@@ -2,7 +2,6 @@
 layout: review  
 title: "Duex jours, une nuit (2014)"  
 date: 2014-12-27  
-tags:movrev  
 ---  
   
 #TAGS:  

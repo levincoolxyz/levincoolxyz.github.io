@@ -2,7 +2,6 @@
 layout: review  
 title: "Broken Flowers (2005)"  
 date: 2014-01-18  
-tags:movrev  
 ---  
   
 #TAGS:  

@@ -2,7 +2,6 @@
 layout: review  
 title: "Ask me anything (2014)"  
 date: 2014-12-26  
-tags:movrev  
 ---  
   
 #TAGS:  

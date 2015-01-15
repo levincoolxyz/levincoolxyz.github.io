@@ -2,7 +2,6 @@
 layout: review  
 title: "La reconstruction"  
 date: 2014-07-16  
-tags:movrev  
 ---  
   
 #TAGS:  

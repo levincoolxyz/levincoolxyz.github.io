@@ -2,7 +2,6 @@
 layout: review  
 title: "The Grand Budapest Hotel (2014)"  
 date: 2014-06-04  
-tags:movrev  
 ---  
   
 #TAGS:  

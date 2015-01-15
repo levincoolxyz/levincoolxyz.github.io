@@ -2,7 +2,6 @@
 layout: review  
 title: "Casa de mi Padre (2012)"  
 date: 2014-04-05  
-tags:movrev  
 ---  
   
 #TAGS:  

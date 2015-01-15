@@ -2,7 +2,6 @@
 layout: review  
 title: "The Other Woman (2014)"  
 date: 2014-07-04  
-tags:movrev  
 ---  
   
 #TAGS:  
