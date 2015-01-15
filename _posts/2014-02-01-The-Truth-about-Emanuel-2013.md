@@ -2,6 +2,7 @@
 layout: review  
 title: "The Truth about Emanuel (2013)"  
 date: 2014-02-01  
+tags:movrev  
 ---  
   
 #TAGS:  

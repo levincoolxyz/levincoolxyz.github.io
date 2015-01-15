@@ -2,6 +2,7 @@
 layout: review  
 title: "My Cousin Vinny (1992)"  
 date: 2014-03-19  
+tags:movrev  
 ---  
   
 #TAGS:  

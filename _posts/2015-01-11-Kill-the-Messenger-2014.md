@@ -2,6 +2,7 @@
 layout: review  
 title: "Kill the Messenger (2014)"  
 date: 2015-01-11  
+tags:movrev  
 ---  
   
 #TAGS:  

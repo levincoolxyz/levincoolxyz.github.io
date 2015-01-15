@@ -2,6 +2,7 @@
 layout: review  
 title: "Three Outlaw Samurai (1964)"  
 date: 2014-05-16  
+tags:movrev  
 ---  
   
 #TAGS:  

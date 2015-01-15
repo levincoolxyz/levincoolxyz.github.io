@@ -2,6 +2,7 @@
 layout: review  
 title: "Stardust Memories (1980)"  
 date: 2014-08-03  
+tags:movrev  
 ---  
   
 #TAGS:  
