@@ -121,7 +121,7 @@ span {
 
 #main .IN-widget a,
 #main .IN-widget span {
-	color: black;
+	color: black !important;
 	text-shadow: 0px 0px 0px #000;
 }
 
