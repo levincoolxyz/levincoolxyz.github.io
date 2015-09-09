@@ -99,6 +99,8 @@ span {
 #main p {
 	font-size:18px;
 	text-shadow: 0px 0px 3px #000;
+	margin-top: 0em;
+  	margin-bottom: .5em;
 }
 
 #main a {
@@ -121,7 +123,7 @@ span {
 
 #main .IN-widget a,
 #main .IN-widget span {
-	color: black;
+	color: black !important;
 	text-shadow: 0px 0px 0px #000;
 }
 

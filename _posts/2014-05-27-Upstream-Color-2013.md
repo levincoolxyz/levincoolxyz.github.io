@@ -23,6 +23,7 @@ intricate storyline (what the fuck just happened? have to read elsewhere or re-w
 realistic effects  
   
 untraceable (natural) acting  
+
 #COMMENTS:  
   
 Well the 铺垫(forshadowing?) is really extensive and long. the first 25 mins are equal part boring and intriguing, hence was not able to finish watching this in one setting. The ending is strangely fulfilling and many cheesy life metaphors can be made (everyone's finally taking care of their own pig~life~tragedy now), but I am just not really into these kind of stuff (my impression is that if you leave vague and artsy shit around, you are just leaving room for people to waste their time to overthink and try to understand what you mean while you don't even know what you wanted).  
