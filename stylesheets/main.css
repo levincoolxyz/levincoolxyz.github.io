@@ -89,7 +89,7 @@ span {
 #main h5,
 #main h6 {
 	font-weight: bold;
-	text-shadow: 0px 0px 3px #000;
+	text-shadow: 0px 0px 5px #000;
 }
 
 #main h4 {
@@ -98,17 +98,17 @@ span {
 
 #main p {
 	font-size:18px;
-	text-shadow: 0px 0px 3px #000;
-	margin-top: 0em;
+	text-shadow: 0px 0px 5px #000;
+	margin-top: .2em;
   	margin-bottom: .5em;
 }
 
 #main a {
-	text-shadow: 0px 0px 3px #000;
+	text-shadow: 0px 0px 5px #000;
 }
 
 #main span {
-	text-shadow: 0px 0px 3px #000;
+	text-shadow: 0px 0px 5px #000;
 }
 
 .jumbotron {
