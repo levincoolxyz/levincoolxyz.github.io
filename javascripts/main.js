@@ -24,7 +24,7 @@ var activatetab = function() {
 	placenow = document.URL.split(/[\\/]/)[3];
 	if(placenow == 'cv') {
 		$('#cvtab').toggleClass('active');
-	}else if(placenow == 'movrev') {
+	}else if(placenow == 'movrev' || placenow == 'fotos') {
 		$('#posttab').toggleClass('active');
 	}else {
 		$('#hometab').toggleClass('active');
