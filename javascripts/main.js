@@ -47,11 +47,11 @@ var activatetab = function() {
 
 	$('.thumbnail').on("click tap",
 	    function(){
-	        $(this).find('.caption').slideDown(250); //.fadeIn(250)
+	        $(this).find('.caption').show();
 	        $(this).find('.caption').toggleClass("down");
 	    },
 	    function(){
-			$(this).find('.caption.down').slideUp(250); //.fadeOut(205)
+			$(this).find('.caption.down').hide();
 		}
 	);
 }
