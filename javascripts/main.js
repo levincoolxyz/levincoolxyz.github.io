@@ -45,15 +45,6 @@ var activatetab = function() {
 		}
 	);
 
-	$('.thumbnail').on("click tap",
-	    function(){
-	        $(this).find('.caption').show();
-	        $(this).find('.caption').toggleClass("down");
-	    },
-	    function(){
-			$(this).find('.caption.down').hide();
-		}
-	);
 }
 
 $(document).ready(activatetab);
