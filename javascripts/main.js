@@ -22,7 +22,7 @@ if(placenow == 'cv') {
 
 var activatetab = function() {
 	placenow = document.URL.split(/[\\/]/)[3];
-	
+
 	if(placenow == 'cv') {
 		$('#cvtab').toggleClass('active');
 	}else if(placenow == 'movrev' || placenow == 'fotos') {
@@ -33,7 +33,7 @@ var activatetab = function() {
 
 	$("[rel='tooltip']").tooltip();    
 
-	$('.thumbnail').hover(
+	$('.thumbnail').on('mouseenter mouseleave click tap',
 	    function(){
 	        $(this).find('.caption').slideDown(250); //.fadeIn(250)
 	    },
