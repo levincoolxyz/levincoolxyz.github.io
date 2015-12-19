@@ -45,7 +45,7 @@ var activatetab = function() {
 		}
 	);
 
-	$('.thumbnail').on("click tap",
+	$('.thumbnail').toggle(
 	    function(){
 	        $(this).find('.caption').slideDown(250); //.fadeIn(250)
 	    },
