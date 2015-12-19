@@ -22,7 +22,7 @@ if(placenow == 'cv') {
 
 var activatetab = function() {
 	placenow = document.URL.split(/[\\/]/)[3];
-	
+
 	if(placenow == 'cv') {
 		$('#cvtab').toggleClass('active');
 	}else if(placenow == 'movrev' || placenow == 'fotos') {
@@ -33,7 +33,26 @@ var activatetab = function() {
 
 	$("[rel='tooltip']").tooltip();    
 
+	$('.thumbnail').mouseenter(
+		function(){
+				$(this).find('.caption').slideDown(250); //.fadeIn(250)
+		}
+	);
 
+	$('.thumbnail').mouseleave(
+		function(){
+			$(this).find('.caption').slideUp(250); //.fadeOut(205)
+		}
+	);
+
+	$('.thumbnail').on("click tap",
+	    function(){
+	        $(this).find('.caption').slideDown(250); //.fadeIn(250)
+	    },
+	    function(){
+			$(this).find('.caption').slideUp(250); //.fadeOut(205)
+		}
+	);
 }
 
 $(document).ready(activatetab);
