@@ -18,17 +18,14 @@ a:visited {
 
 h1,
 h2,
+h3,
+h4,
 h5,
 h6,
 p,
 li,
 span {
 	color: white !important;
-}
-
-h3,
-h4,{
-	color: rgb(240,240,240) !important;
 }
 
 /* header-style */
