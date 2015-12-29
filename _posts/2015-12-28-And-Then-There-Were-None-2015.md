@@ -60,7 +60,7 @@ and as far as casting goes, vera's lover lombard looks too young and yummy. not 
   
 FINALLY here's what's good about it: the conversation between judge and vera! It was a pleasant surprice that trumps the soliloquies or the novel's text in a floating bottle methink.  
   
-It was a nice touch to see the hook early on. as suspense for newcomers and sinisterness for us whose already spoiled.  
+It was a nice touch to see the hook early on. as suspense for newcomers and sinisterness for us who is already spoiled.  
   
 Also the detective's homoerotic tendencies, per some other IMDb guy's observation, is an interesting touch. (provides weird motives for dominance over young boys, for example)  
   
