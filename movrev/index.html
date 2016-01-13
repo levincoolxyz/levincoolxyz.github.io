@@ -1,11 +1,11 @@
 ---
 layout: default
-title: Shitty (Film Rants)
+title: Shitty Film Rants
 ---
 
 <div id="review-page" class="container">
 	<div class="row">
-		<div class="container col-md-9"><h2>{{ page.title }}</h2></div>
+		<div class="container col-md-9"><h2>Some Film Rants</h2></div>
 		
 		<div class="container col-md-3">
 			<h4>
@@ -16,7 +16,8 @@ title: Shitty (Film Rants)
 	
 	<div id="review-list" class="container">
 		<div class="row">
-			<h4>Warning: Typos, run-on sentences, plus unnecessary profanities ahead. Proceed but with CAUTION! <br> If you prefer to stay serious, you can slog through my essay on <a href="/paper/Kieslowski.pdf">Kieslowski</a> done for the wonderful film history class by <a href="http://rtf.utexas.edu/faculty/charles-ramirez-berg">Prof. Charles Ramírez Berg</a> in Spring 2015.</h4>
+			<h4>WARNING: May contain traces of typos, run-on sentences, and unnecessary profanities.<br>Proceed but with CAUTION!<br><br>
+			You can also slog through my essay on <a href="/paper/Kieslowski.pdf">Kieslowski</a> done for the wonderful film history class by <a href="http://rtf.utexas.edu/faculty/charles-ramirez-berg">Prof. Charles Ramírez Berg</a> in Spring 2015.</h4>
 			<ul class="review">
 			  {% for review in site.posts %}
 				<li><span>{{ review.date | date_to_string }}</span> &raquo; <a href="{{ review.url }}" title="{{ review.title }}">{{ review.title }}</a></li>
@@ -24,7 +25,7 @@ title: Shitty (Film Rants)
 			</ul>
 		</div>
 	</div>
-	<h3 class="btn piratebtn" style="color:rgb(250,0,100) !important;" data-toggle="collapse" data-target="#piracytalk" href="#piratebtn">My irrelevant views on piracy (esp. of popular entertainment).</h3>
+	<h3 class="btn piratebtn" style="color:rgb(250,0,100) !important;" data-toggle="collapse" data-target="#piracytalk" href="#piratebtn">Some irrelevant views on piracy (esp. of popular entertainment)</h3>
 	<div id="piracytalk" class="collapse container col-md-11">
 		<p> I think it is clear that any infringement on IP is clearly a kind of stealing, should you believe that only creators of a work has the ultimate power on its distribution. So no whining about that. However, there are several other effects to be considered. First I believe the $ lost claimed by the industry is mostly bogus. This is because if we really have to put a price tag on the value being stolen, it has to be based on what the pirates think. For example, if the cheapest option is to buy a dvd/book for 50 bucks online, should I choose to pirate it somewhere else (be it the sea of torrents, file sharing services, or even the library), what the producer lose is most definitely not $50. Simply because that I would totally prefer to have the dvd/book in hand if I could buy it for 10 dollars. All the effort I went through to steal is caused by a mismatch in valuing the products. Perhaps it is important to point out that in the world of individuals, the value system is never fair nor can it be fixed by any single party. This is in fact the foundation of capitalistic organizations.</p>
 		<p> Then there's the idea, which pirates frequently champion, "the exposure." Surly it seems wrong, but in this day and age revolving around information flow, any reduction in the barrier of "entry" does indeed creates a deeper market penetration, which is something that business people should always value.</p>
