@@ -1,0 +1,230 @@
+\documentclass[10pt,letterpaper]{res}
+\usepackage{color,soul}
+\usepackage[latin1]{inputenc}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{array,longtable}
+\usepackage{datetime}
+\usepackage[left=.5in,right=1.25in,top=.5in,bottom=.5in]{geometry}
+
+%xelatex parameter
+\usepackage{xltxtra,fontspec,xunicode}
+\defaultfontfeatures{Scale=MatchLowercase}
+%\setromanfont{Adobe Garamond Pro}
+\setromanfont{Garamond}
+%xelatex parameter
+
+%\usepackage{helvetica} % uses helvetica postscript font (download helvetica.sty)
+%\usepackage{newcent}   % uses new century schoolbook postscript font
+
+\newcommand{\tab}{\hspace*{2em}}
+\newcommand{\vsrk}{\vspace*{-10pt}}
+\newcommand{\sepline}{\smallskip\moveleft\hoffset\vbox{\hrule width 7.5in height .5pt}
+\vspace*{-5pt}}
+
+\newdateformat{monthyear}{%
+  \monthname[\THEMONTH], \THEYEAR}
+
+%\usepackage[compact]{titlesec}
+%\titlespacing{\section}{0pt}{*0}{*0}
+%\titlespacing{\subsection}{0pt}{*0}{*0}
+%\titlespacing{\subsubsection}{0pt}{*0}{*0}
+
+\begin{document}
+\moveleft.5\hoffset\centerline{\huge\bf FENG LING}
+\smallskip
+\moveleft.5\hoffset\centerline{\monthyear\today}
+\begin{resume}%
+\vsrk
+\section{PERSONAL}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.5\linewidth}
+        p{\dimexpr0.5\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+{\bf Birth Year:} 1992 & {\bf Address:} 5505 Avenue F, Austin, TX 78751-1312\\
+{\bf Citizenship:} China, People's Republic of & {\bf Mobile:} +1 (713) 666 - 2935\\
+{\bf E-mail:} FLing@utexas.edu & {\bf Webpage:} http://fl3537.me/
+\end{longtable}
+\vsrk\vsrk
+\section{EDUCATION}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+
+{2010 - 2015} & {\bf The University of Texas at Austin}, Austin, TX\\
+& { B.S. Pure Mathematics}, December 2015\\
+& { B.S. Aerospace Engineering (Astronautics)}, December 2015\\
+& { Computational Science and Engineering Certificate Program}, May 2015\\
+& { Halliburton Business Foundations Summer Institute}, July 2012\\
+& { GPA: 3.73/4.0 (188 GPA hr)}
+\end{longtable}
+\vsrk\vsrk
+\section{EMPLOYMENT}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+	{2013 - 2015} & {\bf Undergraduate Research Assistant}, Center for Space Research at UT Austin
+	\\{2011} & {\bf Summer Intern}, Zhongchu Development Stock Ltd., Tianjin Xingang Branch
+\end{longtable}
+\vsrk\vsrk
+\section{HONORS AND AWARDS}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+	{2015} & {\bf Meritorious Winner Team Lead}, COMAP Mathematical Contest In Modeling\\
+	& {\bf } Problem B: Searching lost aeroplane in open water, general advise from \textit{Dr~Andrew Spann}\\
+	{2011} & {\bf Member}, Aerospace Honor Society Sigma-Gamma-Tau UT Austin Chapter \\
+	{2010} & {\bf Team Lead}, Student Engineering Council Alternative Energy Challenge 3rd place \\
+	{2010} & {\bf Finalist}, Intel International Science and Engineering Fair \\
+%	{\bf 1st Place Team}, Greater Houston Area Science and Engineering Fair\\
+%\tab	Harnessing Energy from Noises and Mechanical Vibrations\\
+%	National AP Scholar, AP Scholar with Distinction\\
+%	{\bf Graduate}, Bellaire Senior High School \hfill 2007-2010\\
+%	{\bf Grade 6 out of 9}, Piano Specialty Certificate of Examination of China \hfill 2006\\
+%	{\bf District 3rd place}, Tianjin Teenagers' Science Fair competition \hfill 2005\\
+%\tab	Paper on oceanic energy and energy recycling from building waste water disposal system\\
+%	{\bf Silver Medalist}, New Century Cup Contest of Juvenile Chinese Calligraphy \hfill 1999\\
+\end{longtable}
+\vsrk\vsrk
+\section{PROJECTS}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+	& {\bf At Center for Space Research}, supervised by \textit{Prof.~Srinivas Bettadpur}\\
+{2014 - 2015} &	Parametric study on dynamical effects of different models of accelerometer and center of gravity misalignment, results in preparation for publication\\
+{2014 - 2015} & Assisted graduate students on GRACE spacecraft thermal environment modeling project\\
+{2014} & Analyzed the correlation between GRACE accelerometer reading anomalies, thruster firing pattern, and star camera measurement deviations \\
+{2013 - 2014} & Studied the geographical significance of GRACE on-board SNR and post-fit residue of the Earth gravity model\\
+
+\end{longtable}
+\vspace*{-1.5em}
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+{2014 - 2015} & 
+{\bf Research Project for the CSE Certificate Program}, advised by \textit{Ren\'e Hiemstra}\\
+& Investigated applications of discrete exterior calculus and discrete differential geometry for exact conservation finite element analyses (mixed-methods)\\
+& Explored parallel computing implications using OpenMP as separate class project\\
+
+\end{longtable}
+\vspace*{-1.5em}
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+{2014} & {\bf Senior Design Project}, CubeSat Orbital Re-entry Vehicle System (CORVUS), in a team of 12\\
+& Investigated challenges and possible solutions for CubeSat orbital (LEO) re-entry problem \\
+& In charge of simulation of the re-entry and parameter design for thermal subsystem\\
+
+\end{longtable}
+\vspace*{-1.5em}
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+ & {\bf for Longhorn Rocket Association}\\
+{2012 - 2014} & Designed and implemented software ground station and developed post-flight sensor fusion analysis for a high power (L2) rocket payload, joint with \textit{Scott Almond}\\
+{2011} & Designed and machined model rockets from primitive components (e.g. uncured fiberglass)\\
+
+\end{longtable}
+\vspace*{-1.5em}
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+{2012} & {\bf for Satellite Navigation Courses}, advised by Prof.~Todd Humphreys\\
+	& Built a software GPS receiver based on Square Root Information Filters in MATLAB\\
+	& Tested dual frequency carrier-phase differential GPS capability for the GRID receiver\\
+
+\end{longtable}
+\vspace*{-1.5em}
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+{2010 - 2011} & {\bf TRICK Modeling and Simulation Research Initiatives}, in a team of 6\\
+&	Generated Mars rover landing graphical simulation, results presented at NASA-JSC\\
+&	Developed interfacing codes based on NASA software (TRICK, AGEA, and EDGE)
+\end{longtable}
+\vsrk\vsrk
+\section{GRADUATE COURSEWORK}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+{Spring 2016} & Moduli of Higgs Bundle (Auditing), \emph{Prof.~Andrew Neitzke}\\
+& Kac-Moody Algebras and Groups (Auditing), \emph{Prof.~Daniel Allcock}\\
+& Algebraic Geometry (Auditing), \emph{Prof.~David Ben-Zvi}\\
+& Riemann Surfaces (Auditing), \emph{Prof.~Tim Perutz}\\
+
+{Fall 2015} & Algebra, \emph{Prof.~Felipe Voloch}\\
+& K-theory as it appears in geometry, \emph{Prof.~Dan Freed}\\
+& 4-Manifold Topology (Audited), \emph{Prof.~Robert Gompf}\\
+& Rational Homotopy Theory (Audited), \emph{Dr~Jonathan Campbell}\\
+
+{Spring 2015} & Differential Topology, {\bf A-}, \emph{Prof.~Andrew Neitzke}\\
+& D-modules (Audited), \emph{Dr~Sam Gunningham}\\
+& Ergodic Theory and Dynamics (Audited), \emph{Prof.~Lewis Bowen}\\ 
+
+{Fall 2014} & Real Analysis, {\bf A}, \emph{Prof.~Lewis Bowen}\\
+& Algebraic Topology, {\bf B}, \emph{Prof.~Michael Starbird}\\
+& Homotopy Type Theory (Audited), \emph{Prof.~Andrew Blumberg}\\
+
+{Spring 2014} & Complex Analysis, {\bf A-}, \emph{Prof.~Thomas Chen}\\
+& Stochastic Detection and Estimation, {\bf B+}, \emph{Prof.~Todd Humphreys}\\
+
+{Fall 2013} & Finite Elements Methods, {\bf A}, \emph{Prof.~Mary Wheeler}\\
+
+{Spring 2013} & GPS Signal Processing, {\bf A-}, \emph{Prof.~Todd Humphreys}\\
+\end{longtable}
+\vsrk\vsrk
+\section{CONFERENCE COURSES}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+
+{Fall 2015} & {\bf Topics in algebraic topology}, advised by \emph{Prof.~Andrew Blumberg}\\
+& Mainly studying A Concise Course in Algebraic Topology (e.g. cup products (LS category), Poincar\'e duality, (co)fibrations and (co)fiber sequences, CW complex)
+\end{longtable}
+\vsrk\vsrk
+\section{TALKS}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+{Spring 2016} & {\bf Texas undergraduate Topology And Geometry conference (TexTAG)}, LS category\\
+%& {\bf Mathematics Undergraduate Student Talks}, Discrete differential geometry\\
+{Fall 2015} & {\bf Directed Reading Program (DRP)}, (co)fiber sequences and $\pi_3(S^2)$, mentored by \textit{Ernest Fontes}\\
+{Spring 2015} & {\bf DRP}, What is persistent homology, mentored by \textit{Ahmad Issa}\\
+{Fall 2014} & {\bf DRP}, \v{C}ech cohomology of projective spaces, mentored by \textit{Dr~Yuecheng Zhu}\\
+{Spring 2014} & {\bf DRP}, Classification of Du-val singularities, mentored by \textit{Dr~Yuecheng Zhu}\\
+{Fall 2013} & {\bf DRP}, How to blow up double points in an affine plane and why you should do it too, mentored by \textit{Dr~Hendrik Orem}\\
+\end{longtable}
+\vsrk\vsrk
+\section{MISC. EXTRACURRICULAR}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+{2014 \& 2015} & {\bf Participant}, TexTAG: Texas undergraduate Topology And Geometry conference\\
+{2013 - present} & {\bf Active Member}, Math Club\\
+{2011 - present} & {\bf Coursera, Udacity, and other MOOC experiences}\\
+& Completed with Statement of Accomplishment in Cryptography, Software Testing, Machine Learning, Database Management, Artificial Intelligence, Automata Theory, Epigenetic Control of Gene Expression, Exploring Particle World, and Classical Chinese Philosophy.\\
+{2011 - 2014} & {\bf Active Member}, Longhorn Rocket Association\\
+{May 2014} & {\bf Participant}, LeaderShape Institute\\
+{Summer 2013} & Programmed and assembled FPV-enabled quad-rotor PCB-frame MAV for fun\\
+{2010 - 2011} & {\bf Active Member}, Engineering for a Sustainable World at UT Austin\\
+{2010} & {\bf Member}, IEEE Robotics and Automation Society\\
+& {\bf } Participated in Robot-a-thon autonomous robot building competition\\
+% {2009 - 2010} & {\bf Sustainable Energy Team Project:}\\
+% & Harnessing Energy from Noises and Mechanical Vibrations\\
+% & Investigated actively for innovative solutions with limited resources\\
+% &	Collaborated with generations of teammates for research and experiments\\
+% &	Acquired skills on budget management and expanded knowledge on acoustics and materials\\
+% &	Developed efficient presentation skills while requesting professional opinions and grants\\
+% &	Improved time and stress management skills and scheduling\\
+{2010} & {\bf Active Member}, Freshman Engineering Committee of Student Engineering Council\\
+
+\end{longtable}
+\vsrk\vsrk
+\section{VOLUNTEERING}
+\sepline
+\begin{longtable}{@{}>{\raggedright}p{0.15\linewidth}
+        p{\dimexpr0.85\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+
+{2016} & SXSW (comedy and planning operations crew)\\
+{2015} & Introduce a Girl to Engineering Day (Ballon rockets and iterative engineering design)\\
+{Summer 2013} & UT Radionavigation Lab (Studying WAAS)\\
+{2011} & Habitat for Humanity (Actually helped roofed and fenced a house)\\
+& Explore UT Tour Guide\\
+{2009} & Music Units Societies Everywhere (MUSE) and Bellaire Art Club\\
+{2007 - 2009} & Methodist Hospital and Bellaire City Library\\
+\end{longtable}
+\end{resume} 
+\end{document}
