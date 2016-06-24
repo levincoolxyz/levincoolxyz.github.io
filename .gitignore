@@ -219,4 +219,4 @@ pip-log.txt
 _site/
 
 #unix push commit
-pushnow.sh
+#pushnow.sh
