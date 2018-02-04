@@ -221,4 +221,4 @@ _site/
 #unix push commit
 #pushnow.s
 
-*.synctex.gz
+*.gz
