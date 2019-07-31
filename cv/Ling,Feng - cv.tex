@@ -29,6 +29,19 @@
 %\titlespacing{\subsection}{0pt}{*0}{*0}
 %\titlespacing{\subsubsection}{0pt}{*0}{*0}
 
+\catcode`@=11
+
+\def\nvphantom{\v@true\h@false\nph@nt}
+\def\nhphantom{\v@false\h@true\nph@nt}
+\def\nphantom{\v@true\h@true\nph@nt}
+\def\nph@nt{\ifmmode\def\next{\mathpalette\nmathph@nt}%
+  \else\let\next\nmakeph@nt\fi\next}
+\def\nmakeph@nt#1{\setbox\z@\hbox{#1}\nfinph@nt}
+\def\nmathph@nt#1#2{\setbox\z@\hbox{$\m@th#1{#2}$}\nfinph@nt}
+\def\nfinph@nt{\setbox\tw@\null
+  \ifv@ \ht\tw@\ht\z@ \dp\tw@\dp\z@\fi
+  \ifh@ \wd\tw@-\wd\z@\fi \box\tw@}
+
 \begin{document}
 	\moveleft.5\hoffset\centerline{\huge\bf FENG LING}
 	\smallskip
@@ -46,13 +59,13 @@
 		\vsrk\vsrk
 		\section{EDUCATION}
 		\sepline
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
 			
-			{2016 - } & {\bf University of Southern California}, Los Angeles, CA\\
+			\hspace{-4ex}{2016 - } & {\bf University of Southern California}, Los Angeles, CA\\
 			& {~Ph.D. Candidate, Mechanical Engineering} \textit{(Qualifying Exam 05/09/2018)}\\
 			
-			{2010 - 2015} & {\bf The University of Texas at Austin}, Austin, TX\\
+			\hspace{-4ex}{2010 - 2015} & {\bf The University of Texas at Austin}, Austin, TX\\
 			& {~B.S. Pure Mathematics}, December 2015\\
 			& {~B.S. Aerospace Engineering (Astronautics)}, December 2015\\
 			& {~Computational Science and Engineering Certificate Program}, May 2015\\
@@ -61,23 +74,23 @@
 		\vsrk\vsrk
 		\section{EMPLOYMENT}
 		\sepline
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-			{2017 - } & {\bf Research Assistant}, Bio-Inspired Motion Lab at USC, PI: \textit{Prof.~Eva Kanso}\\
-			{2016} & {\bf Teaching Assistant}, Engineering Thermodynamics (AME 310), \textit{Prof.~J.~Domaradzki and A.~Penkova}\\
-			{2013 - 2015} & {\bf Research Assistant}, Center for Space Research at UT Austin, PI: \textit{Prof.~Srinivas Bettadpur}\\
-			%	{2011} & {\bf Intern}, Zhongchu Development Stock Ltd., Tianjin Xingang Branch
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+			\hspace{-4ex}{2017 - } & {\bf Research Assistant}, Bio-Inspired Motion Lab at USC, PI: \textit{Prof.~Eva Kanso}\\
+			\hspace{-4ex}{2016} & {\bf Teaching Assistant}, Engineering Thermodynamics (AME 310), \textit{Prof.~J.~Domaradzki and A.~Penkova}\\
+			\hspace{-4ex}{2013 - 2015} & {\bf Research Assistant}, Center for Space Research at UT Austin, PI: \textit{Prof.~Srinivas Bettadpur}\\
+			%	\hspace{-4ex}{2011} & {\bf Intern}, Zhongchu Development Stock Ltd., Tianjin Xingang Branch
 		\end{longtable}
 		\vsrk\vsrk
 		\section{HONOR/AWARDS}
 		\sepline
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-			{2015} & {\bf Meritorious Winner} Team Lead, COMAP Mathematical Contest In Modeling\\
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+			\hspace{-4ex}{2015} & {\bf Meritorious Winner} Team Lead, COMAP Mathematical Contest In Modeling\\
 			&~Problem B: Searching a lost aeroplane in open water, locally organized by \textit{Dr.~Andrew Spann}\\
-			{2011} & {\bf Member}, $\Sigma\Gamma$T Aerospace Honor Society UT Austin Chapter \\
-			%	{2010} & {\bf Team Lead}, Student Engineering Council Alternative Energy Challenge 3rd place \\
-			{2010} & {\bf Finalist}, Intel International Science and Engineering Fair \\
+			\hspace{-4ex}{2011} & {\bf Member}, $\Sigma\Gamma$T Aerospace Honor Society UT Austin Chapter \\
+			%	\hspace{-4ex}{2010} & {\bf Team Lead}, Student Engineering Council Alternative Energy Challenge 3rd place \\
+			\hspace{-4ex}{2010} & {\bf Finalist}, Intel International Science and Engineering Fair \\
 			%	{\bf 1st Place Team}, Greater Houston Area Science and Engineering Fair\\
 			%\tab	Harnessing Energy from Noises and Mechanical Vibrations\\
 			%	National AP Scholar, AP Scholar with Distinction\\
@@ -90,110 +103,122 @@
 		\vsrk\vsrk
 		\section{PUBLICATIONS}
 		\sepline
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-			{2019} & Ling, F., K. Katija, D. Stein, M. Shelley, J. Nawroth, and E. Kanso, {Morphological Diversity of Ciliated Epithelia Correlate with Flow Function}, \textit{Nature Physics}, in preparation\\
-			& Ling, F., Y. Man, and E. Kanso, {Cilia Oscillations}, under review\\
-			{2018} & Ling, F., H. Guo, and E. Kanso, {Instability-driven oscillations of elastic
-			microfilaments}, \textit{J.~R.~Soc.~Interface 15:
-			20180594.}\\
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+			\hspace{-4ex}{2019} 
+			& \nhphantom{2. }4. Ling, F., Y. Man, and E. Kanso, Reversal of Flagellar Wave Propagation Is Controlled by Proximal to \\
+			& \hphantom{Ling, F., } Distal Asymmetry in Molecular Motor Dynamics, (in preparation)\\
+			& \nhphantom{2. }3. Ling, F., K. Katija, D. Stein, M. Shelley, J. Nawroth, and E. Kanso, Morphological Diversity of Ciliated \\
+			& \hphantom{Ling, F., } Epithelia Correlate with Flow Function, (in preparation)\\
+			& \nhphantom{2. }2. Ling, F., Y. Man, and E. Kanso, Cilia Oscillations, \textit{Philosophical Transactions B}, (under review)\\
+			\hspace{-4ex}{2018} & \nhphantom{1. }1. Ling, F., H. Guo, and E. Kanso, {Instability-driven oscillations of elastic microfilaments}, \textit{J.~R.~Soc.~Interface} \\
+			& \hphantom{Ling, F., } \textit{15:20180594.}\\
 		\end{longtable}
 		\vsrk\vsrk
 		\section{RESEARCH EXPERIENCE}
 		\sepline
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
 			
-			{2017 - } & {\bf Active Microfilaments}, supervised by \textit{Prof.~Eva Kanso}\\
+			\hspace{-4ex}{2017 - } & {\bf Active Microfilaments}, supervised by \textit{Prof.~Eva Kanso}\\
 			& Understanding the role of buckling instabilities and active forces on mechanics of cilia beating\\
 			& Using porous media models to analyze bulk characteristics of ciliary pumps\\
 			
 		\end{longtable}
 		\vspace*{-4.5ex}
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+			\hspace{-4ex}{2018} & {\bf Trade-offs in Rapid Plant Movements}, supervised by \textit{Prof.~Orit Peleg} and \textit{Dr.~Mattia Serra}\\
+			& MSRI-Janelia Summer Graduate School on Mathematical Analysis of Behavior \textit{(06/17-06/30)}\\
+			& Used beam theory and optimization techniques to study how \textit{Mimosa Pudica} reduces wind drag by folding\\
 			
-			{2016 - } & {\bf 2D Discrete Inverse Spectral Problem}, supervised by \textit{Prof.~Etienne Vouga} and \textit{Prof.~Keenan Crane}\\
+		\end{longtable}
+		\vspace*{-4.5ex}
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+			
+			\hspace{-4ex}{2016 - } & {\bf 2D Discrete Inverse Spectral Problem}, supervised by \textit{Prof.~Etienne Vouga} and \textit{Prof.~Keenan Crane}\\
 			& Reconstructed discrete 2D genus 0 surfaces using only its Laplace-Beltrami spectrum\\
 			
 		\end{longtable}
 		\vspace*{-4.5ex}
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-			{2013 - 2015}	& {\bf At Center for Space Research}, supervised by \textit{Prof.~Srinivas Bettadpur}\\
-			& Parametric study on dynamical effects of different misalignment models between spacecraft accelerometer and center of mass\\
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+			\hspace{-4ex}{2013 - 2015}	& {\bf At Center for Space Research}, supervised by \textit{Prof.~Srinivas Bettadpur}\\
+			& Parametric study of different misalignment models between spacecraft accelerometer and center of mass\\
 			& Coding assists for GRACE spacecraft thermal environment modeling\\
-			& Analyzed correlations between GRACE accelerometer reading anomalies, thruster firing pattern, and star camera measurement deviations \\
+			& Analyzed correlations between accelerometer reading, thruster firing pattern, and star camera anomalies \\
 			& Studied geographical significance of GRACE on-board SNR w.r.t.~post-fit residue of gravity model\\
 			
 		\end{longtable}
 		%\vspace*{-4.5ex}
-		%\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-		%        p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-		%{2014 - 2015} & 
+		%\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+		%        p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+		%\hspace{-4ex}{2014 - 2015} & 
 		%{\bf For the CSE Certificate Program}, advised by \textit{Ren\'e Hiemstra}\\
 		%& Investigated applications of discrete exterior calculus and discrete differential geometry for exact conservation finite element methods (mixed-methods)\\
 		%& Explored some distributed computing implications using OpenMP\\
 		%
 		%\end{longtable}
 %		\vspace*{-4.5ex}
-%		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-%				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-%			{2014} & {\bf Senior Design Project}, CubeSat Orbital Re-entry Vehicle System (CORVUS), in a team of 12\\
+%		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+%				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+%			\hspace{-4ex}{2014} & {\bf Senior Design Project}, CubeSat Orbital Re-entry Vehicle System (CORVUS), in a team of 12\\
 %			& Investigated challenges and possible solutions for the CubeSat orbital (LEO) re-entry problem \\
 %			& In charge of simulation of the re-entry and parameter design for thermal subsystem\\
 %			
 %		\end{longtable}
 %		\vspace*{-4.5ex}
-%		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-%				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-%			{2011 - 2014} & {\bf for Longhorn Rocket Association}\\
+%		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+%				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+%			\hspace{-4ex}{2011 - 2014} & {\bf for Longhorn Rocket Association}\\
 %			& Designed and implemented software ground station and developed post-flight sensor fusion analysis for a high power (L2) rocket payload, joint with \textit{Scott Almond}\\
 %			& Designed and machined model rockets from primitive components (e.g. uncured fiberglass)\\
 %			
 %		\end{longtable}
 		%\vspace*{-4.5ex}
-		%\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-		%        p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-		%{2012} & {\bf for Satellite Navigation Courses}, advised by Prof.~Todd Humphreys\\
+		%\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+		%        p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+		%\hspace{-4ex}{2012} & {\bf for Satellite Navigation Courses}, advised by Prof.~Todd Humphreys\\
 		%	& Built a software GPS receiver based on Square Root Information Filters in MATLAB\\
 		%	& Tested dual frequency carrier-phase differential GPS capability for the GRID receiver\\
 		%
 		%\end{longtable}
 %		\vspace*{-4.5ex}
-%		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-%				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-%			{2010 - 2011} & {\bf TRICK Modeling and Simulation Research Initiatives}, in a team of 6\\
+%		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+%				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+%			\hspace{-4ex}{2010 - 2011} & {\bf TRICK Modeling and Simulation Research Initiatives}, in a team of 6\\
 %			&	Generated Mars rover landing graphical simulation, results presented at NASA-JSC\\
 %			&	Developed interfacing codes based on NASA software (TRICK, AGEA, and EDGE)\\[-1ex]
 %		\end{longtable}
 		\vsrk\vsrk
 		\section{TALKS/PRESENTATIONS}
 		\sepline
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-			{2019} & {\bf SHINE USC}, Experiments on the Fantastic Strangeness of Viscosity and Elasticity\\
-			{2018} & {\bf APS Division of Fluid Dynamics (DFD) Meeting}, Ciliary Pumps\\
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+			\hspace{-4ex}{2019} & {\bf APS Division of Fluid Dynamics Meeting}, Reversal of Flagellar Wave Propagation Is Controlled by Proximal to Distal Asymmetry in Molecular Motor Dynamics\\
+			{} & {\bf SHINE USC}, Experiments on the Fantastic Strangeness of Viscosity and Elasticity\\
+			\hspace{-4ex}{2018} & {\bf APS Division of Fluid Dynamics Meeting}, Ciliary Pumps\\
 			{} & {\bf APS March Meeting}, Instability-driven Oscillations of Active Microfilament\\
-			{2017} & {\bf APS DFD Meeting}, Dynamics of Active Microfilaments\\
-			{2016} & {\bf Mathematics Undergraduate Student Talks (MUST)}, LS category and its cousins\\
-			{2015} & {\bf Directed Reading Program (DRP)}, (co)fiber sequences and $\pi_3(S^2)$, mentor: \textit{Ernest Fontes}\\
-			{} & {\bf DRP}, What is persistent homology, mentor: \textit{Ahmad Issa}\\
-			{2014} & {\bf DRP}, \v{C}ech cohomology of projective spaces, mentor: \textit{Yuecheng Zhu}\\
-			{} & {\bf DRP}, Classification of Du-val singularities, mentor: \textit{Yuecheng Zhu}\\
-			{2013} & {\bf DRP}, How to blow up double points in a plane \& why you should do it too, mentor: \textit{Hendrik Orem}\\
+			\hspace{-4ex}{2017} & {\bf APS Division of Fluid Dynamics Meeting}, Dynamics of Active Microfilaments\\
+			\hspace{-4ex}{2016} & {\bf Mathematics Undergraduate Student Talks}, LS Category and its Cousins\\
+			\hspace{-4ex}{2015} & {\bf Directed Reading Program}, (Co)fiber Sequences and $\pi_3(S^2)$, mentor: \textit{Ernest Fontes}\\
+			{} & {\bf Directed Reading Program}, What is Persistent Homology, mentor: \textit{Ahmad Issa}\\
+			\hspace{-4ex}{2014} & {\bf Directed Reading Program}, \v{C}ech Cohomology of Projective Spaces, mentor: \textit{Yuecheng Zhu}\\
+			{} & {\bf Directed Reading Program}, Classification of Du-val Singularities, mentor: \textit{Yuecheng Zhu}\\
+			\hspace{-4ex}{2013} & {\bf Directed Reading Program}, How to Blow-up Double Points in a Plane, mentor: \textit{Hendrik Orem}\\
 		\end{longtable}
 %		\vsrk\vsrk
 		\section{GRADUATE COURSEWORK}
 		\sepline
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
 			& \textbf{at University of Southern California} \\
-			{2018} & Transition to Chaos in Dynamical Systems, \emph{Prof.~Paul Newton}\\
+			\hspace{-4ex}{2018} & Transition to Chaos in Dynamical Systems, \emph{Prof.~Paul Newton}\\
 			& Mechanics of Locomotion in Air, Water, and on Land, \emph{Prof.~Eva Kanso}\\
-			{2017} & Thermodynamics and Statistical Mechanics, \emph{Prof.~Christoph Haselwandter}\\
+			\hspace{-4ex}{2017} & Thermodynamics and Statistical Mechanics, \emph{Prof.~Christoph Haselwandter}\\
 			{} & Incompressible Fluids and Turbulence, \emph{Prof.~Mitul Luhar}\\
-			{2016} & Fokas method (audit), \emph{Prof.~Athanassios Fokas}\\
+			\hspace{-4ex}{2016} & Fokas method (audit), \emph{Prof.~Athanassios Fokas}\\
 			
 			& \textbf{at the University of Texas at Austin} \\
 			
@@ -202,7 +227,7 @@
 			& Riemann Surfaces (audit), \emph{Prof.~Tim Perutz}\\
 			& Moduli of Higgs Bundle (audit), \emph{Prof.~Andrew Neitzke}\\
 			
-			{2015} & Algebra, \emph{Prof.~Felipe Voloch}\\
+			\hspace{-4ex}{2015} & Algebra, \emph{Prof.~Felipe Voloch}\\
 			& K-theory as it appears in geometry, \emph{Prof.~Dan Freed}\\
 			& 4-Manifold Topology (audit), \emph{Prof.~Robert Gompf}\\
 			& Rational Homotopy Theory (audit), \emph{Dr~Jonathan Campbell}\\
@@ -211,22 +236,22 @@
 			& D-modules (audit), \emph{Dr~Sam Gunningham}\\
 			& Ergodic Theory and Dynamics (audit), \emph{Prof.~Lewis Bowen}\\ 
 			
-			{2014} & Real Analysis, \emph{Prof.~Lewis Bowen}\\
+			\hspace{-4ex}{2014} & Real Analysis, \emph{Prof.~Lewis Bowen}\\
 			& Algebraic Topology, \emph{Prof.~Michael Starbird}\\
 			& Homotopy Type Theory (audit), \emph{Prof.~Andrew Blumberg}\\
 			
 			{} & Complex Analysis, \emph{Prof.~Thomas Chen}\\
 			& Stochastic Detection and Estimation, \emph{Prof.~Todd Humphreys}\\
 			
-			{2013} & Finite Elements Methods, \emph{Prof.~Mary Wheeler}\\
+			\hspace{-4ex}{2013} & Finite Elements Methods, \emph{Prof.~Mary Wheeler}\\
 			
 			{} & GPS Signal Processing, \emph{Prof.~Todd Humphreys}\\
 		\end{longtable}
 		\vsrk\vsrk
 		%\section{CONFERENCE COURSES}
 		%\sepline
-		%\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-		%        p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+		%\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+		%        p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
 		%
 		%{Fall 2015} & {\bf Topics in algebraic topology}, advised by \emph{Prof.~Andrew Blumberg}\\
 		%& Mainly studying A Concise Course in Algebraic Topology (e.g. cup products (LS category), Poincar\'e duality, (co)fibrations and (co)fiber sequences, CW complex)
@@ -234,33 +259,33 @@
 		%\vsrk\vsrk
 		\section{MISC. ASSOCIATIONS}
 		\sepline
-		\begin{longtable}{@{}>{\raggedright}p{0.11\linewidth}
-				p{\dimexpr0.89\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
-			{2019} & Judging for USC Undergraduate Symposium for Scholarly and Creative Work\\
-			{2018 - } & Designated pot washer for Good Karma Cafe at USC (volunteer)\\
-			{2017} & USC Wrigley Marine Science Institute Spring Break Program on Sustainability\\
-			{2016 - } & DTLA Weightlifting at Trojan Athletics\\
-			{2016} & Volunteering for SXSW comedy and planning operations crew\\
-			{2015} & Volunteer at Introduce a Girl to Engineering Day (Ballon rockets and iterative engineering design)\\
-			{2014 - 2016} & Participant of Texas Undergraduate Topology and Geometry conference\\
-			{2013 - 2016} & Active member of Math Club at UT Austin (should've bought a shirt)\\
-			%{2013} & UT Radionavigation Lab (Studying WAAS)\\
-			{2011 - 2016} & Coursera, Udacity, and other MOOCs in
+		\begin{longtable}{@{}>{\raggedright}p{0.07\linewidth}
+				p{\dimexpr0.95\linewidth-2\tabcolsep-\arrayrulewidth\relax}@{}}
+			\hspace{-4ex}{2019} & Judging for USC Undergraduate Symposium for Scholarly and Creative Work\\
+			\hspace{-4ex}{2018 - } & Designated pot washer for Good Karma Cafe at USC (volunteer)\\
+			\hspace{-4ex}{2017} & USC Wrigley Marine Science Institute Spring Break Program on Sustainability\\
+			\hspace{-4ex}{2016 - } & DTLA Weightlifting at Trojan Athletics\\
+			\hspace{-4ex}{2016} & Volunteering for SXSW comedy and planning operations crew\\
+			\hspace{-4ex}{2015} & Volunteer at Introduce a Girl to Engineering Day (Ballon rockets and iterative engineering design)\\
+			\hspace{-4ex}{2014 - 2016} & Participant of Texas Undergraduate Topology and Geometry conference\\
+			\hspace{-4ex}{2013 - 2016} & Active member of Math Club at UT Austin (should've bought a shirt)\\
+			%\hspace{-4ex}{2013} & UT Radionavigation Lab (Studying WAAS)\\
+			\hspace{-4ex}{2011 - 2016} & Coursera, Udacity, and other MOOCs in
 			Cryptography, Software Testing, Machine Learning, Database Management, AI, Automata Theory, Epigenetic Control of Gene Expression...\\
-			{2011 - 2014} & Longhorn Rocket Association (model rockets and software ground station work for a L2 rocket)\\
-			%{2014} & LeaderShape Institute\\
-			%{2013} & Programmed and assembled FPV-enabled quad-rotor PCB-frame MAV\\
-			{2010 - 2011} & Member of Engineering for a Sustainable World, Robotics and Automation Society at UT Austin; Explore UT Guide; Austin Habitat for Humanity (helped roofed and fenced a house)\\
-			% {2009 - 2010} & {\bf Sustainable Energy Team Project:}\\
+			\hspace{-4ex}{2011 - 2014} & Longhorn Rocket Association (model rockets and software ground station work for a L2 rocket)\\
+			%\hspace{-4ex}{2014} & LeaderShape Institute\\
+			%\hspace{-4ex}{2013} & Programmed and assembled FPV-enabled quad-rotor PCB-frame MAV\\
+			\hspace{-4ex}{2010 - 2011} & Member of Engineering for a Sustainable World, Robotics and Automation Society at UT Austin; Explore UT Guide; Austin Habitat for Humanity (helped roofed and fenced a house)\\
+			% \hspace{-4ex}{2009 - 2010} & {\bf Sustainable Energy Team Project:}\\
 			% & Harnessing Energy from Noises and Mechanical Vibrations\\
 			% & Investigated actively for innovative solutions with limited resources\\
 			% &	Collaborated with generations of teammates for research and experiments\\
 			% &	Acquired skills on budget management and expanded knowledge on acoustics and materials\\
 			% &	Developed efficient presentation skills while requesting professional opinions and grants\\
 			% &	Improved time and stress management skills and scheduling\\
-			% {2010} & {\bf Active Member}, Freshman Engineering Committee of Student Engineering Council\\
-			%{2009} & Music Units Societies Everywhere (MUSE) and Bellaire Art Club\\
-			{2007 - 2009} & Volunteer work at Houston Methodist Hospital and Bellaire City Library\\
+			% \hspace{-4ex}{2010} & {\bf Active Member}, Freshman Engineering Committee of Student Engineering Council\\
+			%\hspace{-4ex}{2009} & Music Units Societies Everywhere (MUSE) and Bellaire Art Club\\
+			\hspace{-4ex}{2007 - 2009} & Volunteer work at Houston Methodist Hospital and Bellaire City Library\\
 			
 		\end{longtable}
 	\end{resume} 
