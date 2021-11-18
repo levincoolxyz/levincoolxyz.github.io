@@ -166,9 +166,17 @@ footer img {
     z-index:2;
 }
 
-.image_off, #facelogo:hover .image_on{
-   display:none
-}
-.image_on, #facelogo:hover .image_off{
-   display:block
-}
+#facelogo {
+	display:block; 
+	width:134px; 
+	height:134px; 
+	background:url("/images/facelogo.png") left top no-repeat;
+	}
+#facelogo:hover img {
+	position:absolute;
+	left:-999em;
+	top:-999em;
+	}
+#facelogo:hover {
+	zoom:1;
+	}
