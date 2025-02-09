@@ -362,38 +362,50 @@ Have fun annotating!`);
     
     // --- Reparameterize each filament to 100 points, shift so first point is [0,0], compute velocities.
     function reparameterizeFilament(fil, numPoints) {
-      // Convert normalized to pixel coordinates.
-      let pts = fil.map(p => [p[0] * canvas.width, p[1] * canvas.height]);
-      let cumDist = [0];
-      for (let i = 1; i < pts.length; i++) {
-        let dx = pts[i][0] - pts[i-1][0];
-        let dy = pts[i][1] - pts[i-1][1];
-        cumDist.push(cumDist[i-1] + Math.hypot(dx, dy));
-      }
-      let totalLength = cumDist[cumDist.length - 1];
-      let newPts = [];
-      for (let j = 0; j < numPoints; j++) {
-        let d = totalLength * j / (numPoints - 1);
-        let i = 0;
-        while (i < cumDist.length - 1 && cumDist[i+1] < d) i++;
-        let t = (d - cumDist[i]) / (cumDist[i+1] - cumDist[i]);
-        let x = pts[i][0] + t * (pts[i+1][0] - pts[i][0]);
-        let y = pts[i][1] + t * (pts[i+1][1] - pts[i][1]);
-        newPts.push([x, y]);
-      }
-      // Shift so that first point is [0,0]
-      let shiftX = newPts[0][0], shiftY = newPts[0][1];
-      newPts = newPts.map(p => [p[0] - shiftX, p[1] - shiftY]);
-      // Convert to physical coordinates (um)
-      newPts = newPts.map(p => [p[0] * px2um, p[1] * px2um]);
-      // Compute velocities (um/s)
-      let velocities = [];
-      for (let j = 1; j < newPts.length; j++) {
-        let dx = newPts[j][0] - newPts[j-1][0];
-        let dy = newPts[j][1] - newPts[j-1][1];
-        velocities.push(Math.hypot(dx, dy) * fps);
-      }
-      return { points: newPts, velocities: velocities };
+    if (fil.length < 2)
+            return { points: [], velocities: [] };
+    
+        // Convert normalized points to pixel coordinates.
+        let pts = fil.map(p => [ p[0] * canvas.width, p[1] * canvas.height ]);
+        let cumDist = [0];
+        for (let i = 1; i < pts.length; i++) {
+            let dx = pts[i][0] - pts[i-1][0];
+            let dy = pts[i][1] - pts[i-1][1];
+            cumDist.push(cumDist[i-1] + Math.hypot(dx, dy));
+        }
+        let totalLength = cumDist[cumDist.length - 1];
+        let newPts = [];
+        for (let j = 0; j < numPoints; j++) {
+            let d = totalLength * j / (numPoints - 1);
+            let i = 0;
+            while (i < cumDist.length - 1 && cumDist[i+1] < d) {
+                i++;
+            }
+            // If d is at or beyond the last segment, force the last segment.
+            if (i >= cumDist.length - 1) {
+                i = cumDist.length - 2;
+                t = 1;
+            } else {
+                let segmentLength = cumDist[i+1] - cumDist[i];
+                var t = segmentLength === 0 ? 0 : (d - cumDist[i]) / segmentLength;
+            }
+            let x = pts[i][0] + t * (pts[i+1][0] - pts[i][0]);
+            let y = pts[i][1] + t * (pts[i+1][1] - pts[i][1]);
+            newPts.push([x, y]);
+        }
+        // Shift so that the first point is [0,0]
+        let shiftX = newPts[0][0], shiftY = newPts[0][1];
+        newPts = newPts.map(p => [ p[0] - shiftX, p[1] - shiftY ]);
+        // Convert to physical units (um)
+        newPts = newPts.map(p => [ p[0] * px2um, p[1] * px2um ]);
+        // Compute velocities (um/s)
+        let velocities = [];
+        for (let j = 1; j < newPts.length; j++) {
+            let dx = newPts[j][0] - newPts[j-1][0];
+            let dy = newPts[j][1] - newPts[j-1][1];
+            velocities.push(Math.hypot(dx, dy) * fps);
+        }
+        return { points: newPts, velocities: velocities };
     }
     
     // --- CSV Export ---
@@ -404,7 +416,7 @@ Have fun annotating!`);
       csvContent += `px2um,${px2um}\n`;
       csvContent += `nFrames,${images.length > 0 ? images.length : 1}\n`;
       csvContent += `fps,${fps}\n\n`;
-      let reparamData = filamentCoords.map(fil => reparameterizeFilament(fil, 100));
+      let reparamData = filamentCoords.map(fil => reparameterizeFilament(fil, 20));
       csvContent += "X-coordinates (um):\n";
       reparamData.forEach(data => {
         let xs = data.points.map(p => p[0].toFixed(12));
