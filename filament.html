@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Filament Trace Web App</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #333;
+      color: #eee;
+    }
+    /* Center container with a dashed border when no image is loaded */
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      position: relative;
+      border: 2px dashed #777;
+      min-height: 300px;
+    }
+    /* When an image is loaded, hide the drop text */
+    #dropText {
+      position: absolute;
+      top: 40%;
+      text-align: center;
+      width: 100%;
+      font-size: 24px;
+      color: #aaa;
+      pointer-events: none;
+    }
+    /* Canvases */
+    canvas { background: #000; display: block; }
+    #canvas2 { background: #222; margin-top: 20px; }
+    #scaleBarCanvas { background: #333; margin-top: 10px; }
+    /* Image indicator */
+    #imgIndicator {
+      margin-top: 10px;
+      color: #eee;
+      font-size: 16px;
+    }
+    /* Fixed-position buttons */
+    .button {
+      position: fixed;
+      background: #555;
+      color: #eee;
+      border: none;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      z-index: 10;
+    }
+    #btnLoad { top: 10px; left: 10px; }
+    #btnNext { top: 10px; left: 150px; }
+    #btnReset { top: 10px; left: 320px; }
+    #btnUndo { top: 10px; left: 490px; }
+    #btnCalib { top: 60px; left: 10px; }
+    #btnSmooth { top: 60px; left: 150px; }
+    #btnExport { top: 60px; left: 320px; }
+    /* Navigation buttons */
+    #btnPrev { bottom: 10px; left: 10px; }
+    #btnNextImg { bottom: 10px; right: 10px; }
+    #fileInput { display: none; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="dropText">Drag & Drop Image Files Here</div>
+    <!-- Main image canvas -->
+    <canvas id="canvas"></canvas>
+    <!-- Second canvas: saved filaments shifted so each first point appears at center -->
+    <canvas id="canvas2" height="200"></canvas>
+    <!-- Scale bar canvas -->
+    <canvas id="scaleBarCanvas" height="50"></canvas>
+    <!-- Image indicator -->
+    <div id="imgIndicator"></div>
+  </div>
+  <!-- Control Buttons -->
+  <button id="btnLoad" class="button">Load (L)</button>
+  <button id="btnNext" class="button">Next Filament (N)</button>
+  <button id="btnReset" class="button">Reset (R)</button>
+  <button id="btnUndo" class="button">Undo (U)</button>
+  <button id="btnCalib" class="button">Calib (C)</button>
+  <button id="btnSmooth" class="button">Smooth (S)</button>
+  <button id="btnExport" class="button">Export (E)</button>
+  <button id="btnPrev" class="button">&lt;</button>
+  <button id="btnNextImg" class="button">&gt;</button>
+  <input type="file" id="fileInput" accept="image/*" multiple>
+  <script>
+    // Global variables (JS numbers are double precision)
+    const container = document.getElementById('container');
+    const dropText = document.getElementById('dropText');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const canvas2 = document.getElementById('canvas2');
+    const ctx2 = canvas2.getContext('2d');
+    const scaleBarCanvas = document.getElementById('scaleBarCanvas');
+    const scaleCtx = scaleBarCanvas.getContext('2d');
+    const imgIndicator = document.getElementById('imgIndicator');
+    // Filament points stored as normalized [x,y]
+    let currentFilament = [];
+    let filamentCoords = [];
+    // For main canvas display: stored filaments with fading
+    let storedFilaments = [];
+    let arclengths = [];
+    let tangentAngles = [];
+    let px2um = 0.01;
+    let fps = 1; // default FPS
+    let images = [];
+    let currentImageIndex = 0;
+    let currentImage = new Image();
+    let calibrationActive = false;
+    
+    // When an image loads, hide drop text and update indicator.
+    currentImage.onload = function() {
+      dropText.style.display = 'none';
+      resizeCanvas();
+      draw();
+      drawSaved();
+      drawScaleBar();
+      updateIndicator();
+    };
+    
+    // Resize main canvas: 75% of window width, preserving aspect ratio.
+    function resizeCanvas() {
+      if (!currentImage.width) return;
+      const desiredWidth = window.innerWidth * 0.75;
+      const scale = desiredWidth / currentImage.width;
+      const desiredHeight = currentImage.height * scale;
+      canvas.width = desiredWidth;
+      canvas.height = desiredHeight;
+      canvas2.width = desiredWidth;
+      scaleBarCanvas.width = desiredWidth;
+    }
+    
+    window.addEventListener('resize', () => {
+      if (currentImage.complete) {
+        resizeCanvas();
+        draw();
+        drawSaved();
+        drawScaleBar();
+      }
+    });
+    
+    // Update image indicator
+    function updateIndicator() {
+      if (images.length > 0) {
+        imgIndicator.innerText = `Showing image ${currentImageIndex + 1} out of ${images.length}`;
+      } else {
+        imgIndicator.innerText = "";
+      }
+    }
+    
+    // Show user guide on load.
+    window.addEventListener('load', function() {
+      alert(`Welcome to Filament Trace GUI
+
+Instructions:
+• Left-click on the image area to add red points (points appear immediately).
+• Drag & drop image files or press L to load images.
+• If multiple images are loaded, you will be prompted for frame-per-second (FPS).
+• Press N to save the current filament (first and last points remain fixed during smoothing) and advance to the next image.
+• Press R to reset the current annotation.
+• Press U to undo the last point (or restore previous filament if none exist).
+• Press C to calibrate the scale bar (click two points then enter physical length in μm).
+• Press S to smooth saved filaments using a Savitzky–Golay filter (with endpoints fixed).
+• Press E to export filament data as CSV.
+• Use J (previous) and K (next) keys to navigate images.
+Have fun annotating!`);
+      if (currentImage.complete) {
+        resizeCanvas();
+        draw();
+        drawSaved();
+        drawScaleBar();
+        updateIndicator();
+      }
+    });
+    
+    // --- Drag & Drop and File Loading ---
+    container.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      container.style.borderColor = '#aaa';
+    });
+    container.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      container.style.borderColor = '#777';
+    });
+    container.addEventListener('drop', function(e) {
+      e.preventDefault();
+      container.style.borderColor = '#777';
+      const dt = e.dataTransfer;
+      const files = Array.from(dt.files).filter(file => file.type.startsWith("image/"));
+      if (files.length > 0) {
+        loadFiles(files);
+      }
+    });
+    
+    const btnLoad = document.getElementById('btnLoad');
+    const fileInput = document.getElementById('fileInput');
+    btnLoad.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      loadFiles(files);
+    });
+    
+    function loadFiles(files) {
+      files.sort((a, b) => a.name.localeCompare(b.name));
+      images = [];
+      const loadPromises = [];
+      for (let file of files) {
+        const img = new Image();
+        let promise = new Promise(resolve => { img.onload = () => resolve(img); });
+        img.src = URL.createObjectURL(file);
+        loadPromises.push(promise);
+        images.push(img);
+      }
+      Promise.all(loadPromises).then(loadedImages => {
+        currentImageIndex = 0;
+        currentImage = loadedImages[0];
+        dropText.style.display = 'none';
+        if (loadedImages.length > 1) {
+          const input = prompt("Image sequence detected (multiple image files selected), please specify frame-per-second (FPS):", "1");
+          fps = parseFloat(input) || 1;
+        } else {
+          fps = 1;
+        }
+        resizeCanvas();
+        draw();
+        drawSaved();
+        drawScaleBar();
+        updateIndicator();
+      });
+    }
+    
+    // --- Filament Functions ---
+    const btnNext = document.getElementById('btnNext');
+    btnNext.addEventListener('click', nextFilament);
+    function nextFilament() {
+      if (currentFilament.length === 0) return;
+      filamentCoords.push([...currentFilament]);
+      let length = 0, angles = [];
+      for (let i = 1; i < currentFilament.length; i++) {
+        const x1 = currentFilament[i-1][0] * canvas.width;
+        const y1 = currentFilament[i-1][1] * canvas.height;
+        const x2 = currentFilament[i][0] * canvas.width;
+        const y2 = currentFilament[i][1] * canvas.height;
+        const dx = x2 - x1, dy = y2 - y1;
+        length += Math.hypot(dx, dy);
+        angles.push(Math.atan2(dy, dx));
+      }
+      arclengths.push(length);
+      tangentAngles.push(angles);
+      storedFilaments.forEach(f => f.opacity *= 0.5);
+      storedFilaments.push({ points: [...currentFilament], opacity: 1 });
+      currentFilament = [];
+      if (images.length > 1) {
+        currentImageIndex = (currentImageIndex + 1) % images.length;
+        currentImage = images[currentImageIndex];
+        if (currentImage.complete) {
+          resizeCanvas();
+          draw();
+          drawSaved();
+          drawScaleBar();
+          updateIndicator();
+        } else {
+          currentImage.onload = function() {
+            resizeCanvas();
+            draw();
+            drawSaved();
+            drawScaleBar();
+            updateIndicator();
+          };
+        }
+      }
+      draw();
+      drawSaved();
+      updateIndicator();
+    }
+    
+    const btnReset = document.getElementById('btnReset');
+    btnReset.addEventListener('click', () => { currentFilament = []; draw(); });
+    
+    const btnUndo = document.getElementById('btnUndo');
+    btnUndo.addEventListener('click', undoPoint);
+    function undoPoint() {
+      if (currentFilament.length > 0) {
+        currentFilament.pop();
+      } else if (filamentCoords.length > 0) {
+        currentFilament = filamentCoords.pop();
+        if (storedFilaments.length > 0) storedFilaments.pop();
+      } else {
+        console.log("Nothing to undo.");
+      }
+      draw();
+      drawSaved();
+    }
+    
+    const btnCalib = document.getElementById('btnCalib');
+    btnCalib.addEventListener('click', calibrate);
+    function calibrate() {
+      alert("Click two points on the image to set scale bar information.");
+      calibrationActive = true;
+      let calibPoints = [];
+      function calibClick(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        calibPoints.push([x, y]);
+        if (calibPoints.length === 2) {
+          canvas.removeEventListener('click', calibClick);
+          calibrationActive = false;
+          const dx = calibPoints[1][0] - calibPoints[0][0];
+          const dy = calibPoints[1][1] - calibPoints[0][1];
+          const pixelDist = Math.hypot(dx, dy);
+          let realDist = prompt("Enter the physical length (um):");
+          realDist = parseFloat(realDist);
+          if (realDist > 0) {
+            px2um = realDist / pixelDist;
+            draw();
+            drawScaleBar();
+          } else {
+            alert("Invalid input.");
+          }
+        }
+      }
+      canvas.addEventListener('click', calibClick);
+    }
+    
+    // --- Smoothing using Savitzky–Golay filter (5-point window, endpoints fixed) ---
+    function sgolaySmooth(arr) {
+      if (arr.length < 5) return arr.slice();
+      let smoothed = arr.slice();
+      for (let i = 2; i < arr.length - 2; i++) {
+        smoothed[i] = (-3 * arr[i-2] + 12 * arr[i-1] + 17 * arr[i] + 12 * arr[i+1] - 3 * arr[i+2]) / 35;
+      }
+      return smoothed;
+    }
+    const btnSmooth = document.getElementById('btnSmooth');
+    btnSmooth.addEventListener('click', smoothFilaments);
+    function smoothFilaments() {
+      for (let i = 0; i < filamentCoords.length; i++) {
+        let pts = filamentCoords[i];
+        let xs = pts.map(p => p[0]);
+        let ys = pts.map(p => p[1]);
+        let smoothX = sgolaySmooth(xs);
+        let smoothY = sgolaySmooth(ys);
+        // Fix endpoints.
+        smoothX[0] = xs[0];
+        smoothX[smoothX.length - 1] = xs[xs.length - 1];
+        smoothY[0] = ys[0];
+        smoothY[smoothY.length - 1] = ys[ys.length - 1];
+        let newPts = smoothX.map((x, j) => [x, smoothY[j]]);
+        filamentCoords[i] = newPts;
+      }
+      for (let i = 0; i < storedFilaments.length; i++) {
+        storedFilaments[i].points = filamentCoords[i];
+      }
+      draw();
+      drawSaved();
+    }
+    
+    // --- Reparameterize each filament to 100 points, shift so first point is [0,0], compute velocities.
+    function reparameterizeFilament(fil, numPoints) {
+      // Convert normalized to pixel coordinates.
+      let pts = fil.map(p => [p[0] * canvas.width, p[1] * canvas.height]);
+      let cumDist = [0];
+      for (let i = 1; i < pts.length; i++) {
+        let dx = pts[i][0] - pts[i-1][0];
+        let dy = pts[i][1] - pts[i-1][1];
+        cumDist.push(cumDist[i-1] + Math.hypot(dx, dy));
+      }
+      let totalLength = cumDist[cumDist.length - 1];
+      let newPts = [];
+      for (let j = 0; j < numPoints; j++) {
+        let d = totalLength * j / (numPoints - 1);
+        let i = 0;
+        while (i < cumDist.length - 1 && cumDist[i+1] < d) i++;
+        let t = (d - cumDist[i]) / (cumDist[i+1] - cumDist[i]);
+        let x = pts[i][0] + t * (pts[i+1][0] - pts[i][0]);
+        let y = pts[i][1] + t * (pts[i+1][1] - pts[i][1]);
+        newPts.push([x, y]);
+      }
+      // Shift so that first point is [0,0]
+      let shiftX = newPts[0][0], shiftY = newPts[0][1];
+      newPts = newPts.map(p => [p[0] - shiftX, p[1] - shiftY]);
+      // Convert to physical coordinates (um)
+      newPts = newPts.map(p => [p[0] * px2um, p[1] * px2um]);
+      // Compute velocities (um/s)
+      let velocities = [];
+      for (let j = 1; j < newPts.length; j++) {
+        let dx = newPts[j][0] - newPts[j-1][0];
+        let dy = newPts[j][1] - newPts[j-1][1];
+        velocities.push(Math.hypot(dx, dy) * fps);
+      }
+      return { points: newPts, velocities: velocities };
+    }
+    
+    // --- CSV Export ---
+    const btnExport = document.getElementById('btnExport');
+    btnExport.addEventListener('click', exportData);
+    function exportData() {
+      let csvContent = "";
+      csvContent += `px2um,${px2um}\n`;
+      csvContent += `nFrames,${images.length > 0 ? images.length : 1}\n`;
+      csvContent += `fps,${fps}\n\n`;
+      let reparamData = filamentCoords.map(fil => reparameterizeFilament(fil, 100));
+      csvContent += "X-coordinates (um):\n";
+      reparamData.forEach(data => {
+        let xs = data.points.map(p => p[0].toFixed(12));
+        csvContent += xs.join(",") + "\n";
+      });
+      csvContent += "\nY-coordinates (um):\n";
+      reparamData.forEach(data => {
+        let ys = data.points.map(p => p[1].toFixed(12));
+        csvContent += ys.join(",") + "\n";
+      });
+      csvContent += "\nTangent Angles (rad):\n";
+      reparamData.forEach(data => {
+        let pts = data.points;
+        let angs = [];
+        for (let j = 1; j < pts.length; j++) {
+          let dx = pts[j][0] - pts[j-1][0];
+          let dy = pts[j][1] - pts[j-1][1];
+          angs.push(Math.atan2(dy, dx).toFixed(12));
+        }
+        csvContent += angs.join(",") + "\n";
+      });
+      csvContent += "\nArc Lengths (um):\n";
+      reparamData.forEach(data => {
+        let pts = data.points;
+        let total = 0;
+        for (let j = 1; j < pts.length; j++) {
+          let dx = pts[j][0] - pts[j-1][0];
+          let dy = pts[j][1] - pts[j-1][1];
+          total += Math.hypot(dx, dy);
+        }
+        csvContent += total.toFixed(12) + "\n";
+      });
+      csvContent += "\nVelocities (um/s):\n";
+      reparamData.forEach(data => {
+        csvContent += data.velocities.map(v => v.toFixed(12)).join(",") + "\n";
+      });
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0,10);
+      a.download = `filament_trace_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+    
+    // --- Image Navigation using keys J and K and on-screen buttons ---
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNextImg = document.getElementById('btnNextImg');
+    btnPrev.addEventListener('click', prevImage);
+    btnNextImg.addEventListener('click', nextImage);
+    function prevImage() {
+      if (images.length > 1) {
+        currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+        currentImage = images[currentImageIndex];
+        if (currentImage.complete) {
+          resizeCanvas();
+          draw();
+          drawSaved();
+          drawScaleBar();
+          updateIndicator();
+        } else {
+          currentImage.onload = function() {
+            resizeCanvas();
+            draw();
+            drawSaved();
+            drawScaleBar();
+            updateIndicator();
+          };
+        }
+      }
+    }
+    function nextImage() {
+      if (images.length > 1) {
+        currentImageIndex = (currentImageIndex + 1) % images.length;
+        currentImage = images[currentImageIndex];
+        if (currentImage.complete) {
+          resizeCanvas();
+          draw();
+          drawSaved();
+          drawScaleBar();
+          updateIndicator();
+        } else {
+          currentImage.onload = function() {
+            resizeCanvas();
+            draw();
+            drawSaved();
+            drawScaleBar();
+            updateIndicator();
+          };
+        }
+      }
+    }
+    
+    // --- Canvas click for drawing points ---
+    canvas.addEventListener('click', function(e) {
+      if (calibrationActive) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      currentFilament.push([x / canvas.width, y / canvas.height]);
+      draw();
+    });
+    
+    // --- Key Bindings ---
+    window.addEventListener('keydown', function(e) {
+      switch(e.key.toLowerCase()){
+        case 'l': e.preventDefault(); btnLoad.click(); break;
+        case 'n': e.preventDefault(); nextFilament(); break;
+        case 'r': e.preventDefault(); currentFilament = []; draw(); break;
+        case 'u': e.preventDefault(); undoPoint(); break;
+        case 'c': e.preventDefault(); calibrate(); break;
+        case 's': e.preventDefault(); smoothFilaments(); break;
+        case 'e': e.preventDefault(); exportData(); break;
+        case 'j': e.preventDefault(); prevImage(); break;
+        case 'k': e.preventDefault(); nextImage(); break;
+      }
+    });
+    
+    // --- Drawing Functions ---
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (currentImage.complete) {
+        ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+      }
+      // Draw stored filaments on main canvas with onion-skin fading.
+      storedFilaments.forEach(fil => {
+        ctx.strokeStyle = `rgba(255,0,0,${fil.opacity})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        fil.points.forEach((pt, i) => {
+          let x = pt[0] * canvas.width;
+          let y = pt[1] * canvas.height;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        fil.points.forEach(pt => {
+          ctx.fillStyle = `rgba(255,0,0,${fil.opacity})`;
+          ctx.beginPath();
+          ctx.arc(pt[0] * canvas.width, pt[1] * canvas.height, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        });
+      });
+      // Draw current filament in full red.
+      if (currentFilament.length > 0) {
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        currentFilament.forEach((pt, i) => {
+          let x = pt[0] * canvas.width;
+          let y = pt[1] * canvas.height;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        currentFilament.forEach(pt => {
+          ctx.fillStyle = 'red';
+          ctx.beginPath();
+          ctx.arc(pt[0] * canvas.width, pt[1] * canvas.height, 3, 0, 2 * Math.PI);
+          ctx.fill();
+        });
+      }
+    }
+    
+    // In the second canvas, shift each filament so that its first point is at the center.
+    function drawSaved() {
+      ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+      filamentCoords.forEach(fil => {
+        // Convert normalized points to canvas2 pixels.
+        let pts = fil.map(p => [p[0] * canvas2.width, p[1] * canvas2.height]);
+        // Shift so that first point is at (canvas2.width/2, canvas2.height/2).
+        let offsetX = pts[0][0];
+        let offsetY = pts[0][1];
+        pts = pts.map(p => [p[0] - offsetX + canvas2.width / 2, p[1] - offsetY + canvas2.height / 2]);
+        ctx2.strokeStyle = 'red';
+        ctx2.lineWidth = 2;
+        ctx2.beginPath();
+        pts.forEach((pt, i) => {
+          if (i === 0) ctx2.moveTo(pt[0], pt[1]);
+          else ctx2.lineTo(pt[0], pt[1]);
+        });
+        ctx2.stroke();
+      });
+    }
+    
+    // Draw the scale bar on the dedicated canvas.
+    function drawScaleBar() {
+      scaleCtx.clearRect(0, 0, scaleBarCanvas.width, scaleBarCanvas.height);
+      scaleCtx.strokeStyle = 'white';
+      scaleCtx.lineWidth = 5;
+      const barLength = 100 / px2um;
+      const startX = 50, startY = scaleBarCanvas.height / 2;
+      scaleCtx.beginPath();
+      scaleCtx.moveTo(startX, startY);
+      scaleCtx.lineTo(startX + barLength, startY);
+      scaleCtx.stroke();
+      scaleCtx.fillStyle = 'white';
+      scaleCtx.font = '16px Arial';
+      scaleCtx.fillText(`Scale Bar: 100 μm`, startX, startY - 10);
+    }
+  </script>
+</body>
+</html>
