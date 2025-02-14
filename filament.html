@@ -323,6 +323,7 @@ Have fun annotating!`);
             alert("Invalid input.");
           }
         }
+        drawScaleBar();
       }
       canvas.addEventListener('click', calibClick);
     }
@@ -360,7 +361,7 @@ Have fun annotating!`);
       drawSaved();
     }
     
-    // --- Reparameterize each filament to 100 points, shift so first point is [0,0], compute velocities.
+    // --- Reparameterize each filament to 20 points, shift so first point is [0,0], compute velocities.
     function reparameterizeFilament(fil, numPoints) {
     if (fil.length < 2)
             return { points: [], velocities: [] };
@@ -612,7 +613,7 @@ Have fun annotating!`);
       scaleCtx.clearRect(0, 0, scaleBarCanvas.width, scaleBarCanvas.height);
       scaleCtx.strokeStyle = 'white';
       scaleCtx.lineWidth = 5;
-      const barLength = 100 / px2um;
+      const barLength = 10 / px2um;
       const startX = 50, startY = scaleBarCanvas.height / 2;
       scaleCtx.beginPath();
       scaleCtx.moveTo(startX, startY);
@@ -620,8 +621,9 @@ Have fun annotating!`);
       scaleCtx.stroke();
       scaleCtx.fillStyle = 'white';
       scaleCtx.font = '16px Arial';
-      scaleCtx.fillText(`Scale Bar: 100 μm`, startX, startY - 10);
+      scaleCtx.fillText(`Scale Bar: 10 μm`, startX, startY - 10);
     }
   </script>
 </body>
 </html>
+n
