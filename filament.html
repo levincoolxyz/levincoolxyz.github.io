@@ -251,7 +251,7 @@ Have fun annotating!`);
       }
       arclengths.push(length);
       tangentAngles.push(angles);
-      storedFilaments.forEach(f => f.opacity *= 0.5);
+      storedFilaments.forEach(f => f.opacity *= 0.2);
       storedFilaments.push({ points: [...currentFilament], opacity: 1 });
       currentFilament = [];
       if (images.length > 1) {
