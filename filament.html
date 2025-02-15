@@ -39,6 +39,11 @@
       margin-top: 10px;
       color: #eee;
       font-size: 16px;
+    }    
+    /* Center the play/pause button below canvas2 */
+    #playPauseContainer {
+      text-align: center;
+      margin-top: 10px;
     }
     /* Fixed-position buttons */
     .button {
@@ -76,6 +81,10 @@
     <!-- Image indicator -->
     <div id="imgIndicator"></div>
   </div>
+  <!-- Centered play/pause button below canvas2 -->
+  <div id="playPauseContainer">
+    <button id="btnPlayPause">Animate</button>
+  </div>
   <!-- Control Buttons -->
   <button id="btnLoad" class="button">Load (L)</button>
   <button id="btnNext" class="button">Next Filament (N)</button>
@@ -111,6 +120,12 @@
     let currentImageIndex = 0;
     let currentImage = new Image();
     let calibrationActive = false;
+    
+    // Animation globals for play/pause    
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    let isPlaying = false;
+    let animInterval = null;
+    let animIndex = 0; // which saved filament is highlighted
     
     // When an image loads, hide drop text and update indicator.
     currentImage.onload = function() {
@@ -251,8 +266,8 @@ Have fun annotating!`);
       }
       arclengths.push(length);
       tangentAngles.push(angles);
-      storedFilaments.forEach(f => f.opacity *= 0.2);
-      storedFilaments.push({ points: [...currentFilament], opacity: 1 });
+      storedFilaments.forEach(f => f.opacity *= 0.2 );
+      storedFilaments.push({ points: [...currentFilament], opacity: 0.5 });
       currentFilament = [];
       if (images.length > 1) {
         currentImageIndex = (currentImageIndex + 1) % images.length;
@@ -587,27 +602,126 @@ Have fun annotating!`);
       }
     }
     
-    // In the second canvas, shift each filament so that its first point is at the center.
-    function drawSaved() {
-      ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
-      filamentCoords.forEach(fil => {
-        // Convert normalized points to canvas2 pixels.
-        let pts = fil.map(p => [p[0] * canvas2.width, p[1] * canvas2.height]);
-        // Shift so that first point is at (canvas2.width/2, canvas2.height/2).
-        let offsetX = pts[0][0];
-        let offsetY = pts[0][1];
-        pts = pts.map(p => [p[0] - offsetX + canvas2.width / 2, p[1] - offsetY + canvas2.height / 2]);
-        ctx2.strokeStyle = 'red';
-        ctx2.lineWidth = 2;
-        ctx2.beginPath();
-        pts.forEach((pt, i) => {
-          if (i === 0) ctx2.moveTo(pt[0], pt[1]);
-          else ctx2.lineTo(pt[0], pt[1]);
-        });
-        ctx2.stroke();
-      });
-    }
+    // --- Play/Pause Animation for Saved Filaments in Canvas2 ---
+    btnPlayPause.addEventListener('click', function() {
+      if (isPlaying) {
+        clearInterval(animInterval);
+        btnPlayPause.innerText = "Animate";
+      } else {
+        animIndex = 0;
+        animInterval = setInterval(function() {
+          // Cycle through saved filaments: redraw canvas2 with current animIndex filament in black.
+          drawSavedAnimated(animIndex);
+          animIndex = (animIndex + 1) % filamentCoords.length;
+        }, 300);
+        btnPlayPause.innerText = "Pause";
+      }
+      isPlaying = !isPlaying;
+    });
     
+    // Modified drawSaved function for animation.
+    function drawSavedAnimated(highlightIndex) {
+        ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+        if (filamentCoords.length === 0) return;
+        
+        // 1. Shift each filament so its first point becomes [0,0]
+        let shiftedFilaments = filamentCoords.map(fil => {
+            return fil.map(p => [ p[0] - fil[0][0], p[1] - fil[0][1] ]);
+        });
+        
+        // 2. Convert shifted normalized coordinates to canvas2 pixels.
+        let allPts = [];
+        shiftedFilaments.forEach(fil => {
+            fil.forEach(p => {
+                allPts.push([ p[0] * canvas2.width, p[1] * canvas2.height ]);
+            });
+        });
+        if(allPts.length === 0) return;
+        
+        // 3. Compute the bounding box of all shifted points.
+        let minX = Math.min(...allPts.map(p => p[0]));
+        let maxX = Math.max(...allPts.map(p => p[0]));
+        let minY = Math.min(...allPts.map(p => p[1]));
+        let maxY = Math.max(...allPts.map(p => p[1]));
+        let bboxWidth = maxX - minX;
+        let bboxHeight = maxY - minY;
+        
+        // 4. Compute a uniform scale factor to fit the bounding box into canvas2.
+        let scaleFactor = Math.min(canvas2.width / bboxWidth, canvas2.height / bboxHeight);
+        
+        // 5. Compute offsets to center the bounding box in canvas2.
+        let offsetX = (canvas2.width - bboxWidth * scaleFactor) / 2 - (minX * scaleFactor);
+        let offsetY = (canvas2.height - bboxHeight * scaleFactor) / 2 - (minY * scaleFactor);
+        
+        // 6. Draw each shifted filament with the computed transform.
+        shiftedFilaments.forEach((fil, idx) => {
+            // Convert each normalized point to canvas2 pixel space.
+            let pts = fil.map(p => [ p[0] * canvas2.width, p[1] * canvas2.height ]);
+            // Apply scale and offset.
+            pts = pts.map(p => [ p[0] * scaleFactor + offsetX, p[1] * scaleFactor + offsetY ]);
+            ctx2.strokeStyle = (idx === highlightIndex) ? 'white' : 'red';
+            ctx2.lineWidth = 2;
+            ctx2.beginPath();
+            pts.forEach((pt, i) => {
+                if (i === 0) ctx2.moveTo(pt[0], pt[1]);
+                else ctx2.lineTo(pt[0], pt[1]);
+            });
+            ctx2.stroke();
+        });
+    }
+
+        
+    function drawSaved() {
+        ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+        if (filamentCoords.length === 0) return;
+        
+        // 1. Shift each filament so its first point is [0,0]
+        let shiftedFilaments = filamentCoords.map(fil => {
+            // Each filament: subtract the first point
+            return fil.map(p => [p[0] - fil[0][0], p[1] - fil[0][1]]);
+        });
+        
+        // 2. Convert shifted normalized coordinates to pixel coordinates for canvas2
+        let allPts = [];
+        shiftedFilaments.forEach(fil => {
+            fil.forEach(p => {
+                allPts.push([ p[0] * canvas2.width, p[1] * canvas2.height ]);
+            });
+        });
+        if(allPts.length === 0) return;
+        
+        // 3. Compute bounding box of all shifted points
+        let minX = Math.min(...allPts.map(p => p[0]));
+        let maxX = Math.max(...allPts.map(p => p[0]));
+        let minY = Math.min(...allPts.map(p => p[1]));
+        let maxY = Math.max(...allPts.map(p => p[1]));
+        let bboxWidth = maxX - minX;
+        let bboxHeight = maxY - minY;
+        
+        // 4. Compute scale factor to fit the bounding box into canvas2
+        let scaleFactor = Math.min(canvas2.width / bboxWidth, canvas2.height / bboxHeight);
+        
+        // 5. Compute offsets to center the bounding box in canvas2
+        let offsetX = (canvas2.width - bboxWidth * scaleFactor) / 2 - minX * scaleFactor;
+        let offsetY = (canvas2.height - bboxHeight * scaleFactor) / 2 - minY * scaleFactor;
+        
+        // 6. For each shifted filament, apply the scale and offset, then draw.
+        shiftedFilaments.forEach(fil => {
+            // Convert normalized to pixel coordinates first.
+            let pts = fil.map(p => [ p[0] * canvas2.width, p[1] * canvas2.height ]);
+            // Then scale and translate.
+            pts = pts.map(p => [ p[0] * scaleFactor + offsetX, p[1] * scaleFactor + offsetY ]);
+            ctx2.strokeStyle = 'red';
+            ctx2.lineWidth = 2;
+            ctx2.beginPath();
+            pts.forEach((pt, i) => {
+                if (i === 0) ctx2.moveTo(pt[0], pt[1]);
+                else ctx2.lineTo(pt[0], pt[1]);
+            });
+            ctx2.stroke();
+        });
+    }
+
     // Draw the scale bar on the dedicated canvas.
     function drawScaleBar() {
       scaleCtx.clearRect(0, 0, scaleBarCanvas.width, scaleBarCanvas.height);
