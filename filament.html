@@ -95,7 +95,10 @@
   <button id="btnExport" class="button">Export (E)</button>
   <button id="btnPrev" class="button">&lt;</button>
   <button id="btnNextImg" class="button">&gt;</button>
+  <button id="btnReload" class="button" style="top: 60px; left: 490px;">Add Trace (A)</button>
+  <input type="file" id="reloadFileInput" accept=".csv" style="display:none;">
   <input type="file" id="fileInput" accept="image/*" multiple>
+  
   <script>
     // Global variables (JS numbers are double precision)
     const container = document.getElementById('container');
@@ -137,6 +140,11 @@
       updateIndicator();
     };
     
+    const btnReload = document.getElementById('btnReload');
+    const reloadFileInput = document.getElementById('reloadFileInput');
+    
+    btnReload.addEventListener('click', () => reloadFileInput.click());
+    
     // Resize main canvas: 75% of window width, preserving aspect ratio.
     function resizeCanvas() {
       if (!currentImage.width) return;
@@ -174,14 +182,16 @@
 Instructions:
 • Left-click on the image area to add red points (points appear immediately).
 • Drag & drop image files or press L to load images.
-• If multiple images are loaded, you will be prompted for frame-per-second (FPS).
+  • If multiple images are loaded, you will be prompted for frame-per-second (FPS).
 • Press N to save the current filament (first and last points remain fixed during smoothing) and advance to the next image.
 • Press R to reset the current annotation.
-• Press U to undo the last point (or restore previous filament if none exist).
+• Press U to undo the last tracing action
 • Press C to calibrate the scale bar (click two points then enter physical length in μm).
 • Press S to smooth saved filaments using a Savitzky–Golay filter (with endpoints fixed).
 • Press E to export filament data as CSV.
-• Use J (previous) and K (next) keys to navigate images.
+• Press J (previous) and K (next) keys to navigate images.
+• Press Animate button to highlight each traced filament.
+• Press A to add previous filament trace from CSV.
 Have fun annotating!`);
       if (currentImage.complete) {
         resizeCanvas();
@@ -189,6 +199,13 @@ Have fun annotating!`);
         drawSaved();
         drawScaleBar();
         updateIndicator();
+      }
+    });
+    
+    reloadFileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        reloadFilamentsFromCSV(file);
       }
     });
     
@@ -246,6 +263,70 @@ Have fun annotating!`);
         drawScaleBar();
         updateIndicator();
       });
+    }
+    function reloadFilamentsFromCSV(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+        // Look for the "Normalized Coordinates:" header
+        const normIdx = lines.findIndex(line => line === "Normalized Coordinates:");
+        let newFilamentCoords = [];
+        if (normIdx !== -1) {
+          // Parse normalized coordinates: each line after the header until an empty line
+          for (let i = normIdx + 1; i < lines.length; i++) {
+            if (lines[i] === "") break;
+            // Each line: "x1,y1;x2,y2;...;xn,yn"
+            const pairs = lines[i].split(";");
+            const filament = pairs.map(pair => {
+              const [x, y] = pair.split(",");
+              return [parseFloat(x), parseFloat(y)];
+            });
+            newFilamentCoords.push(filament);
+          }
+        } else {
+          // No "Normalized Coordinates:" section found; try to load X and Y sections.
+          const xIdx = lines.findIndex(line => line.startsWith("X-coordinates"));
+          const yIdx = lines.findIndex(line => line.startsWith("Y-coordinates"));
+          if (xIdx !== -1 && yIdx !== -1) {
+            alert("No normalized coordinates found use X/Y instead.");
+            let xCoords = [];
+            let i = xIdx + 1;
+            while (i < lines.length && lines[i].includes(",")) {
+              // Each line is comma-separated numbers.
+              xCoords.push(lines[i].split(",").map(Number));
+              i++;
+            }
+            let yCoords = [];
+            i = yIdx + 1;
+            while (i < lines.length && lines[i].includes(",")) {
+              yCoords.push(lines[i].split(",").map(Number));
+              i++;
+            }
+            // Assume each row corresponds to one filament.
+            for (let j = 0; j < Math.min(xCoords.length, yCoords.length); j++) {
+              let filament = [];
+              for (let k = 0; k < Math.min(xCoords[j].length, yCoords[j].length); k++) {
+                filament.push([xCoords[j][k], yCoords[j][k]]);
+              }
+              // Shift the filament so its first point is [0,0]
+              if (!isNaN(filament[0][0])) {
+                let shiftX = filament[0][0], shiftY = filament[0][1];
+                filament = filament.map(p => [p[0] - shiftX, p[1] - shiftY]);
+              }
+              newFilamentCoords.push(filament);
+            }
+          } else {
+            alert("No normalized coordinates or X/Y sections found in CSV.");
+            return;
+          }
+        }
+        filamentCoords = newFilamentCoords;
+        // Update stored filaments (all at full opacity)
+        storedFilaments = filamentCoords.map(fil => ({ points: fil, opacity: 1 }));
+        drawSaved();
+      };
+      reader.readAsText(file);
     }
     
     // --- Filament Functions ---
@@ -470,6 +551,14 @@ Have fun annotating!`);
         csvContent += data.velocities.map(v => v.toFixed(12)).join(",") + "\n";
       });
       
+      // Append the original normalized coordinates.
+      csvContent += "\nNormalized Coordinates:\n";
+      filamentCoords.forEach(fil => {
+        // Each filament is written as a semicolon-separated list of "x,y" pairs.
+        let normCoords = fil.map(p => p[0].toFixed(12) + "," + p[1].toFixed(12)).join(";");
+        csvContent += normCoords + "\n";
+      });
+      
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -553,6 +642,7 @@ Have fun annotating!`);
         case 'e': e.preventDefault(); exportData(); break;
         case 'j': e.preventDefault(); prevImage(); break;
         case 'k': e.preventDefault(); nextImage(); break;
+        case 'a': e.preventDefault(); btnReload.click(); break;
       }
     });
     
@@ -669,8 +759,7 @@ Have fun annotating!`);
             ctx2.stroke();
         });
     }
-
-        
+    
     function drawSaved() {
         ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
         if (filamentCoords.length === 0) return;
@@ -721,7 +810,7 @@ Have fun annotating!`);
             ctx2.stroke();
         });
     }
-
+    
     // Draw the scale bar on the dedicated canvas.
     function drawScaleBar() {
       scaleCtx.clearRect(0, 0, scaleBarCanvas.width, scaleBarCanvas.height);
@@ -740,4 +829,3 @@ Have fun annotating!`);
   </script>
 </body>
 </html>
-n
