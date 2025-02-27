@@ -135,7 +135,7 @@ title: Living through the Stein's Paradox - Feng Ling
       <h3>Further Reading</h3>
       <ul>
         <li><a href="https://en.wikipedia.org/wiki/James%E2%80%93Stein_estimator" target="_blank">Stein's Paradox – Wikipedia</a></li>
-        <li><a href="https://www.scientificamerican.com/article/stein-s-paradox-in-statist/" target="_blank">Efron, B. & Morris, C. (1977). "Stein's Paradox in Statistics" in Scientific American</a></li>
+        <li><a href="https://www.jstor.org/stable/24954030#:~:text=Stein's%20paradox%20is%20simply%20his,rules%20with%20smaller%20total%20risk." target="_blank">Efron, B. & Morris, C. (1977). "Stein's Paradox in Statistics" in Scientific American</a></li>
         <li><a href="https://www.worldcat.org/title/social-cognition/oclc/10552211" target="_blank">Fiske, S. T. & Taylor, S. E. (1984). Social Cognition. Addison-Wesley</a></li>
         <li><a href="https://global.oup.com/academic/product/the-adapted-mind-9780195101072" target="_blank">Barkow, J. H., Cosmides, L., & Tooby, J. (1992). The Adapted Mind</a></li>
         <li><a href="https://www.dotlayer.org/en/stein-baseball/#:~:text=situation%20and%20this%20is%20what,Stein%20and%20what%20is%20Stein%E2%80%99s" target="_blank">Stein's Paradox and Batting Averages</a></li>
