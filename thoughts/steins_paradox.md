@@ -4,7 +4,7 @@ title: Living through the Stein's Paradox - Feng Ling
 ---
 
 <div id="thoughts" class="container col-md-10">
-<h1>Bias, Stereotypes, and Alignment: Parallels in Statistics, Cognition, and AI</h1>
+<h1>Bias, Stereotypes, and Alignment: Living through the Stein's Paradox</h1>
     
     <h2>Introduction</h2>
     <p>
