@@ -24,6 +24,13 @@
   /* hide minimap when the control panel is collapsed */
   .app.collapsed #minimap { display:none; }
   #minimap > div { position:absolute; inset:0; }
+  /* compact kappa(s) editor next to minimap */
+  #kappaEditor { position:absolute; right:12px; bottom:200px; width:200px; height:120px; border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.45); display:flex; flex-direction:column; z-index:3 }
+  .app.collapsed #kappaEditor { display:none; }
+  #kappaEditor .title { font-size:12px; color:#cbd5e1; padding:4px 4px; border-bottom:1px solid rgba(255,255,255,.08); }
+  #kappaCanvas { flex:1; display:block; width:95%; height:95%; }
+  /* improve mobile pointer interactions */
+  #threeMini, #threeMini canvas { touch-action:none; }
   .hud { position:absolute; left:10px; bottom:64px; font-size:12px; color:#cbd5e1;
          background:rgba(0,0,0,.45); padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,.06); white-space:pre; }
   .group { margin-bottom: 12px; }
@@ -108,8 +115,8 @@
       <div class="group">
         <h3>Ciliary beat kinematics</h3>
         <div class="slider"><label for="k0">k_0 (static curvature)</label><input id="k0" type="range" min="-2" max="2" step="0.01" value="1"><div class="value" id="k0v">1</div></div>
-        <div class="slider"><label for="aK">a_0 (wave number · 2π)</label><input id="aK" type="range" min="0" max="10" step="0.01" value="5.0265"><div class="value" id="aKv">5.0265</div></div>
-        <div class="slider"><label for="ampMean">beat amplitude mean</label><input id="ampMean" type="range" min="0" max="2" step="0.01" value="1"><div class="value" id="ampMeanv">1</div></div>
+        <div class="slider"><label for="aK">a_0 (wave number)</label><input id="aK" type="range" min="-5" max="5" step="0.01" value="0.8"><div class="value" id="aKv">0.8</div></div>
+        <div class="slider"><label for="ampMean">beat amplitude mean</label><input id="ampMean" type="range" min="0" max="10" step="0.01" value="5"><div class="value" id="ampMeanv">5</div></div>
         <div class="slider"><label for="ampStd">beat amplitude std</label><input id="ampStd" type="range" min="0" max="1" step="0.01" value="0"><div class="value" id="ampStdv">0</div></div>
       </div>
       <div class="group">
@@ -177,6 +184,10 @@
         </div>
       </div>
       <div id="minimap"><div id="threeMini"></div></div>
+      <div id="kappaEditor">
+        <div class="title">Curvature profile ϰ(s)</div>
+        <canvas id="kappaCanvas"></canvas>
+      </div>
       <div class="hud" id="stats">—</div>
       <div id="err"></div>
     </main>
@@ -195,8 +206,8 @@
   // ===== parameters (azimuth/elevation in DEGREES) =====
   var params = {
     nX:18, nY:16, dX:1.0, dY:1.0, density:2.0,
-    k0:1.0, aK:0.8*2*Math.PI,
-    ampMean:1.0, ampStd:0.0,
+    k0:1.0, aK:0.8,
+    ampMean:5.0, ampStd:0.0,
     lengthMean:10.0, lengthStd:1.0,
     cbfMean:5.0, cbfStd:0.01, cilRadius:0.20,
     waveAmp:1.0, waveAngle:-Math.PI/2, waveNoise:0.01,
@@ -233,6 +244,17 @@
     panInited:false,
     // minimap centering along z
     czCenterZ:0
+  };
+
+  // ===== arclength profile (\u005E\u03BA(s)) editor state =====
+  var profile = {
+    // committed control points used by simulation (sorted by s)
+    cps: [ {s:0, v:0.2}, {s:1, v:1.0} ],
+    // transient editing copy during drag/add
+    edit: null,
+    dragging: { idx:-1, start:null },
+    canvas: null,
+    ctx: null
   };
 
   // ===== BF renderer (full-frame) =====
@@ -355,10 +377,22 @@
     var twoPiT = 2*Math.PI * tFrac;
     var theta_prev = 0.0; var x_prev = 0.0; var z_prev = 0.0;
     outX[0] = 0.0; outZ[0] = 0.0;
-    var kappa_prev = k0 + A0scale*(1 + 5*0.0) * Math.cos(aK*0.0 - twoPiT);
+    function profEval(s){
+      var cps = (profile && profile.cps && profile.cps.length>=2) ? profile.cps : [ {s:0,v:0.2}, {s:1,v:1.0} ];
+      // ensure sorted copy by s
+      cps = cps.slice().sort((a,b)=>a.s-b.s);
+      if (s<=cps[0].s) return cps[0].v;
+      if (s>=cps[cps.length-1].s) return cps[cps.length-1].v;
+      for (var i=0;i<cps.length-1;i++){
+        var a=cps[i], b=cps[i+1];
+        if (s>=a.s && s<=b.s){ var t=(s-a.s)/Math.max(1e-6,(b.s-a.s)); return a.v*(1-t)+b.v*t; }
+      }
+      return 1.0;
+    }
+    var kappa_prev = k0 + A0scale*params.aK*params.aK*profEval(0.0) * Math.cos(aK*2*Math.PI*0.0 - twoPiT);
     for (i=1;i<N;i++){
       var s = i/(N-1);
-      var kappa = k0 + A0scale*(1 + 5*s) * Math.cos(aK*s - twoPiT);
+      var kappa = k0 + A0scale*params.aK*params.aK*profEval(s) * Math.cos(aK*2*Math.PI*s - twoPiT);
       var theta = theta_prev + 0.5*(kappa_prev + kappa) * ds;
       var sx_prev = Math.sin(theta_prev), sz_prev = Math.cos(theta_prev);
       var sx = Math.sin(theta), sz = Math.cos(theta);
@@ -544,6 +578,165 @@
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map:new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat)}));
     bf.scene.add(quad); bf.quad = quad;
     resizeBF();
+  }
+  
+  // ===== kappa(s) profile editor =====
+  function setupKappaEditor(){
+    const box = document.getElementById('kappaEditor');
+    const canvas = document.getElementById('kappaCanvas');
+    if (!box || !canvas) return;
+    profile.canvas = canvas; profile.ctx = canvas.getContext('2d');
+
+    function resizeCanvas(){
+      const dpr = Math.min(2, window.devicePixelRatio||1);
+      const w = box.clientWidth, h = box.clientHeight - 24; // minus title
+      canvas.width = Math.max(10, Math.floor(w * dpr));
+      canvas.height = Math.max(10, Math.floor(h * dpr));
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      draw();
+    }
+
+    function plotRect(){
+      // a bit more padding around axes
+      const padL=36, padR=28, padT=18, padB=28;
+      return { x:padL, y:padT, w:canvas.width - padL - padR, h:canvas.height - padT - padB };
+    }
+    // map s horizontally (0..1 -> left..right), v vertically (0..1 -> bottom..top)
+    function xyFromSV(s,v){
+      const r=plotRect();
+      const x = r.x + Math.max(0, Math.min(1, s)) * r.w;
+      const y = r.y + (1 - Math.max(0, Math.min(1, v))) * r.h;
+      return {x,y};
+    }
+    function svFromXY(x,y){
+      const r=plotRect();
+      const s = (x - r.x) / Math.max(1, r.w);
+      const v = 1 - (y - r.y) / Math.max(1, r.h);
+      return { s: s, v: v };
+    }
+    function cpsSorted(cps){ return cps.slice().sort((a,b)=>a.s-b.s); }
+    function draw(){
+      const ctx=profile.ctx; if(!ctx) return;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const r=plotRect();
+      // bg
+      ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      // frame
+      ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1; ctx.strokeRect(r.x, r.y, r.w, r.h);
+      // axes ticks and labels
+      ctx.fillStyle='#9ca3af'; ctx.strokeStyle='#9ca3af'; ctx.font='10px system-ui, sans-serif';
+      // bottom axis (s): ticks at 0, 0.5, 1
+      const sTicks=[0,0.5,1];
+      for (const st of sTicks){
+        const p=xyFromSV(st, 0);
+        ctx.beginPath(); ctx.moveTo(p.x, r.y+r.h); ctx.lineTo(p.x, r.y+r.h+6); ctx.stroke();
+        const lbl = (st===0.5? '0.5' : (st===0? '0' : '1'));
+        ctx.fillText(lbl, p.x-6, r.y+r.h+18);
+      }
+      // left axis (v): ticks every 0.2
+      for (let vt=0; vt<=1.0001; vt+=0.2){
+        const p=xyFromSV(0, vt);
+        ctx.beginPath(); ctx.moveTo(r.x-6, p.y); ctx.lineTo(r.x, p.y); ctx.stroke();
+        const lbl = (Math.round(vt*10)/10).toFixed(1);
+        ctx.fillText(lbl, r.x-28, p.y+3);
+      }
+      // choose cps to draw (preview during drag)
+      const cps = cpsSorted(profile.edit || profile.cps);
+      // line
+      ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.beginPath();
+      for(let i=0;i<cps.length;i++){
+        const p=xyFromSV(cps[i].s, cps[i].v);
+        if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      // points
+      for(let i=0;i<cps.length;i++){
+        const p=xyFromSV(cps[i].s, cps[i].v);
+        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+        ctx.fillStyle = (i===0 || i===cps.length-1) ? '#8ab4f8' : '#ffffff';
+        ctx.fill(); ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1; ctx.stroke();
+      }
+    }
+    function hitTest(x,y){
+      const cps = cpsSorted(profile.edit || profile.cps);
+      for(let i=0;i<cps.length;i++){
+        const p=xyFromSV(cps[i].s, cps[i].v); const dx=x-p.x, dy=y-p.y;
+        if (dx*dx+dy*dy <= 8*8) return i;
+      }
+      return -1;
+    }
+    function normalizeCps(cps){
+      let maxv=0; for(const c of cps){ if (c.v>maxv) maxv=c.v; }
+      if (maxv<=0) return cps;
+      return cps.map(c=>({s:Math.max(0,Math.min(1,c.s)), v:Math.max(0,Math.min(1, c.v/maxv))}));
+    }
+
+    // pointer interactions
+    let dragging=false, dragIdx=-1, start={s:0,v:0};
+    canvas.addEventListener('pointerdown', function(e){
+      const rect=canvas.getBoundingClientRect();
+      const dpr = canvas.width/rect.width;
+      const x=(e.clientX-rect.left)*dpr, y=(e.clientY-rect.top)*dpr;
+      // begin from committed cps
+      profile.edit = profile.cps.map(c=>({s:c.s, v:c.v}));
+      dragIdx = hitTest(x,y);
+      if (dragIdx===-1){
+        // add new point at click
+        const sv=svFromXY(x,y);
+        profile.edit.push({s:Math.max(0,Math.min(1,sv.s)), v:Math.max(0,Math.min(1,sv.v))});
+        dragIdx = profile.edit.length - 1;
+      }
+      start = {s: profile.edit[dragIdx].s, v: profile.edit[dragIdx].v};
+      dragging=true; try{ canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);}catch(_){ }
+      e.preventDefault(); draw();
+    });
+    canvas.addEventListener('pointermove', function(e){
+      if(!dragging) return; const rect=canvas.getBoundingClientRect(); const dpr = canvas.width/rect.width;
+      const x=(e.clientX-rect.left)*dpr, y=(e.clientY-rect.top)*dpr; const r=plotRect();
+      const inRect = (x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h);
+      // endpoints (s=0 or s=1) lock s
+      const cps = profile.edit; const isEndpoint = (Math.abs(cps[dragIdx].s) < 1e-6) || (Math.abs(cps[dragIdx].s-1) < 1e-6);
+      const sv = svFromXY(x,y);
+      if (isEndpoint){
+        // only v changes while dragging; s snaps back later if out of bounds
+        cps[dragIdx].v = Math.max(0, Math.min(1, sv.v));
+      } else {
+        // free drag
+        cps[dragIdx].s = sv.s; cps[dragIdx].v = sv.v;
+      }
+      draw(); e.preventDefault();
+    });
+    canvas.addEventListener('pointerup', function(e){
+      if(!dragging) return; const rect=canvas.getBoundingClientRect(); const dpr = canvas.width/rect.width;
+      const x=(e.clientX-rect.left)*dpr, y=(e.clientY-rect.top)*dpr; const r=plotRect();
+      const cps = profile.edit; const isEndpoint = (Math.abs(cps[dragIdx].s) < 1e-6) || (Math.abs(cps[dragIdx].s-1) < 1e-6);
+      const flexZone = r.h/2; // allow a bit of leeway outside rect before deleting [px]
+      const inRect = (x>=r.x && x<=r.x+r.w && y+flexZone>=r.y && y-flexZone<=r.y+r.h);
+      if (!isEndpoint && !inRect){
+        // delete dragged point
+        cps.splice(dragIdx,1);
+      } else {
+        // clamp inside; endpoints keep s at 0 or 1
+        if (isEndpoint){ cps[dragIdx].s = (Math.abs(start.s) < 1e-6) ? 0 : 1; cps[dragIdx].v = Math.max(0,Math.min(1,cps[dragIdx].v)); }
+        else { cps[dragIdx].s = Math.max(0,Math.min(1,cps[dragIdx].s)); cps[dragIdx].v = Math.max(0,Math.min(1,cps[dragIdx].v)); }
+      }
+      // keep mandatory endpoints present
+      function ensureEndpoint(sFixed){
+        const idx=cps.findIndex(c=>Math.abs(c.s-sFixed)<1e-6);
+        if (idx<0) cps.push({s:sFixed, v: sFixed<1e-6 ? 0.2 : 1.0});
+      }
+      ensureEndpoint(0); ensureEndpoint(1);
+      // normalize to make max == 1
+      profile.cps = cpsSorted(normalizeCps(cps));
+      profile.edit = null; dragging=false; dragIdx=-1;
+      draw();
+      // apply to simulation (update both views now)
+      renderBF(); updateMinimapLines();
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
   }
 
   function resizeBF(){
@@ -1208,6 +1401,7 @@
     attachUI();
     initMini();
     initBF();
+    setupKappaEditor();
     generateGrid();
     reseedRandomFields();
     buildLines();
