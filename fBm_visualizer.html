@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Particle Scattering Simulator</title>
+<style>
+  :root{--bg:#0b0d12;--fg:#e8eaed;--muted:#9aa0a6;--acc:#8ab4f8}
+  html,body{height:100%;margin:0}
+  body{display:grid;grid-template-columns:360px 1fr;gap:12px;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  header{grid-column:1 / -1;padding:8px 12px 0}
+  #panel{padding:12px;overflow:auto}
+  #panel h2{margin:0 0 6px 0;font-size:16px}
+  .row{display:grid;grid-template-columns:1fr 140px;gap:8px;align-items:center;margin:8px 0}
+  .row label{font-size:12px;color:var(--muted)}
+  input[type=range]{width:100%}
+  input[type=number]{width:100%;background:#111;color:#e8eaed;border:1px solid #333;border-radius:8px;padding:6px}
+  .row .right{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  button{background:#1a73e8;color:#fff;border:0;border-radius:10px;padding:8px 10px;cursor:pointer}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  #view { position:relative; display:flex; align-items:center; justify-content:center; }
+  canvas { display:block; }
+  #stats{position:absolute;left:8px;bottom:8px;font:12px ui-monospace;color:#cbd5e1;background:rgba(0,0,0,.45);padding:6px 8px;border-radius:8px;white-space:pre}
+  #tests{position:absolute;left:8px;top:8px;font:12px ui-monospace;color:#cbe7cb;background:rgba(0,0,0,.45);padding:6px 8px;border-radius:8px;white-space:pre;display:none}
+  #err{position:fixed;right:12px;bottom:12px;max-width:44ch;background:#2b1b1b;color:#ffdcdc;border:1px solid #a55;padding:8px 10px;border-radius:10px;font:12px ui-monospace;display:none;white-space:pre-wrap}
+  #scalebar{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+  #bar{height:3px;background:#e8eaed;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.35) inset}
+  #barlabel{font:12px ui-monospace;color:#e8eaed;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+  a{color:var(--acc)}
+</style>
+<!-- MathJax for TeX rendering: ONLY $...$ inline to avoid ( ) being parsed -->
+<script>
+  window.MathJax = { tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:baseline;gap:12px">
+    <h1 style="font-size:18px;margin:0">Particle Scattering Simulator</h1>
+    <small style="color:#9aa0a6">ESM: three.js + fft.js</small>
+  </div>
+</header>
+
+<div id="panel">
+  <h2>Controls</h2>
+
+  <div class="row"><label>Image size (pow2 for FFT) [px]: <span id="Nval">256</span></label>
+    <input id="N" type="range" min="256" max="2048" step="1" value="256"></div>
+
+  <div class="row"><label>Pixel size [μm]: <span id="pxval">0.30</span></label>
+    <input id="px" type="range" min="0.05" max="0.50" step="0.01" value="0.30"></div>
+
+  <div class="row"><label>Wavelength $\lambda$ [nm]: <span id="lambdaval">550</span></label>
+    <input id="lambda" type="range" min="400" max="700" step="5" value="550"></div>
+
+  <div class="row"><label>NA: <span id="NAval">0.80</span></label>
+    <input id="NA" type="range" min="0.10" max="1.40" step="0.01" value="0.80"></div>
+
+  <div class="row"><label>Imaging mode</label>
+    <div class="right">
+      <select id="mode">
+        <option value="bf">Bright-field</option>
+        <option value="pc">Phase contrast</option>
+        <option value="df">Dark field</option>
+        <option value="fl">Fluorescence</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row pc-only"><label>PC: plate radius [% pupil]</label>
+    <input id="pcfrac" type="range" min="3" max="25" step="1" value="8">
+  </div>
+  <div class="row pc-only"><label>PC: phase shift [rad]: <span id="pcphival">1.57</span></label>
+    <input id="pcphi" type="range" min="0" max="6.283" step="0.01" value="1.5708">
+  </div>
+  <div class="row pc-only"><label>PC: attenuation α: <span id="pcalphaval">0.60</span></label>
+    <input id="pcalpha" type="range" min="0.1" max="1.0" step="0.01" value="0.60">
+  </div>
+
+  <div class="row df-only"><label>DF: inner NA fraction: <span id="dfinnerval">0.25</span></label>
+    <input id="dfinner" type="range" min="0.05" max="0.9" step="0.01" value="0.25">
+  </div>
+
+ <!-- Coherent modes: refractive index contrast -->
+  <div class="row coh-only"><label>Δn = n<sub>p</sub> − n<sub>0</sub>: <span id="dnval">0.1</span></label>
+    <input id="dn" type="range" min="-0.20" max="0.20" step="0.001" value="0.1">
+  </div>
+  <div class="row coh-only"><label>κ (absorption): <span id="kappaval">0.001</span></label>
+    <input id="kappa" type="range" min="0.000" max="0.050" step="0.001" value="0.001">
+  </div>
+    <!-- Coherent (BF/PC/DF): source intensity -->
+  <div class="row coh-only"><label>Coherent source intensity: <span id="cohIval">0.5</span></label>
+    <input id="cohI" type="range" min="0.00" max="1.00" step="0.001" value="0.50">
+  </div>
+
+  <!-- Fluorescence: per-emitter intensity -->
+  <div class="row fl-only"><label>Fluorescence intensity: <span id="flIval">5.00</span></label>
+    <input id="flI" type="range" min="0.00" max="10.00" step="0.01" value="5.00">
+  </div>
+
+  <div class="row"><label>Focal defocus $z$ [μm]: <span id="zval">0.00</span></label>
+    <input id="z" type="range" min="-5" max="5" step="0.02" value="0.00"></div>
+
+  <div class="row"><label>Scatterers: <span id="Npartval">10</span></label>
+    <input id="Npart" type="range" min="1" max="50" step="1" value="10"></div>
+
+  <div class="row"><label>Radius [μm]: <span id="Rval">0.50</span></label>
+    <input id="R" type="range" min="0.1" max="5" step="0.05" value="0.50"></div>    
+
+  <div class="row"><label>Depth $z$ std $\sigma_z$ [μm]: <span id="zstdval">1.00</span></label>
+    <input id="zstd" type="range" min="0" max="10" step="0.05" value="1.00"></div>
+
+  <hr style="border:none;border-top:1px solid #333;margin:10px 0">
+  <div class="row"><label>fBm Hurst $H$ [–]: <span id="Hval">0.50</span></label>
+    <input id="H" type="range" min="0.10" max="0.95" step="0.01" value="0.50"></div>
+  <div class="row"><label>Viscosity $\eta$ [Pa·s]: <span id="etaval">1.00e-3</span></label>
+  <input id="etaLog" type="range" min="-4" max="2" step="0.01" value="-3"></div>
+  <div class="row"><label>Sim $\Delta t$ [ms]: <span id="dtval">20</span></label>
+    <input id="dt" type="range" min="5" max="100" step="1" value="20"></div>
+  <div class="row"><label>Max FPS [Hz]: <span id="fpsval">20</span></label>
+    <input id="fps" type="range" min="5" max="60" step="1" value="20"></div>
+  <div class="row"><label>Pause live rendering: </label>
+    <div class="right" style="gap:6px"><input id="paused" type="checkbox"></div></div>
+
+  <div class="row"><label>Scale bar [μm]:</label>
+    <div class="right"><input id="barum" type="number" min="0.5" max="50" step="0.5" value="5"></div></div>
+
+  <div class="row"><label>Verbose (show checks)</label>
+    <div class="right"><input id="verbose" type="checkbox"></div></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+    <button id="rerun">Respawn Particles</button>
+    <button id="save">Save Frame (PNG)</button>
+  </div>
+
+  <p style="font-size:12px;color:#9aa0a6;margin-top:10px">
+    Model: image field $U=\mathcal{F}^{-1}\!\{\, P(\mathbf{f})\,e^{i\pi\, \lambda\, z\, |\mathbf{f}|^2}\, \mathcal{F}\{T(\mathbf{x})\} \}\,$, intensity $I=|U|^2$. Pupil cutoff $f_c=\mathrm{NA}/\lambda$. Particles has depths $z_i \sim \mathcal{N}(0,\sigma_z^2)$. Motion: 3D fBm with step $\propto \eta^{-1/2}\,\Delta t^{H}$.
+  </p>
+  <p style="font-size:12px;color:#9aa0a6">
+    ESM imports: three <code>https://unpkg.com/three@0.160.0/build/three.module.js</code>, fft.js <code>https://esm.sh/fft.js@4.0.4</code>
+  </p>
+</div>
+
+<div id="view">
+  <div id="tests"></div>
+  <div id="stats"></div>
+  <div id="scalebar"><div id="bar"></div><div id="barlabel"></div></div>
+</div>
+<div id="err"></div>
+
+<script type="module">
+let savePixels = null; // Uint8Array length 4*N*N
+let saveSize   = 0;    // N
+// ---------- error box ----------
+const ERR = document.getElementById('err');
+function showErr(e){ ERR.style.display='block'; ERR.textContent=(e&&e.stack)?e.stack:String(e); console.error(e);} 
+window.addEventListener('error', ev=>showErr(ev.error||ev.message));
+window.addEventListener('unhandledrejection', ev=>showErr(ev.reason||ev));
+
+// ---------- ESM imports ----------
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+import FFT from 'https://esm.sh/fft.js@4.0.4';
+
+// ---------- UI ----------
+const UI={
+  N:q('#N'), px:q('#px'), lambda:q('#lambda'), NA:q('#NA'), z:q('#z'), zstd:q('#zstd'),
+  Npart:q('#Npart'), R:q('#R'),
+  H:q('#H'), etaLog:q('#etaLog'), dt:q('#dt'), fps:q('#fps'), paused:q('#paused'),
+  barum:q('#barum'), verbose:q('#verbose'),
+  Nval:q('#Nval'), pxval:q('#pxval'), lambdaval:q('#lambdaval'), NAval:q('#NAval'),
+  zval:q('#zval'), zstdval:q('#zstdval'), Npartval:q('#Npartval'), Rval:q('#Rval'), Hval:q('#Hval'), etaval:q('#etaval'), dtval:q('#dtval'), fpsval:q('#fpsval'),
+  rerun:q('#rerun'), save:q('#save'), view:q('#view'), stats:q('#stats'), tests:q('#tests'),
+  bar:q('#bar'), barlabel:q('#barlabel'),
+  mode:q('#mode'), pcfrac:q('#pcfrac'), pcphi:q('#pcphi'), pcalpha:q('#pcalpha'), dfinner:q('#dfinner'), pcphival:q('#pcphival'), pcalphaval:q('#pcalphaval'), dfinnerval:q('#dfinnerval'), dn:q('#dn'), kappa:q('#kappa'), flI:q('#flI'), dnval:q('#dnval'), kappaval:q('#kappaval'), flIval:q('#flIval'),  cohI: q('#cohI'), cohIval: q('#cohIval')
+};
+function q(s){return document.querySelector(s)}
+function fmt(x,p=2){return Number(x).toFixed(p)}
+const POW2=[256,512,1024,2048];
+function snapPow2(val){ let best=POW2[0], d=1e9; for(const n of POW2){ const dd=Math.abs(val-n); if(dd<d){d=dd;best=n;} } return best; }
+
+// ---------- three.js (initialized BEFORE any call that touches it) ----------
+
+let renderer; // declared early to avoid TDZ
+try{
+  renderer = new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  UI.view.appendChild(renderer.domElement);
+}catch(e){ showErr(e); }
+const scene=new THREE.Scene();
+const cam=new THREE.OrthographicCamera(-1,1,1,-1,0.1,10); cam.position.z=2;
+const quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map:new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat)}));
+scene.add(quad);
+
+function resize(){
+  if(!renderer) return;
+  const w = UI.view.clientWidth;
+  const h = window.innerHeight - document.querySelector('header').offsetHeight - 12;
+  const s = Math.floor(Math.min(w, h));     // square
+  renderer.setSize(s, s, false);
+  renderer.render(scene, cam);
+  updateScaleBarWidth();
+}
+
+window.addEventListener('resize', resize);
+
+// ---------- Scale bar (safe if renderer not yet ready) ----------
+function updateScaleBarWidth(){
+  if(!renderer || !renderer.domElement) return; // guard against early access
+  const bar_um=Number(UI.barum.value); const px_um=Number(UI.px.value); const N=parseInt(UI.N.value,10);
+  const canvasW=renderer.domElement.clientWidth || renderer.getSize(new THREE.Vector2()).x; 
+  const pxPerImgPix=canvasW/Math.max(1,N); const cssW=Math.max(1, Math.round((bar_um/px_um)*pxPerImgPix));
+  UI.bar.style.width=cssW+"px"; UI.barlabel.textContent=bar_um+" μm";
+}
+
+// ---------- FFT helpers ----------
+function makeFFT(n){ const fft=new FFT(n); return {fft,cpx:()=>fft.createComplexArray(),toCpx:(re,im)=>{const o=fft.createComplexArray(); for(let i=0;i<re.length;i++){o[2*i]=re[i];o[2*i+1]=im?im[i]:0;} return o;},fwd:(out,inp)=>fft.transform(out,inp),inv:(out,inp)=>fft.inverseTransform(out,inp)} }
+function fft2D(re,im,n,ft){ const rRe=new Float64Array(n), rIm=new Float64Array(n); for(let y=0;y<n;y++){ for(let x=0;x<n;x++){const i=y*n+x; rRe[x]=re[i]; rIm[x]=im[i];} const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); ft.fwd(cout,cin); for(let x=0;x<n;x++){const i=y*n+x; re[i]=cout[2*x]; im[i]=cout[2*x+1];} } for(let x=0;x<n;x++){ for(let y=0;y<n;y++){const i=y*n+x; rRe[y]=re[i]; rIm[y]=im[i];} const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); ft.fwd(cout,cin); for(let y=0;y<n;y++){const i=y*n+x; re[i]=cout[2*y]; im[i]=cout[2*y+1];} } }
+function ifft2D(re,im,n,ft){ const rRe=new Float64Array(n), rIm=new Float64Array(n); for(let y=0;y<n;y++){ for(let x=0;x<n;x++){const i=y*n+x; rRe[x]=re[i]; rIm[x]=im[i];} const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); ft.inv(cout,cin); for(let x=0;x<n;x++){const i=y*n+x; re[i]=cout[2*x]; im[i]=cout[2*x+1];} } for(let x=0;x<n;x++){ for(let y=0;y<n;y++){const i=y*n+x; rRe[y]=re[i]; rIm[y]=im[i];} const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); ft.inv(cout,cin); for(let y=0;y<n;y++){const i=y*n+x; re[i]=cout[2*y]; im[i]=cout[2*y+1];} } }
+
+// ---------- Add syncLabels() ----------
+function syncLabels(){
+  UI.N.value = String(snapPow2(parseInt(UI.N.value,10)));
+  UI.Nval.textContent = UI.N.value;
+  UI.pxval.textContent = fmt(UI.px.value,2);
+  UI.pcphival.textContent = fmt(UI.pcphi.value,2);
+  UI.pcalphaval.textContent = fmt(UI.pcalpha.value,2);
+  UI.dfinnerval.textContent = fmt(UI.dfinner.value,2);
+  UI.cohIval.textContent = fmt(UI.cohI.value, 2);
+  const mode = UI.mode.value;
+  document.querySelectorAll('.pc-only').forEach(el=>el.style.display = (mode==='pc')?'grid':'none');
+  document.querySelectorAll('.df-only').forEach(el=>el.style.display = (mode==='df')?'grid':'none');
+  document.querySelectorAll('.fl-only').forEach(el=>el.style.display = (mode==='fl')?'grid':'none');
+  document.querySelectorAll('.coh-only').forEach(el=>el.style.display = (mode!=='fl') ? 'grid' : 'none');
+  UI.lambdaval.textContent = UI.lambda.value;
+  UI.NAval.textContent = fmt(UI.NA.value,2);
+  UI.zval.textContent = fmt(UI.z.value,2);
+  UI.zstdval.textContent = fmt(UI.zstd.value,2);
+  UI.Npartval.textContent = UI.Npart.value;
+  UI.Rval.textContent = fmt(UI.R.value,2);
+  UI.dnval.textContent    = fmt(UI.dn.value,3);
+  UI.kappaval.textContent = fmt(UI.kappa.value,3);
+  UI.flIval.textContent   = fmt(UI.flI.value,2);
+  UI.Hval.textContent = fmt(UI.H.value,2);
+  const etaPa = Math.pow(10, Number(UI.etaLog.value));
+  UI.etaval.textContent = etaPa.toExponential(2); // e.g., 1.00e-03
+  UI.dtval.textContent = parseInt(UI.dt.value,10);
+  UI.fpsval.textContent = parseInt(UI.fps.value,10);
+  updateScaleBarWidth();
+}
+
+// --- Wire sliders so labels update and N snaps to pow2 on input ---
+['input','change'].forEach(ev => {
+  [
+    'N','px','lambda','NA','z','zstd','Npart','R','phi','amp',
+    'H','etaLog','dt','fps','barum','verbose','paused'
+  ].forEach(id => {
+    if (!UI[id]) return;
+    UI[id].addEventListener(ev, () => {
+      if (id === 'N' && ev === 'input') {
+        UI.N.value = String(snapPow2(parseInt(UI.N.value, 10)));
+      }
+      syncLabels();
+      // Rebuild dynamics when any physics parameter changes
+      if (['H','etaLog','dt','R','px','Npart'].includes(id)) {
+        dyn = makeDynamics(parseInt(UI.Npart.value, 10));
+        simulate._last = performance.now(); // reset physics clock
+      }
+      // Only show verbose overlay when checked
+      if (id === 'verbose') {
+        UI.tests.style.display = UI.verbose.checked ? 'block' : 'none';
+      }
+      // If you want MathJax to re-typeset on UI changes:
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        MathJax.typesetPromise();
+      }
+    });
+  });
+});
+
+// ---------- Random layout (particle positions) ----------
+let layout=null; // {xi[], yi[], zi[]}
+let dyn = null; // keep this at top-level
+let alive = null; // Uint8Array mask 1=alive, 0=vanished
+
+function randn(){ // Box-Muller
+  let u=0, v=0; 
+  while(u===0) u=Math.random(); 
+  while(v===0) v=Math.random();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+
+function newLayout(){
+  const N=parseInt(UI.N.value,10);
+  const n=parseInt(UI.Npart.value,10);
+  const px=Number(UI.px.value);
+  const Rpx=(Number(UI.R.value)/px);
+  const margin=Math.max(4, Math.ceil(Rpx)+2);
+  const xi=new Float64Array(n), yi=new Float64Array(n), zi=new Float64Array(n);
+  const zstd=Number(UI.zstd.value);
+  for(let i=0;i<n;i++){
+    xi[i]=Math.floor(margin+Math.random()*(N-2*margin));
+    yi[i]=Math.floor(margin+Math.random()*(N-2*margin));
+    zi[i]=randn()*zstd; // μm, Gaussian N(0, zstd^2)
+  }
+  layout={xi,yi,zi};
+  dyn = makeDynamics(n); // reset dynamics when layout changes
+  alive = new Uint8Array(n);
+  alive.fill(1);
+}
+
+// ---------- fBm dynamics (Davies–Harte fGn) ----------
+function makeFGNChunk(H, M){
+  const H2=2*H;
+  const gamma=new Float64Array(M);
+  gamma[0]=1;
+  for(let k=1;k<M;k++){
+    gamma[k]=0.5*(Math.pow(k+1,H2)-2*Math.pow(k,H2)+Math.pow(k-1,H2)); 
+  }
+  const L=2*M;
+  const c=new Float64Array(L);
+  for(let k=0;k<M;k++) c[k]=gamma[k];
+  c[M]=0;
+  for(let k=1;k<M;k++) c[M+k]=gamma[M-k];
+  const f=new FFT(L);
+  const cin=f.createComplexArray(), cout=f.createComplexArray();
+  for(let i=0;i<L;i++){
+    cin[2*i]=c[i]; cin[2*i+1]=0;
+  }
+  f.transform(cout,cin);
+  const lam=new Float64Array(L);
+  for(let i=0;i<L;i++){ 
+    lam[i]=Math.max(0, cout[2*i]); 
+  }
+  const sc=new Float64Array(L);
+  for(let i=0;i<L;i++){ 
+    sc[i]=Math.sqrt(lam[i]/L); 
+  }
+  function n01(){ 
+    let u=0,v=0; 
+    while(u===0) 
+      u=Math.random();
+    while(v===0) 
+      v=Math.random(); 
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); 
+  }
+
+  return function gen(){
+    const Zr=new Float64Array(L), Zi=new Float64Array(L);
+    Zr[0]=n01(); Zi[0]=0; 
+    Zr[M]=n01(); Zi[M]=0;
+    for(let k=1;k<M;k++){ 
+      const a=n01(), b=n01(); 
+      Zr[k]=a; Zi[k]=b; 
+      Zr[L-k]=a; Zi[L-k]=-b; 
+    }
+
+    // Filter in frequency domain
+    const Y=f.createComplexArray();
+    for(let i=0;i<L;i++){ Y[2*i]=sc[i]*Zr[i]; Y[2*i+1]=sc[i]*Zi[i]; }
+
+    // IFFT (fft.js inverse is unnormalized) → real sequence
+    const y=f.createComplexArray();
+    f.inverseTransform(y, Y);
+
+    // Take first M reals
+    const out=new Float64Array(M);
+    for(let i=0;i<M;i++) out[i]=y[2*i];
+
+    // --- CRUCIAL: normalize to unit variance (empirical) ---
+    // This makes Var(fGn) ≈ 1 so the physics scale (stepStd) is correct.
+    let s2=0;
+    for(let i=0;i<M;i++){ const v=out[i]; s2+=v*v; }
+    s2/=M;
+    const s = s2>0 ? Math.sqrt(s2) : 1;
+    for(let i=0;i<M;i++){ out[i] /= s; }
+
+    return out;
+  };
+}
+
+function makeDynamics(n){
+  const M   = 1024;                       // fGn chunk length
+  const H   = Number(UI.H.value);
+  const dt_s= Number(UI.dt.value)/1000;
+  const eta = Math.pow(10, Number(UI.etaLog.value));
+  const px  = Number(UI.px.value);        // μm / pixel
+
+  // --- Physical mobility from Stokes–Einstein ---
+  const kB = 1.380649e-23;                // J/K
+  const T  = 295;                         // [K] (or expose a slider)
+  const R_um = Number(UI.R.value);        // particle radius [μm]
+  const R_m  = Math.max(1e-9, R_um * 1e-6);
+
+  // D in m^2/s → μm^2/s
+  const D_um2_s = (kB * T) / (6 * Math.PI * eta * R_m) * 1e12;
+
+  // generalized diffusion coefficient
+  const K_H = D_um2_s * Math.pow(1.0, 1 - 2*H); // = D at H=0.5
+  // console.log('K_H is', K_H.toFixed(2));
+
+  const stepStd = Math.sqrt(2 * K_H) * Math.pow(dt_s, H);
+  // console.log('STD step per frame is', (stepStd/px).toFixed(2), 'px.');
+
+  // one independent DH generator (and buffer) per particle & per axis
+  const gensX = new Array(n), gensY = new Array(n), gensZ = new Array(n);
+  const bufX  = new Array(n), bufY  = new Array(n), bufZ  = new Array(n);
+  const idx   = new Int32Array(n);
+
+  for (let i=0;i<n;i++){
+    gensX[i] = makeFGNChunk(H, M);
+    gensY[i] = makeFGNChunk(H, M);
+    gensZ[i] = makeFGNChunk(H, M);
+    bufX[i]  = gensX[i]();
+    bufY[i]  = gensY[i]();
+    bufZ[i]  = gensZ[i]();
+    idx[i]   = 0;
+  }
+
+  // reflect inside [lo, hi] with overshoot mirrored (not clamped)
+  function reflect(val, lo, hi){
+    if (val < lo)  return lo + (lo - val);
+    if (val > hi)  return hi - (val - hi);
+    return val;
+  }
+
+  return {
+    tick(steps){
+      const dx = new Float64Array(n);
+      const dy = new Float64Array(n);
+      const dz = new Float64Array(n);
+      for (let s=0; s<steps; s++){
+        for (let i=0;i<n;i++){
+          if (idx[i] >= M){
+            bufX[i] = gensX[i]();
+            bufY[i] = gensY[i]();
+            bufZ[i] = gensZ[i]();
+            idx[i]  = 0;
+          }
+          // pixels in x,y, microns in z
+          dx[i] += (bufX[i][idx[i]] * stepStd) / px;
+          dy[i] += (bufY[i][idx[i]] * stepStd) / px;
+          dz[i] +=  (bufZ[i][idx[i]] * stepStd);
+        }
+        for (let i=0;i<n;i++) idx[i]++;
+      }
+      return {dx, dy, dz, reflect};
+    }
+  };
+}
+
+// ---------- Main Optical Simulation Call ----------
+async function simulate(){
+  try{
+    const t0=performance.now();
+    // --- 1 s RMS meter state (3D) ---
+    if (!simulate._rms) {
+      simulate._rms = { t: performance.now(), x: null, y: null, z: null };
+    }
+    const N=parseInt(UI.N.value,10);
+    const px_um=Number(UI.px.value); 
+    const lam_um=Number(UI.lambda.value)*1e-3; 
+    const NA=Number(UI.NA.value); 
+    const z0=Number(UI.z.value);
+    const nParts=parseInt(UI.Npart.value,10); 
+    const R_um=Number(UI.R.value); 
+
+    if((N & (N-1))!==0) throw new Error("N must be a power of two");
+    if(!layout || layout.xi.length!==nParts) newLayout();
+    if(!dyn) dyn = makeDynamics(nParts);
+
+    // --- advance dynamics according to elapsed time ---
+    const now = performance.now();
+    if(!simulate._last) simulate._last = now;
+    const dt_ms = Number(UI.dt.value);
+    const stepsNeeded = UI.paused.checked ? 0 : Math.max(0, Math.floor((now - simulate._last)/dt_ms));
+    if(stepsNeeded>0){
+      const d = dyn.tick(stepsNeeded);
+      const Npix = N;
+      const Rpx  = (R_um/px_um);
+      const dropPad = Npix/2; // px beyond image to consider "gone"
+
+      for (let i=0;i<layout.xi.length;i++){
+        if (!alive || !alive[i]) continue; // already vanished
+
+        const x = layout.xi[i] + d.dx[i];
+        const y = layout.yi[i] + d.dy[i];
+        const z = layout.zi[i] + d.dz[i];
+
+        const gone = (x < -dropPad) || (x > Npix + dropPad) ||
+                     (y < -dropPad) || (y > Npix + dropPad);
+
+        if (gone) {
+          alive[i] = 0;            // mark vanished
+          continue;                // do not update its position further
+        }
+        layout.xi[i] = x;
+        layout.yi[i] = y;
+        layout.zi[i] = z;
+      }
+
+      // --- 1 s RMS(|Δr|) in verbose overlay ---
+      const snap = simulate._rms;
+      const now2 = performance.now();
+      const n = layout.xi.length;
+
+      if (!snap.x || snap.x.length !== n) {
+        snap.x = Float64Array.from(layout.xi);
+        snap.y = Float64Array.from(layout.yi);
+        snap.z = Float64Array.from(layout.zi);
+        snap.t = now2;
+      } else if ((now2 - snap.t) >= 1000) {
+        const px_um = Number(UI.px.value);
+        const dt_s  = (now2 - snap.t)/1000;
+        let acc = 0;
+        for (let i=0;i<n;i++){
+          const dx_um = (layout.xi[i] - snap.x[i]) * px_um;
+          const dy_um = (layout.yi[i] - snap.y[i]) * px_um;
+          const dz_um = (layout.zi[i] - snap.z[i]);
+          acc += dx_um*dx_um + dy_um*dy_um + dz_um*dz_um;
+        }
+        const rms_um = Math.sqrt(acc / n);
+        const rms_px = rms_um / px_um;
+
+        // write into verbose overlay
+        if (UI.verbose.checked) {
+          UI.tests.style.display = 'block';
+          // keep overlay short: last 6 lines
+          const lines = (UI.tests.textContent || '').trim().split('\n').filter(Boolean);
+          lines.push(`RMS(|Δr|, ~1 s) ≈ ${rms_um.toFixed(3)} μm  (${rms_px.toFixed(2)} px)`);
+          UI.tests.textContent = lines.slice(-6).join('\n');
+        }
+
+        // reset snapshot
+        snap.x.set(layout.xi); snap.y.set(layout.yi); snap.z.set(layout.zi); snap.t = now2;
+      }
+
+      simulate._last += stepsNeeded*dt_ms;
+    }
+
+    const ft=makeFFT(N);
+
+    // Frequency grids
+    const df=1/(N*px_um); // cyc/μm
+    const f2=new Float64Array(N*N);
+    const P=new Uint8Array(N*N);
+    const H0r=new Float64Array(N*N);
+    const H0i=new Float64Array(N*N);
+    const fc=NA/lam_um;
+    
+    const mode = UI.mode.value;
+    const Mr = new Float64Array(N*N);
+    const Mi = new Float64Array(N*N);
+    const pc_frac = Number(UI.pcfrac.value)/100.0;
+    const pc_phi  = Number(UI.pcphi.value);
+    const pc_alpha= Number(UI.pcalpha.value);
+    const df_inner= Number(UI.dfinner.value);
+    const CohI = Number(UI.cohI.value);
+    const Iem  = Number(UI.flI.value);
+
+    // --- Material parameters --- weak-object coefficient β = (-α/2) + i k0 Δn
+    const k0     = 2*Math.PI / lam_um;             // 1/μm
+    const dn     = Number(UI.dn.value);            // Δn = n_p - n_0
+    const kappa  = Number(UI.kappa.value);         // absorption / extinction
+    const alpha  = 4*Math.PI * kappa / lam_um;     // 1/μm
+    const beta_r = -0.5 * alpha;                   // Re(β)
+    const beta_i =  k0 * dn;                       // Im(β)
+
+    // --- Pupil function ---
+    for(let y=0;y<N;y++){
+      const ky=(y<=N/2)?y:y-N; const fy=ky*df;
+      for(let x=0;x<N;x++){
+        const kx=(x<=N/2)?x:x-N;
+        const fx=kx*df;
+        const idx=y*N+x;
+        f2[idx]=fx*fx+fy*fy; 
+        const fmag = Math.sqrt(f2[idx]);
+
+        // const pass = (fmag<=fc)?1:0;
+        const w = 2*df;
+        let pass = 0;
+        if (fmag < fc - w) pass = 1;
+        else if (fmag > fc) pass = 0;
+        else {
+          const t = (fc - fmag) / w; // 0..1
+          pass = 0.5 * (1 - Math.cos(Math.PI * t)); // cosine taper
+        }
+
+        let m_r = 1.0, m_i = 0.0; // default BF
+        if(mode==='pc'){
+          const inPlate = (fmag <= pc_frac * fc);
+          if(inPlate){ m_r = pc_alpha*Math.cos(pc_phi); m_i = pc_alpha*Math.sin(pc_phi); }
+        } else if(mode==='df'){
+          if(fmag < df_inner * fc) { m_r = 0.0; m_i = 0.0; }
+        }
+        P[idx]= pass ? 1 : 0;
+        Mr[idx]= pass ? m_r : 0.0;
+        Mi[idx]= pass ? m_i : 0.0;
+        const ph0=Math.PI*lam_um*z0*f2[idx];
+        H0r[idx]=Math.cos(ph0);
+        H0i[idx]=Math.sin(ph0);
+      }
+    }
+
+    const FRe=new Float64Array(N*N); const FIm=new Float64Array(N*N);
+
+    // ----------------- Coherent Illuminations (BF/PC/DF) --------------
+    if (UI.mode.value !== 'fl') {
+      // F_total(f) start with baseline: DC = N*N (FFT of all-ones).
+      FRe[0]=N*N;
+
+      // --- Sphere thickness kernel t(x,y) = 2*sqrt(R^2 - r^2), r<=R; else 0
+      const T = new Float64Array(N*N).fill(0);
+      const cx = N>>1, cy = N>>1;
+      const Rpx = (R_um/px_um), R2 = Rpx*Rpx;
+
+      for(let y=0;y<N;y++){
+        for(let x=0;x<N;x++){
+          const dx = x - cx, dy = y - cy;
+          const r2 = dx*dx + dy*dy;
+          if (r2 <= R2){
+            const t_um = 2*Math.sqrt(R2 - r2) * (px_um); // convert px→μm
+            T[y*N + x] = t_um;
+          }
+        }
+      }
+
+      // FFT of thickness kernel (for use with Born/Rytov linearization)
+      const FTtRe = T.slice(0), FTtIm = new Float64Array(N*N);
+      fft2D(FTtRe, FTtIm, N, ft);
+
+      for (let y = 0; y < N; y++) {
+        const ky = (y <= N/2) ? y : y - N;           // integer frequency bin (centered)
+        for (let x = 0; x < N; x++) {
+          const kx = (x <= N/2) ? x : x - N;
+          const idx = y*N + x;
+          const ang =  2 * Math.PI * ((kx*cx + ky*cy) / N);
+          const cr = Math.cos(ang), ci = Math.sin(ang);
+          const ar = FTtRe[idx], ai = FTtIm[idx];
+          // rotate: (a + i b) * (cr + i ci)
+          FTtRe[idx] = ar*cr - ai*ci;
+          FTtIm[idx] = ar*ci + ai*cr;
+        }
+      }
+
+      // Accumulate scattering in frequency domain
+      for (let y=0; y<N; y++){
+        const ky = (y <= N/2) ? y : y - N;     // <-- use centered ky
+        for (let x=0; x<N; x++){
+          const kx = (x <= N/2) ? x : x - N;   // <-- use centered kx
+          const idx = y*N + x;
+          if (P[idx] === 0) { /* skip */ continue; }
+
+          // Accumulate scattered spectrum: ΔF = β * shift( FFT{t} )
+          // Compute shift phasor for this (kx,ky)
+          let Sr=0, Si=0;
+          for (let j=0; j<nParts; j++){
+            if (!alive || !alive[j]) continue;
+            const xi = layout.xi[j], yi = layout.yi[j], zi = layout.zi[j];
+            const ang = -2 * Math.PI * ((kx*xi + ky*yi) / N);
+            const sh_r = Math.cos(ang), sh_i = Math.sin(ang);
+
+            const ph = Math.PI * lam_um * zi * f2[idx];
+            const hz_r = Math.cos(ph),   hz_i = Math.sin(ph);
+
+            // Combine lateral shift phasor and defocus: (sh) * (hz)
+            const tr = sh_r*hz_r - sh_i*hz_i;
+            const ti = sh_r*hz_i + sh_i*hz_r;
+
+            // Apply to the sphere thickness spectrum at this frequency:
+            // (FT{t})(f - f_i) ≈ FTt(f) * exp(-i2π f·r_i)  with added defocus H_z
+            // => multiply FTt by (tr + i ti)
+            const A_r = FTtRe[idx]*tr - FTtIm[idx]*ti;
+            const A_i = FTtRe[idx]*ti + FTtIm[idx]*tr;
+
+            // Multiply by β = beta_r + i*beta_i
+            Sr += beta_r*A_r - beta_i*A_i;
+            Si += beta_r*A_i + beta_i*A_r;
+          }
+
+          // Add to total spectrum (and keep your background DC and defocus logic)
+          FRe[idx] += Sr;
+          FIm[idx] += Si;
+        }
+      }
+
+      // Apply common focal defocus H0 and modality mask M within pupil
+      for(let i=0;i<FRe.length;i++){
+        if(P[i]===0){ FRe[i]=0; FIm[i]=0; continue; }
+        const h_r = H0r[i]*Mr[i] - H0i[i]*Mi[i];
+        const h_i = H0r[i]*Mi[i] + H0i[i]*Mr[i];
+        const ar=FRe[i], ai=FIm[i];
+        FRe[i]=ar*h_r - ai*h_i; 
+        FIm[i]=ar*h_i + ai*h_r;
+      }
+
+      // Inverse FFT to field -> texture
+      const uRe=FRe.slice(0), uIm=FIm.slice(0);
+      ifft2D(uRe,uIm,N,ft);
+      const norm=Math.sqrt(Number(UI.cohI.value)); // apply source intensity amplitude
+      for(let i=0;i<uRe.length;i++){ 
+        uRe[i]*=norm; uIm[i]*=norm; 
+      }
+      const I = new Float32Array(N*N);
+      for (let i=0;i<I.length;i++){
+        I[i] = uRe[i]*uRe[i] + uIm[i]*uIm[i];
+      }
+
+      const scale = 255;
+      const rgba = new Uint8Array(4*N*N);
+      for (let i=0;i<I.length;i++){
+        const v = Math.max(0, Math.min(255, Math.round(I[i] * scale)));
+        const j = 4*i;
+        rgba[j]=v; rgba[j+1]=v; rgba[j+2]=v; rgba[j+3]=255;
+      }
+
+
+      const tex=new THREE.DataTexture(rgba, N, N, THREE.RGBAFormat); 
+      tex.needsUpdate=true; 
+      tex.magFilter=THREE.NearestFilter; 
+      tex.minFilter=THREE.NearestFilter; 
+      quad.material.map=tex; 
+      quad.material.needsUpdate=true; 
+      renderer.render(scene,cam);
+      savePixels = rgba;
+      saveSize   = N;
+
+      const t1=performance.now();
+      const aliveCount = alive ? alive.reduce((a,b)=>a+(b?1:0),0) : nParts;
+
+      UI.stats.textContent = UI.verbose.checked ?
+      `N=${N}  px=${px_um.toFixed(3)} [μm],  λ=${(lam_um*1e3).toFixed(0)} [nm],  NA=${NA.toFixed(2)}, z0=${z0.toFixed(2)} [μm], Coh_I=${CohI.toFixed(2)},
+      #Particles=${nParts},  R=${R_um.toFixed(2)} [μm], σ_z=${Number(UI.zstd.value).toFixed(2)} [μm],
+      H=${Number(UI.H.value).toFixed(2)},  η=${Math.pow(10,Number(UI.etaLog.value)).toExponential(2)} [Pa·s] Δt=${parseInt(UI.dt.value,10)} [ms],  fps≤${parseInt(UI.fps.value,10)},
+      fc=${(NA/lam_um).toFixed(3)} [cyc/μm],  Δf=${df.toFixed(4)} [cyc/μm],  Render time : ${(t1-t0).toFixed(1)} ms` :
+      `#Particles=${aliveCount}, Render time : ${(t1-t0).toFixed(1)} ms`;
+      ERR.style.display='none';
+      updateScaleBarWidth();
+    }
+    // -------------------- Fluorescence mode (incoherent emitters) ----------------
+    else {
+
+      // =========== knobs ===========
+      const AA_UPSAMPLE = 4;          // 4..8 for edge anti-aliasing
+      const SURFACE_EMITTER = false;  // false: filled disk, true: thin shell
+      const SHELL_HALF_THICK_PX = 0.25;
+      const PSF_CROP_AIRY_RADII = 100;  // crop PSF to +/- this many Airy radii
+
+      // =========== output image ===========
+      const I = new Float32Array(N * N);  // accumulated fluorescence intensity
+
+      // =========== helpers ===========
+      const lam = (typeof lambda_um !== "undefined") ? lambda_um : lam_um;
+
+      function fftshift2D(src, W) {
+        const out = new Float32Array(W*W);
+        const h = W >> 1;
+        for (let y=0; y<W; y++){
+          const yy = (y + h) % W;
+          const row = y*W, rowOut = yy*W;
+          for (let x=0; x<W; x++){
+            const xx = (x + h) % W;
+            out[rowOut + xx] = src[row + x];
+          }
+        }
+        return out;
+      }
+
+      // Build intensity PSF for defocus z (μm), centered and cropped; cached.
+      const _psfCache = new Map(); // key=z (quantized) -> {K,kw,kh,cx,cy}
+      function getPSFKernel(z_um){
+        const zq = Math.round(z_um * 1000) / 1000;    // 1 nm bins
+        const hit = _psfCache.get(zq);
+        if (hit) return hit;
+
+        let PSFfull;
+
+        if (typeof intensityPSF_fromPupil === "function") {
+          // preferred: use your existing PSF builder
+          PSFfull = intensityPSF_fromPupil(N, px_um, lam, NA, n_medium, zq); // length N*N
+        } else {
+          // fallback: build from pupil P[] and spatial-freq radius f2[], using your IFFT helper `ifft2D` and handle `ft`
+          const Qr = new Float64Array(N*N);
+          const Qi = new Float64Array(N*N);
+          for (let i=0;i<N*N;i++){
+            if (!P[i]) { Qr[i]=0; Qi[i]=0; continue; }
+            const ph = Math.PI * lam * zq * f2[i];
+            Qr[i] = Math.cos(ph);
+            Qi[i] = Math.sin(ph);
+          }
+          ifft2D(Qr, Qi, N, ft);                        // h(x) = IFFT{Q}
+          PSFfull = new Float32Array(N*N);
+          for (let i=0;i<N*N;i++) PSFfull[i] = Qr[i]*Qr[i] + Qi[i]*Qi[i]; // |h|^2
+        }
+
+        // shift peak to center and normalize
+        let PSFc = fftshift2D(PSFfull, N);
+        let sum = 0; for (let i=0;i<N*N;i++) sum += PSFc[i];
+        if (sum > 0) { const inv = 1/sum; for (let i=0;i<N*N;i++) PSFc[i] *= inv; }
+
+        // crop around center to speed stamping
+        const airy_um = 0.61 * lam / NA;
+        const RpxWin = Math.max(9, Math.ceil((PSF_CROP_AIRY_RADII * airy_um) / px_um));
+        const Wk = 2*RpxWin + 1, cx0 = (N>>1), cy0 = (N>>1);
+        const K = new Float32Array(Wk * Wk);
+        let k=0;
+        for (let j=-RpxWin; j<=RpxWin; j++){
+          const yy = cy0 + j;
+          for (let i=-RpxWin; i<=RpxWin; i++){
+            const xx = cx0 + i;
+            K[k++] = (yy>=0 && yy<N && xx>=0 && xx<N) ? PSFc[yy*N + xx] : 0;
+          }
+        }
+        // re-normalize cropped kernel
+        let sc=0; for (let i=0;i<K.length;i++) sc += K[i];
+        if (sc>0){ const invs=1/sc; for (let i=0;i<K.length;i++) K[i] *= invs; }
+
+        const entry = { K, kw: Wk, kh: Wk, cx: RpxWin, cy: RpxWin };
+        _psfCache.set(zq, entry);
+        return entry;
+      }
+
+      function addKernelAt(dest, W, H, K, kw, kh, cx, cy, x0, y0, scale){
+        const xStart = Math.floor(x0) - cx;
+        const yStart = Math.floor(y0) - cy;
+        for (let ky=0; ky<kh; ky++){
+          const yy = yStart + ky; if (yy<0 || yy>=H) continue;
+          const row = yy*W, krow = ky*kw;
+          for (let kx=0; kx<kw; kx++){
+            const xx = xStart + kx; if (xx<0 || xx>=W) continue;
+            dest[row + xx] += scale * K[krow + kx];
+          }
+        }
+      }
+
+      function occupancyFilled(ix, iy, xc, yc, rPx, up){
+        const r2 = rPx*rPx;
+        const dx0=ix-xc, dy0=iy-yc, dx1=(ix+1)-xc, dy1=(iy+1)-yc;
+        const c2 = [dx0*dx0+dy0*dy0, dx1*dx1+dy0*dy0, dx0*dx0+dy1*dy1, dx1*dx1+dy1*dy1];
+        if (Math.max(...c2) <= r2) return 1;
+        if (Math.min(...c2) >= r2) return 0;
+        const step = 1/up, sub=1/(up*up);
+        let occ=0, x0=ix+0.5*step, y0=iy+0.5*step;
+        for (let sy=0; sy<up; sy++){
+          const yy = y0 + sy*step - yc;
+          for (let sx=0; sx<up; sx++){
+            const xx = x0 + sx*step - xc;
+            if (xx*xx + yy*yy <= r2) occ += sub;
+          }
+        }
+        return occ;
+      }
+
+      function occupancyShell(ix, iy, xc, yc, rPx, tPx, up){
+        const rMin2=(rPx-tPx)*(rPx-tPx), rMax2=(rPx+tPx)*(rPx+tPx);
+        const dx0=ix-xc, dy0=iy-yc, dx1=(ix+1)-xc, dy1=(iy+1)-yc;
+        const c2 = [dx0*dx0+dy0*dy0, dx1*dx1+dy0*dy0, dx0*dx0+dy1*dy1, dx1*dx1+dy1*dy1];
+        if (Math.min(...c2) >= rMax2) return 0;
+        if (Math.max(...c2) <= rMin2) return 0;
+        const step = 1/up, sub=1/(up*up);
+        let occ=0, x0=ix+0.5*step, y0=iy+0.5*step;
+        for (let sy=0; sy<up; sy++){
+          const yy = y0 + sy*step - yc;
+          for (let sx=0; sx<up; sx++){
+            const xx = x0 + sx*step - xc;
+            const rr = xx*xx + yy*yy;
+            if (rr >= rMin2 && rr <= rMax2) occ += sub;
+          }
+        }
+        return occ;
+      }
+
+      function renderBead(I, W, H, xi, yi, zi, R_um_local, amp){
+        const Rpx = R_um_local / px_um;
+        if (Rpx <= 0) return;
+
+        const {K, kw, kh, cx, cy} = getPSFKernel(zi);
+
+        const xmin = Math.max(0, Math.floor(xi - Rpx - 1));
+        const xmax = Math.min(W-1, Math.ceil (xi + Rpx + 1));
+        const ymin = Math.max(0, Math.floor(yi - Rpx - 1));
+        const ymax = Math.min(H-1, Math.ceil (yi + Rpx + 1));
+
+        for (let y=ymin; y<=ymax; y++){
+          for (let x=xmin; x<=xmax; x++){
+            const occ = SURFACE_EMITTER
+              ? occupancyShell(x, y, xi, yi, Rpx, SHELL_HALF_THICK_PX, AA_UPSAMPLE)
+              : occupancyFilled(x, y, xi, yi, Rpx, AA_UPSAMPLE);
+            if (occ<=0) continue;
+            addKernelAt(I, W, H, K, kw, kh, cx, cy, x+0.5, y+0.5, amp*occ);
+          }
+        }
+      }
+
+      // =========== main loop over your particles ===========
+      for (let j=0; j<nParts; j++){
+        if (alive && !alive[j]) continue;
+        const xi = layout.xi[j];
+        const yi = layout.yi[j];
+        const zi = (z0 || 0) + (layout.zi ? layout.zi[j] : 0);
+        renderBead(I, N, N, xi, yi, zi, R_um, Iem);
+      }
+
+      // =========== map to display buffer ===========
+      const scale = 255;
+      const rgba = new Uint8Array(4*N*N);
+      for (let i=0; i<I.length; i++){
+        // linear map; clamp to [0,255]
+        let c = I[i] * scale;
+        if (c < 0) c = 0;
+        if (c > 255) c = 255;
+        const v = c|0;
+        const o = i<<2;
+        rgba[o+0] = v;
+        rgba[o+1] = v;
+        rgba[o+2] = v;
+        rgba[o+3] = 255;
+      }
+    
+      const tex=new THREE.DataTexture(rgba, N, N, THREE.RGBAFormat); 
+      tex.needsUpdate=true; 
+      tex.magFilter=THREE.NearestFilter; 
+      tex.minFilter=THREE.NearestFilter; 
+      quad.material.map=tex; 
+      quad.material.needsUpdate=true; 
+      renderer.render(scene,cam);
+      savePixels = rgba;
+      saveSize   = N;
+
+      const t1=performance.now();
+      const aliveCount = alive ? alive.reduce((a,b)=>a+(b?1:0),0) : nParts;
+
+      UI.stats.textContent = UI.verbose.checked ?
+      `N=${N}  px=${px_um.toFixed(3)} [μm],  λ=${(lam_um*1e3).toFixed(0)} [nm],  NA=${NA.toFixed(2)}, z0=${z0.toFixed(2)} [μm], Fluo_I=${Iem.toFixed(2)},
+      #Particles=${nParts},  R=${R_um.toFixed(2)} [μm], σ_z=${Number(UI.zstd.value).toFixed(2)} [μm],
+      H=${Number(UI.H.value).toFixed(2)},  η=${Math.pow(10,Number(UI.etaLog.value)).toExponential(2)} [Pa·s] Δt=${parseInt(UI.dt.value,10)} [ms],  fps≤${parseInt(UI.fps.value,10)},
+      fc=${(NA/lam_um).toFixed(3)} [cyc/μm],  Δf=${df.toFixed(4)} [cyc/μm],  Render time : ${(t1-t0).toFixed(1)} ms` :
+      `#Particles=${aliveCount}, Render time : ${(t1-t0).toFixed(1)} ms`;
+      ERR.style.display='none';
+      updateScaleBarWidth();
+    }
+  }catch(e){ showErr(e); }
+}
+
+// ---------- Buttons ----------
+UI.rerun.addEventListener('click', ()=>{ newLayout(); dyn = makeDynamics(parseInt(UI.Npart.value,10)); simulate(); });
+UI.save.addEventListener('click', ()=>{
+  if (!savePixels || !saveSize) return;
+  const N = saveSize;
+  const c = document.createElement('canvas');
+  c.width = N; c.height = N;
+  const ctx = c.getContext('2d', { alpha: false, willReadFrequently: false });
+  const img = new ImageData(new Uint8ClampedArray(savePixels.buffer.slice(0)), N, N);
+  ctx.putImageData(img, 0, 0);
+  const a = document.createElement('a');
+  a.download = `${UI.mode.value}_${N}x${N}.png`;
+  a.href = c.toDataURL('image/png');
+  a.click();
+});
+
+UI.mode.addEventListener('change', ()=>{ syncLabels(); simulate(); });
+UI.pcfrac.addEventListener('input', ()=>{ syncLabels(); simulate(); });
+UI.pcphi.addEventListener('input', ()=>{ syncLabels(); simulate(); });
+UI.pcalpha.addEventListener('input', ()=>{ syncLabels(); simulate(); });
+UI.dfinner.addEventListener('input', ()=>{ syncLabels(); simulate(); });
+UI.dn.addEventListener('input',    ()=>{ syncLabels(); simulate(); });
+UI.kappa.addEventListener('input', ()=>{ syncLabels(); simulate(); });
+UI.flI.addEventListener('input',   ()=>{ syncLabels(); simulate(); });
+UI.cohI.addEventListener('input', ()=>{ syncLabels(); simulate(); });
+
+UI.verbose.addEventListener('change', ()=>{ UI.tests.style.display = UI.verbose.checked ? 'block' : 'none'; });
+
+// ---------- Init ----------
+resize();
+syncLabels();
+newLayout();
+
+// ---------- Animation loop with FPS throttle ----------
+(function animate(){
+  let last=0; function step(ts){
+    const maxFPS = parseInt(UI.fps.value,10); const minFrame = 1000/Math.max(1,maxFPS);
+    if(ts - last >= minFrame){ last = ts; simulate(); }
+    renderer.render(scene,cam);
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+})();
+
+if(window.MathJax && window.MathJax.typesetPromise) { MathJax.typesetPromise(); }
+
+// ---------- Minimal self-tests (visible only when verbose checked) ----------
+(function selfTests(){
+  const ok=(name,cond)=>{ if(UI.verbose.checked){ UI.tests.style.display='block'; UI.tests.textContent += `${cond?'✔':'✘'} ${name}\n`; } if(!cond) console.error('Test failed:',name); };
+  const before= UI.N.value; UI.N.value='777'; UI.N.dispatchEvent(new Event('input')); ok('Image size snaps to pow2', [256,512,1024,2048].includes(parseInt(UI.N.value,10))); UI.N.value=before; UI.N.dispatchEvent(new Event('change'));
+  const w1 = (()=>{updateScaleBarWidth(); return parseInt(UI.bar.style.width)||0;})();
+  const old = UI.barum.value; UI.barum.value = Number(old)+1; updateScaleBarWidth(); const w2=parseInt(UI.bar.style.width)||0; UI.barum.value=old; updateScaleBarWidth(); ok('Scale bar width monotonic', w2>w1);
+  const Nv=parseInt(UI.N.value,10); ok('N power-of-two check', (Nv & (Nv-1))===0);
+})();
+</script>
+</body>
+</html>
+
