@@ -56,6 +56,22 @@ span {
 	font-size:50px;
 }
 
+/* make nav sit below title on small screens and avoid overlap */
+@media (max-width: 991px) {
+  #top { margin-bottom: 10px; }
+  #nav { margin-top: 8px; clear: both; }
+  .nav-tabs { display: flex; flex-wrap: wrap; justify-content: center; }
+  .nav-tabs > li { float: none; display: inline-block; }
+}
+@media (max-width: 767px) {
+  .nav li { font-size: 16px; }
+}
+
+/* responsive title */
+@media (max-width: 991px) { #top h1 { font-size: 42px; text-align: center; } }
+@media (max-width: 767px) { #top h1 { font-size: 34px; text-align: center; } }
+@media (max-width: 479px) { #top h1 { font-size: 28px; text-align: center; } }
+
 /* dropdown-menu */
 
 .dropdown-menu .sub-menu {
@@ -96,7 +112,7 @@ span {
 	font-size:20px;
 }
 
-#main p {
+#main p,ol {
 	text-shadow: 1px 1px 3px #000;
 	margin-top: .2em;
 	margin-bottom: .5em;
@@ -166,19 +182,75 @@ footer img {
     z-index:2;
 }
 
-#facelogo {
-	display:flex; 
-	width:100%; 
-	height:100%;
-	background:url("/fotos/IMG_9802_3.jpg");
-    background-repeat: no-repeat;
-	background-size: 100% 100%;
-	}
-#facelogo:hover img {
-	position:relative;
-	left:-999em;
-	top:-999em;
-	}
-#facelogo:hover {
-	zoom:1;
-	}
+/* profile link styles handled above (no legacy #facelogo swap) */
+
+/* minimal support for mobile-friendly thumbnail hover swap */
+.profile-thumbnail { max-width: 220px; }
+.profile-link { display: block; position: relative; overflow: hidden; border-radius: 50%; aspect-ratio: 1 / 1; }
+.profile-link img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.profile-link .image-hover { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.3s ease; border-radius: 50%; }
+.profile-link:hover .image-hover, .profile-link:focus .image-hover { opacity: 1; }
+.profile-link:hover .image-default, .profile-link:focus .image-default { opacity: 0; }
+@media (hover: none) {
+  .profile-link .image-hover { opacity: 1; }
+  .profile-link .image-default { opacity: 0; }
+}
+@media (max-width: 767px) { 
+  .profile-thumbnail { margin: 0 auto 2rem; max-width: 260px; }
+}
+
+@media (orientation: portrait) and (max-width: 991px) {
+  .profile-thumbnail { max-width: 70vw; }
+}
+
+/* center presence column on small screens */
+@media (max-width: 767px) {
+  .profile-thumbnail + h3 { text-align: center; }
+  .online-presence { max-width: 22rem; margin-left: auto; margin-right: auto; }
+  .presence-link { justify-content: center; }
+}
+
+/* right-justify email in footer */
+#email { text-align: right; }
+
+/* basic list spacing for online presence */
+.online-presence { list-style: none; margin: 1rem 0 0; padding: 0; }
+.online-presence li + li { margin-top: 0.5rem; }
+
+/* publications footnote */
+.publication-footnote { font-size: 80%; opacity: 0.9; }
+
+/* small logo sprites for presence links */
+.presence-link { display: flex; align-items: center; gap: 0.5rem; }
+.presence-link .presence-text { flex: 1; }
+.presence-icon { width: 1.6rem; height: 1.6rem; border-radius: 0.4rem; color: #fff; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; text-transform: uppercase; }
+.presence-link-linkedin .presence-icon { background: #0a66c2; }
+.presence-link-google-scholar .presence-icon { background: #673ab7; }
+.presence-link-slides .presence-icon { background: #fbbc05; color: #111; font-weight: 600; }
+.presence-link-youtube .presence-icon { background: #ff0000; }
+.presence-link-instructables .presence-icon { background: #fbd32d; color: #111; }
+.presence-link-thingiverse .presence-icon { background: #0094ff; }
+.presence-link-mubi .presence-icon { background: #1a1f36; font-size: 0.8rem; }
+.presence-link-newgrounds .presence-icon { background: #ff6b00; }
+.presence-link-github .presence-icon { background: #171515; }
+
+/* bring back masked Octocat sprite */
+.presence-link-github .presence-icon::before {
+  content: "";
+  width: 0.9rem;
+  height: 0.9rem;
+  display: inline-block;
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%23fff" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.08.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 012-.27 7.5 7.5 0 012 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8 8 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>') center/contain no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%23fff" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.08.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 012-.27 7.5 7.5 0 012 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8 8 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>') center/contain no-repeat;
+  background-color: #fff;
+}
+
+/* use Slides.com favicon as icon (fallback to letters) */
+.presence-link-slides .presence-icon {
+  background: transparent;
+  background-image: url('https://slides.com/favicon-32x32.png');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: transparent;
+}
