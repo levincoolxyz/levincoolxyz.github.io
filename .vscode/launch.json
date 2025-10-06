@@ -30,6 +30,12 @@
             "request": "launch",
             "name": "Open filament hand tracer",
             "file": "./filament.html"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open Fish School Sim",
+            "file": "./dipole_school_visualizer.html"
         }
     ],
     "compounds": []

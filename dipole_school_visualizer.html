@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dipole School Simulator</title>
+  <style>
+    :root{--bg:#0b0d12;--fg:#e8eaed;--muted:#9aa0a6;--acc:#8ab4f8;--panel:#0f131d;--border:#1f2937;--danger:#ef5350;--success:#4caf50}
+    html,body{height:100%;margin:0}
+    body{background:var(--bg);color:var(--fg);font:14px/1.4 "Inter",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    .app{display:grid;grid-template-columns:minmax(280px,360px) 1fr;grid-template-rows:auto 1fr;height:100%;min-height:0}
+    .app>*{min-width:0;min-height:0}
+    header{grid-column:1 / -1;padding:12px 16px;border-bottom:1px solid var(--border);background:#0f1113}
+    header .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    header h1{font-size:18px;margin:0}
+    header small{color:var(--muted)}
+    main{grid-column:2 / -1;position:relative;background:#05070c;display:flex;align-items:center;justify-content:center}
+    #view{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;min-height:clamp(320px,60vh,780px)}
+    canvas{width:100%;height:100%;display:block;background:#05070c}
+    aside{background:var(--panel);border-right:1px solid var(--border);padding:14px 16px;overflow:auto}
+    aside h2{margin:0 0 10px 0;font-size:15px;color:var(--fg)}
+    .controls{display:flex;flex-direction:column;gap:12px}
+    .control{display:grid;grid-template-columns:1fr minmax(120px,160px);gap:10px;align-items:center}
+    .control label{font-size:12px;color:var(--muted)}
+    .control span.value{color:var(--fg);font-variant-numeric:tabular-nums}
+    .control input[type=range]{width:100%}
+    .control input[type=checkbox]{justify-self:end}
+    .buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+    button, .toggle{background:#1a2536;color:var(--fg);border:1px solid #233047;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;transition:background .2s ease,color .2s ease,border .2s ease}
+    button:hover, .toggle:hover{background:#223149}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .toggle.active{background:var(--acc);color:#041024;border-color:#5d8df4}
+    .toggles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+    #stats{position:absolute;left:12px;bottom:12px;padding:8px 10px;background:rgba(0,0,0,.45);border-radius:8px;font:12px ui-monospace;color:#cbd5e1;white-space:pre}
+    #messages{position:absolute;right:12px;bottom:12px;padding:10px 14px;background:rgba(43,27,27,.85);color:#ffdcdc;border:1px solid #a55;border-radius:10px;font:12px ui-monospace;display:none;max-width:46ch}
+    a{color:var(--acc)}
+    @media (max-width:960px){
+      .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+      aside{grid-column:1 / -1;order:1}
+      main{grid-column:1 / -1;order:2;min-height:55vh}
+    }
+    @media (max-width:640px){
+      header h1{font-size:16px}
+      .control{grid-template-columns:1fr}
+      .control input[type=checkbox]{justify-self:start}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="row">
+      <h1>Dipole School Simulator</h1>
+      <small>Potential-flow dipole swimmers with Voronoi vision control</small>
+    </div>
+  </header>
+  <aside>
+    <h2>Controls</h2>
+    <div class="controls">
+      <div class="control">
+        <label for="N">School size (force respawn): <span class="value" id="NVal">150</span></label>
+        <input id="N" type="range" min="10" max="1000" step="1" value="150">
+      </div>
+      <div class="control">
+        <label for="Ip">Vision control power I<sub>p</sub>: <span class="value" id="IpVal">1.50</span></label>
+        <input id="Ip" type="range" min="0.01" max="10" step="0.01" value="1.5">
+      </div>
+      <div class="control">
+        <label for="In">Free-will noise I<sub>n</sub>: <span class="value" id="InVal">0.30</span></label>
+        <input id="In" type="range" min="0" max="5" step="0.01" value="0.3">
+      </div>
+      <div class="control">
+        <label for="follow">Follow school centroid</label>
+        <input id="follow" type="checkbox">
+      </div>
+      <div class="control">
+        <label for="pause">Pause simulation</label>
+        <input id="pause" type="checkbox">
+      </div>
+      <div class="buttons">
+        <button id="respawn">Respawn school</button>
+        <button id="clearBaits">Clear baits</button>
+      </div>
+      <div class="toggles">
+        <div class="toggle" data-key="bait">Put bait</div>
+        <div class="toggle" data-key="goal">Shark goal</div>
+        <div class="toggle" data-key="mouse">Scary mouse</div>
+        <div class="toggle" data-key="shark">Baskin' shark</div>
+        <div class="toggle" data-key="whale">Blue whale</div>
+        <div class="toggle" data-key="evade">Auto evade</div>
+        <div class="toggle active" data-key="death">Enable death</div>
+        <div class="toggle" data-key="hard">Hard mode</div>
+      </div>
+    </div>
+  </aside>
+  <main>
+    <div id="view">
+      <canvas id="canvas"></canvas>
+      <div id="stats"></div>
+      <div id="messages"></div>
+    </div>
+  </main>
+</div>
+<script type="module">
+import {Delaunay} from "https://cdn.skypack.dev/d3-delaunay@6";
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const statsEl = document.getElementById('stats');
+const messageEl = document.getElementById('messages');
+
+const controls = {
+  N: document.getElementById('N'),
+  NVal: document.getElementById('NVal'),
+  Ip: document.getElementById('Ip'),
+  In: document.getElementById('In'),
+  IpVal: document.getElementById('IpVal'),
+  InVal: document.getElementById('InVal'),
+  follow: document.getElementById('follow'),
+  pause: document.getElementById('pause'),
+  respawn: document.getElementById('respawn'),
+  clearBaits: document.getElementById('clearBaits'),
+};
+
+const stateFlags = {
+  mouse: false,
+  shark: false,
+  whale: false,
+  evade: false,
+  death: true,
+  hard: false,
+};
+
+const armedPlacers = {bait:false, goal:false};
+const toggleButtons = new Map();
+document.querySelectorAll('.toggle').forEach(btn => {
+  const key = btn.dataset.key;
+  toggleButtons.set(key, btn);
+  if(btn.classList.contains('active')) stateFlags[key] = true;
+  btn.addEventListener('click', () => {
+    if(key === 'bait' || key === 'goal'){
+      armedPlacers[key] = true;
+      btn.classList.add('active');
+      setTimeout(() => btn.classList.remove('active'), 250);
+      return;
+    }
+    const active = btn.classList.toggle('active');
+    if(key === 'death'){
+      stateFlags[key] = active;
+    }else{
+      stateFlags[key] = active;
+    }
+  });
+});
+
+const params = {
+  n: 150,
+  dt: 0.05,
+  If: 1e-2,
+  attrS: 1,
+  fishL: 0.6,
+  fishH: 0.1,
+  replD: 0.6 * 2,
+  replS: 100,
+  sharkH: 3,
+  whaleH: 8,
+};
+
+const fishShape = {
+  x: [-0.5,-0.25,0,0.1,0.125,0.1,0,-0.25],
+  y: [0,0.075,0.1,0.05,0,-0.05,-0.1,-0.075].map(v => v/2),
+};
+
+const sharkShape = {
+  head: {
+    x: [0,0,-0.05,0.05,1,1.8,2.25,3,2.25,1.8,1,0.05,-0.05,0],
+    y: [0,1,1.85,2,1,0.9,0.5,0,-0.5,-0.9,-1,-2,-1.85,-1],
+  },
+  body: {
+    x: [-4,-3.33,-2,-1,0,1,2,1,0,-1,-2,-3.33,-4],
+    y: [0,0.48,0.75,0.85,1,1,0,-1,-1,-0.85,-0.75,-0.48,0],
+  },
+  tail: {
+    x: [-6.6,-6.5,-5.6,-4.6,-4,-2.5,-2.5,-4,-4.6,-5.6,-6.5],
+    y: [0,0.1,0.15,0.25,0.5,0.6,0,-0.6,-0.5,-0.25,-0.1],
+  },
+};
+
+const whaleShape = {
+  x: [-3.9,-4,-3.75,-3.5,-1.5,0,-0.15,-0.4,0.25,0.75,1.5,1.85,2,1.85,1.5,0.75,0.25,-0.4,-0.15,0,-1.5,-3.5,-3.75,-4,-3.9].map(v => v*2),
+  y: [0,0.9,0.67,0.2,0.75,1,1.5,2,1.5,1,0.75,0.45,0,-0.45,-0.75,-1,-1.5,-2,-1.5,-1,-0.75,-0.2,-0.67,-0.9,0].map(v => v*2),
+};
+
+let fishes = [];
+let velocities = [];
+let wBuffer = [];
+let baits = [];
+let sharkGoal = null;
+let cp = {x:0,y:0};
+let pointerActive = false;
+
+let sharkState = {pos:{x:-25,y:0},theta:0};
+let whaleState = {pos:{x:0,y:-25},theta:Math.PI/2};
+let startTime = performance.now();
+let frameCount = 0;
+
+function resetSchool(){
+  fishes = [];
+  velocities = [];
+  wBuffer = [];
+  for(let i=0;i<params.n;i++){
+    const theta = Math.random()*Math.PI*2;
+    fishes.push({x:gaussian()*10,y:gaussian()*10,theta});
+    velocities.push({x:0,y:0});
+    wBuffer.push(0);
+  }
+}
+
+function gaussian(){
+  let u=0,v=0;
+  while(u===0) u=Math.random();
+  while(v===0) v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function wrapAngle(a){
+  a = (a + Math.PI) % (Math.PI*2);
+  if(a < 0) a += Math.PI*2;
+  return a - Math.PI;
+}
+
+function getAngle(phi, dx, dy, dist){
+  const r = dist ?? Math.hypot(dx, dy);
+  if(!isFinite(r) || r === 0) return 0;
+  const rx = dx / r;
+  const ry = dy / r;
+  const ex = Math.cos(phi);
+  const ey = Math.sin(phi);
+  let cross = ex*ry - ey*rx;
+  let dot = ex*rx + ey*ry;
+  cross = Math.max(-1, Math.min(1, cross));
+  dot = Math.max(-1, Math.min(1, dot));
+  let theta = Math.acos(dot);
+  if(cross < 0) theta = -theta;
+  return theta;
+}
+
+function computeStep(){
+  const dt = params.dt;
+  const Ip = parseFloat(controls.Ip.value);
+  const In = parseFloat(controls.In.value);
+  const n = fishes.length;
+  if(!n) return;
+
+  const cosT = fishes.map(f => Math.cos(f.theta));
+  const sinT = fishes.map(f => Math.sin(f.theta));
+
+  const delaunay = n >= 3 ? Delaunay.from(fishes, f => f.x, f => f.y) : null;
+  const wVision = new Array(n).fill(0);
+  const minDist = new Array(n).fill(Infinity);
+
+  if(delaunay){
+    for(let i=0;i<n;i++){
+      const neighbors = Array.from(delaunay.neighbors(i));
+      let sum = 0;
+      let denom = 0;
+      let minR = Infinity;
+      for(const j of neighbors){
+        if(j === i) continue;
+        const dx = fishes[j].x - fishes[i].x;
+        const dy = fishes[j].y - fishes[i].y;
+        const dist = Math.hypot(dx, dy);
+        if(dist === 0) continue;
+        const theta = getAngle(fishes[i].theta, dx, dy, dist);
+        const phi = wrapAngle(fishes[j].theta - fishes[i].theta);
+        const weight = 1 + Math.cos(theta);
+        if(weight <= 0) continue;
+        sum += (Ip*Math.sin(phi) + dist*Math.sin(theta))*weight;
+        denom += weight;
+        if(dist < minR) minR = dist;
+      }
+      wVision[i] = denom > 1e-9 ? sum / denom : 0;
+      minDist[i] = minR;
+    }
+  }
+
+  if(baits.length){
+    const attrNum = Math.min(n, 5);
+    for(const bait of baits){
+      const distList = fishes.map((f,idx) => ({idx, dist: Math.hypot(bait.x - f.x, bait.y - f.y)}));
+      distList.sort((a,b) => a.dist - b.dist);
+      const attrD = (distList[0].dist + distList[Math.min(attrNum-1, distList.length-1)].dist)/2;
+      for(let k=0;k<attrNum && k<distList.length;k++){
+        const {idx, dist} = distList[k];
+        const dvx = bait.x - fishes[idx].x;
+        const dvy = bait.y - fishes[idx].y;
+        const wBait = getAngle(fishes[idx].theta, dvx, dvy, dist);
+        const blend = Math.exp(params.attrS * (dist - attrD));
+        wVision[idx] = (wVision[idx]*blend + wBait)/(1 + blend);
+      }
+    }
+  }
+
+  if(stateFlags.mouse && pointerActive){
+    for(let i=0;i<n;i++){
+      const dx = cp.x - fishes[i].x;
+      const dy = cp.y - fishes[i].y;
+      const dist = Math.hypot(dx, dy);
+      if(dist === 0) continue;
+      const wCp = getAngle(fishes[i].theta, -dy, -dx, dist);
+      const blend = Math.exp(params.replS * (params.replD - dist));
+      wVision[i] = (wVision[i] + wCp*blend)/(1 + blend);
+    }
+  }
+
+  const wNoise = new Array(n).fill(0).map(() => In*Math.sqrt(dt)*gaussian());
+  const Ux = new Array(n).fill(0);
+  const Uy = new Array(n).fill(0);
+  const wHydro = new Array(n).fill(0);
+
+  for(let i=0;i<n;i++){
+    let uR = 0;
+    let uI = 0;
+    let wSum = 0;
+    for(let j=0;j<n;j++){
+      if(i === j) continue;
+      const dx = fishes[i].x - fishes[j].x;
+      const dy = fishes[i].y - fishes[j].y;
+      const r2 = dx*dx + dy*dy;
+      if(r2 < 1e-6) continue;
+      const invr4 = 1/(r2*r2);
+      const invr6 = invr4/r2;
+      const c2r = dx*dx - dy*dy;
+      const c2i = -2*dx*dy;
+      const c3r = c2r*dx - c2i*dy;
+      const c3i = c2r*(-dy) + c2i*dx;
+      const expOjR = cosT[j];
+      const expOjI = sinT[j];
+      const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+      const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+      const termUr = expOjR*c2r - expOjI*c2i;
+      const termUi = expOjR*c2i + expOjI*c2r;
+      const termWr = expTermR*c3r - expTermI*c3i;
+      const termWi = expTermR*c3i + expTermI*c3r;
+      uR += termUr * invr4;
+      uI += termUi * invr4;
+      wSum += termWi * invr6 * 2;
+    }
+    const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+    Ux[i] = uR / Math.PI * params.If * avoid;
+    Uy[i] = -uI / Math.PI * params.If * avoid;
+    wHydro[i] = wSum / Math.PI * params.If * avoid;
+  }
+
+  if(stateFlags.shark){
+    addPredatorFlow(sharkState, params.sharkH, 1000, Ux, Uy, wHydro);
+  }else{
+    sharkState.pos = {x:meanX()-25, y:meanY()};
+    sharkState.theta = 0;
+  }
+  if(stateFlags.whale){
+    addPredatorFlow(whaleState, params.whaleH, 6, Ux, Uy, wHydro);
+  }else{
+    whaleState.pos = {x:meanX(), y:meanY()-25};
+    whaleState.theta = Math.PI/2;
+  }
+
+  if(stateFlags.evade){
+    if(stateFlags.shark) applySharkEvade(wVision);
+    if(stateFlags.whale) applyWhaleEvade(wVision);
+  }
+
+  const thetaDot = new Array(n);
+  for(let i=0;i<n;i++){
+    thetaDot[i] = wVision[i] + wNoise[i] + wHydro[i];
+  }
+  wBuffer = thetaDot.slice();
+
+  for(let i=0;i<n;i++){
+    fishes[i].x += (Math.cos(fishes[i].theta) + Ux[i]) * dt;
+    fishes[i].y += (Math.sin(fishes[i].theta) + Uy[i]) * dt;
+    fishes[i].theta = wrapAngle(fishes[i].theta + thetaDot[i] * dt);
+    velocities[i].x = Math.cos(fishes[i].theta) + Ux[i];
+    velocities[i].y = Math.sin(fishes[i].theta) + Uy[i];
+  }
+
+  if(stateFlags.shark){
+    updateShark(Ux, Uy);
+  }
+  if(stateFlags.whale){
+    updateWhale(Ux, Uy);
+  }
+
+  if(stateFlags.death && (stateFlags.shark || stateFlags.whale)){
+    const survivors = [];
+    const survivorVel = [];
+    const survivorTheta = [];
+    for(let i=0;i<fishes.length;i++){
+      const fish = fishes[i];
+      let dead = false;
+      if(stateFlags.shark){
+        const d = Math.hypot(fish.x - sharkState.pos.x, fish.y - sharkState.pos.y);
+        if(d <= params.sharkH/3) dead = true;
+      }
+      if(!dead && stateFlags.whale){
+        const d = Math.hypot(fish.x - whaleState.pos.x, fish.y - whaleState.pos.y);
+        if(d <= params.whaleH/3) dead = true;
+      }
+      if(!dead){
+        survivors.push(fish);
+        survivorVel.push(velocities[i]);
+        survivorTheta.push(wBuffer[i]);
+      }
+    }
+    fishes = survivors;
+    velocities = survivorVel;
+    wBuffer = survivorTheta;
+    if(fishes.length <= 2){
+      showMessage('Game over – the school was eaten. Respawn to continue.');
+    }
+  }
+}
+
+function addPredatorFlow(predState, scaleH, factor, Ux, Uy, wHydro){
+  const n = fishes.length;
+  for(let i=0;i<n;i++){
+    const dx = fishes[i].x - predState.pos.x;
+    const dy = fishes[i].y - predState.pos.y;
+    const r2 = dx*dx + dy*dy;
+    if(r2 < 1e-6) continue;
+    const invr4 = 1/(r2*r2);
+    const invr6 = invr4 / r2;
+    const c2r = dx*dx - dy*dy;
+    const c2i = -2*dx*dy;
+    const c3r = c2r*dx - c2i*dy;
+    const c3i = c2r*(-dy) + c2i*dx;
+    const expR = Math.cos(predState.theta);
+    const expI = Math.sin(predState.theta);
+    const expTermR = Math.cos(2*fishes[i].theta + predState.theta);
+    const expTermI = Math.sin(2*fishes[i].theta + predState.theta);
+    const termUr = expR*c2r - expI*c2i;
+    const termUi = expR*c2i + expI*c2r;
+    const termWr = expTermR*c3r - expTermI*c3i;
+    const termWi = expTermR*c3i + expTermI*c3r;
+    Ux[i] += termUr * invr4 / Math.PI * params.If * factor;
+    Uy[i] += -termUi * invr4 / Math.PI * params.If * factor;
+    wHydro[i] += termWi * invr6 * 2 / Math.PI * params.If * factor;
+  }
+}
+
+function applySharkEvade(wVision){
+  const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+  const orth = {x: -esk.y, y: esk.x};
+  for(let i=0;i<fishes.length;i++){
+    const fish = fishes[i];
+    const d = Math.hypot(sharkState.pos.x - fish.x, sharkState.pos.y - fish.y);
+    if(d === 0) continue;
+    const dop1 = Math.hypot(sharkState.pos.x - orth.x - fish.x, sharkState.pos.y - orth.y - fish.y);
+    const dop2 = Math.hypot(sharkState.pos.x + orth.x - fish.x, sharkState.pos.y + orth.y - fish.y);
+    const sign = dop1 <= dop2 ? -1 : 1;
+    const wSk = getAngle(fish.theta, orth.x * sign, orth.y * sign);
+    const blend = Math.exp((params.sharkH - d));
+    wVision[i] = (wVision[i] + wSk*blend)/(1 + blend);
+  }
+}
+
+function applyWhaleEvade(wVision){
+  const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+  const orth = {x: -ewh.y, y: ewh.x};
+  for(let i=0;i<fishes.length;i++){
+    const fish = fishes[i];
+    const dVec = {x: whaleState.pos.x - fish.x, y: whaleState.pos.y - fish.y};
+    const d = Math.hypot(dVec.x, dVec.y);
+    if(d === 0) continue;
+    const dop1 = Math.hypot(whaleState.pos.x - orth.x - fish.x, whaleState.pos.y - orth.y - fish.y);
+    const dop2 = Math.hypot(whaleState.pos.x + orth.x - fish.x, whaleState.pos.y + orth.y - fish.y);
+    const sign = dop1 <= dop2 ? -1 : 1;
+    const unit = {x: dVec.x/d, y: dVec.y/d};
+    const wWh = getAngle(fish.theta, orth.x*sign - unit.x, orth.y*sign - unit.y);
+    const blend = Math.exp((params.whaleH - d));
+    wVision[i] = (wVision[i] + wWh*blend)/(1 + blend);
+  }
+}
+
+function updateShark(Ux, Uy){
+  const dt = params.dt;
+  const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+  if(stateFlags.hard && fishes.length){
+    let best = null;
+    let bestDist = Infinity;
+    const phiC = Math.PI/2;
+    for(const fish of fishes){
+      const dx = fish.x - sharkState.pos.x;
+      const dy = fish.y - sharkState.pos.y;
+      const dist = Math.hypot(dx, dy);
+      const phi = getAngle(sharkState.theta, dx, dy, dist);
+      if(Math.abs(phi) < phiC && dist < bestDist){
+        best = {dx, dy, dist};
+        bestDist = dist;
+      }
+    }
+    if(!best){
+      for(const fish of fishes){
+        const dx = fish.x - sharkState.pos.x;
+        const dy = fish.y - sharkState.pos.y;
+        const dist = Math.hypot(dx, dy);
+        if(dist < bestDist){
+          best = {dx, dy, dist};
+          bestDist = dist;
+        }
+      }
+    }
+    if(best){
+      let w = getAngle(sharkState.theta, best.dx, best.dy, best.dist);
+      w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+      sharkState.theta = wrapAngle(sharkState.theta + w*dt);
+    }
+    sharkState.pos.x += esk.x * dt * 1.5;
+    sharkState.pos.y += esk.y * dt * 1.5;
+  }else if(sharkGoal){
+    const dx = sharkGoal.x - sharkState.pos.x;
+    const dy = sharkGoal.y - sharkState.pos.y;
+    const dist = Math.hypot(dx, dy);
+    let w = getAngle(sharkState.theta, dx, dy, dist);
+    w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+    sharkState.theta = wrapAngle(sharkState.theta + w*dt);
+    sharkState.pos.x += esk.x * dt * 1.5;
+    sharkState.pos.y += esk.y * dt * 1.5;
+  }else if(fishes.length){
+    const idx = Math.min(fishes.length-1, Math.floor(fishes.length*187/500));
+    const noise = gaussian()/Math.sqrt(dt);
+    sharkState.pos.x += esk.x * dt * 1.5 + Ux[idx] * dt;
+    sharkState.pos.y += esk.y * dt * 1.5 + Uy[idx] * dt;
+    sharkState.theta = wrapAngle(sharkState.theta + ((wBuffer[idx] ?? 0) + noise)*0.1*dt);
+  }
+}
+
+function updateWhale(Ux, Uy){
+  const dt = params.dt;
+  const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+  if(stateFlags.hard && fishes.length){
+    const phiC = Math.PI/2;
+    const subset = fishes.filter(fish => {
+      const dx = fish.x - whaleState.pos.x;
+      const dy = fish.y - whaleState.pos.y;
+      const dist = Math.hypot(dx, dy);
+      const phi = getAngle(whaleState.theta, dx, dy, dist);
+      return Math.abs(phi) < phiC;
+    });
+    const targetSet = subset.length ? subset : fishes;
+    const target = medianPoint(targetSet);
+    const dx = target.x - whaleState.pos.x;
+    const dy = target.y - whaleState.pos.y;
+    const dist = Math.hypot(dx, dy);
+    let w = getAngle(whaleState.theta, dx, dy, dist);
+    w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+    whaleState.theta = wrapAngle(whaleState.theta + w*dt);
+    whaleState.pos.x += ewh.x * dt;
+    whaleState.pos.y += ewh.y * dt;
+  }else if(fishes.length){
+    const idx = Math.min(fishes.length-1, Math.floor(fishes.length*234/500));
+    const noise = gaussian()/Math.sqrt(dt);
+    whaleState.pos.x += ewh.x * dt / 1.5 + Ux[idx] * dt;
+    whaleState.pos.y += ewh.y * dt / 1.5 + Uy[idx] * dt;
+    whaleState.theta = wrapAngle(whaleState.theta + ((wBuffer[idx] ?? 0) + noise)*0.1*dt);
+  }
+}
+
+function medianPoint(arr){
+  const xs = arr.map(p => p.x).sort((a,b) => a-b);
+  const ys = arr.map(p => p.y).sort((a,b) => a-b);
+  const mid = Math.floor(xs.length/2);
+  const medX = xs.length % 2 ? xs[mid] : (xs[mid-1]+xs[mid])/2;
+  const medY = ys.length % 2 ? ys[mid] : (ys[mid-1]+ys[mid])/2;
+  return {x:medX,y:medY};
+}
+
+function showMessage(msg){
+  messageEl.textContent = msg;
+  messageEl.style.display = 'block';
+  setTimeout(() => {
+    messageEl.style.display = 'none';
+  }, 4000);
+}
+
+function updateStats(){
+  frameCount++;
+  const elapsed = (performance.now() - startTime)/1000;
+  const fps = frameCount / Math.max(elapsed, 1e-3);
+  statsEl.textContent = `N = ${fishes.length}\nIp = ${parseFloat(controls.Ip.value).toFixed(2)}\nIn = ${parseFloat(controls.In.value).toFixed(2)}\nFPS ≈ ${fps.toFixed(1)}`;
+}
+
+function resize(){
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+
+function meanX(){
+  if(!fishes.length) return 0;
+  return fishes.reduce((acc,f) => acc + f.x, 0)/fishes.length;
+}
+function meanY(){
+  if(!fishes.length) return 0;
+  return fishes.reduce((acc,f) => acc + f.y, 0)/fishes.length;
+}
+
+function worldToScreen(x,y){
+  const rect = canvas.getBoundingClientRect();
+  const aspect = rect.width/rect.height;
+  const viewHalf = 20;
+  const cx = controls.follow.checked ? meanX() : 0;
+  const cy = controls.follow.checked ? meanY() : 0;
+  const scale = rect.height/(viewHalf*2);
+  return {
+    x: rect.width/2 + (x - cx) * scale,
+    y: rect.height/2 - (y - cy) * scale,
+    scale,
+  };
+}
+
+function screenToWorld(clientX, clientY){
+  const rect = canvas.getBoundingClientRect();
+  const viewHalf = 20;
+  const cx = controls.follow.checked ? meanX() : 0;
+  const cy = controls.follow.checked ? meanY() : 0;
+  const scale = rect.height/(viewHalf*2);
+  return {
+    x: cx + (clientX - rect.width/2)/scale,
+    y: cy - (clientY - rect.height/2)/scale,
+  };
+}
+
+function draw(){
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0,0,rect.width,rect.height);
+  ctx.save();
+  const cx = controls.follow.checked ? meanX() : 0;
+  const cy = controls.follow.checked ? meanY() : 0;
+  const scale = rect.height/(40);
+  ctx.translate(rect.width/2, rect.height/2);
+  ctx.scale(scale, -scale);
+  ctx.translate(-cx, -cy);
+
+  ctx.lineWidth = 1/scale;
+  drawBaits();
+  if(stateFlags.shark) drawShark();
+  if(stateFlags.whale) drawWhale();
+  drawFishes();
+  ctx.restore();
+}
+
+function drawBaits(){
+  ctx.strokeStyle = '#ffd166';
+  ctx.lineWidth = 2/ctx.getTransform().a;
+  for(const bait of baits){
+    ctx.beginPath();
+    ctx.moveTo(bait.x-0.3, bait.y);
+    ctx.lineTo(bait.x+0.3, bait.y);
+    ctx.moveTo(bait.x, bait.y-0.3);
+    ctx.lineTo(bait.x, bait.y+0.3);
+    ctx.stroke();
+  }
+}
+
+function drawShark(){
+  const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+  const rot = (x,y) => ({x: x*esk.x - y*esk.y + sharkState.pos.x, y: x*esk.y + y*esk.x + sharkState.pos.y});
+  ctx.fillStyle = '#5d8df4';
+  ctx.beginPath();
+  const head = sharkShape.head;
+  head.x.forEach((x,i) => {
+    const p = rot(x, head.y[i]);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.fill();
+  ctx.beginPath();
+  const body = sharkShape.body;
+  body.x.forEach((x,i) => {
+    const p = rot(x, body.y[i]);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.fill();
+  ctx.beginPath();
+  const tail = sharkShape.tail;
+  tail.x.forEach((x,i) => {
+    const p = rot(x, tail.y[i]);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.fill();
+}
+
+function drawWhale(){
+  const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+  const rot = (x,y) => ({x: x*ewh.x - y*ewh.y + whaleState.pos.x, y: x*ewh.y + y*ewh.x + whaleState.pos.y});
+  ctx.fillStyle = '#4c6ef5';
+  ctx.beginPath();
+  whaleShape.x.forEach((x,i) => {
+    const p = rot(x, whaleShape.y[i]);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.fill();
+}
+
+function drawFishes(){
+  for(let i=0;i<fishes.length;i++){
+    const fish = fishes[i];
+    const speed = Math.hypot(velocities[i].x, velocities[i].y);
+    const color = speedColor(speed);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for(let k=0;k<fishShape.x.length;k++){
+      const x = fishShape.x[k];
+      const y = fishShape.y[k];
+      const px = x*Math.cos(fish.theta) - y*Math.sin(fish.theta) + fish.x;
+      const py = x*Math.sin(fish.theta) + y*Math.cos(fish.theta) + fish.y;
+      if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function speedColor(speed){
+  const t = Math.min(1, speed/2);
+  const r = Math.round(255*(0.5 + 0.5*t));
+  const g = Math.round(80 + 140*t);
+  const b = Math.round(40 + 60*(1-t));
+  return `rgb(${r},${g},${b})`;
+}
+
+function tick(){
+  if(!controls.pause.checked){
+    computeStep();
+  }
+  updateStats();
+  draw();
+  requestAnimationFrame(tick);
+}
+
+controls.Ip.addEventListener('input', () => {
+  controls.IpVal.textContent = parseFloat(controls.Ip.value).toFixed(2);
+});
+controls.In.addEventListener('input', () => {
+  controls.InVal.textContent = parseFloat(controls.In.value).toFixed(2);
+});
+controls.respawn.addEventListener('click', () => {
+  params.n = parseInt(controls.N.value, 10);
+  resetSchool();
+});
+controls.clearBaits.addEventListener('click', () => {
+  baits = [];
+});
+
+// School size slider: live update label, respawn on commit
+controls.N.addEventListener('input', () => {
+  controls.NVal.textContent = String(parseInt(controls.N.value, 10));
+});
+controls.N.addEventListener('change', () => {
+  params.n = parseInt(controls.N.value, 10);
+  resetSchool();
+});
+
+canvas.addEventListener('pointermove', e => {
+  const world = screenToWorld(e.offsetX, e.offsetY);
+  cp = world;
+  pointerActive = true;
+});
+
+canvas.addEventListener('click', e => {
+  const world = screenToWorld(e.offsetX, e.offsetY);
+  if(armedPlacers.bait){
+    baits.push(world);
+    armedPlacers.bait = false;
+  }else if(armedPlacers.goal){
+    sharkGoal = world;
+    armedPlacers.goal = false;
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if(e.key === ' '){
+    controls.pause.checked = !controls.pause.checked;
+  }
+});
+
+window.addEventListener('resize', resize);
+resize();
+// Initialize school-size UI from params
+controls.N.value = String(params.n);
+controls.N.dispatchEvent(new Event('input'));
+resetSchool();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
