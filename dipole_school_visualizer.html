@@ -8,8 +8,9 @@
     :root{--bg:#0b0d12;--fg:#e8eaed;--muted:#9aa0a6;--acc:#8ab4f8;--panel:#0f131d;--border:#1f2937;--danger:#ef5350;--success:#4caf50}
     html,body{height:100%;margin:0}
     body{background:var(--bg);color:var(--fg);font:14px/1.4 "Inter",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-    .app{display:grid;grid-template-columns:minmax(280px,360px) 1fr;grid-template-rows:auto 1fr;height:100%;min-height:0}
+    .app{display:grid;grid-template-columns:minmax(280px,360px) 1fr;grid-template-rows:auto 1fr;height:100%;min-height:0;transition:grid-template-columns .25s ease}
     .app>*{min-width:0;min-height:0}
+    .app.collapsed{grid-template-columns:0 1fr}
     header{grid-column:1 / -1;padding:12px 16px;border-bottom:1px solid var(--border);background:#0f1113}
     header .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
     header h1{font-size:18px;margin:0}
@@ -17,10 +18,10 @@
     main{grid-column:2 / -1;position:relative;background:#05070c;display:flex;align-items:center;justify-content:center}
     #view{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;min-height:clamp(320px,60vh,780px)}
     canvas{width:100%;height:100%;display:block;background:#05070c}
-    aside{background:var(--panel);border-right:1px solid var(--border);padding:14px 16px;overflow:auto}
-    aside h2{margin:0 0 10px 0;font-size:15px;color:var(--fg)}
-    .controls{display:flex;flex-direction:column;gap:12px}
-    .control{display:grid;grid-template-columns:1fr minmax(120px,160px);gap:10px;align-items:center}
+    aside{background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:16px;overflow:hidden;min-height:0;transition:padding .2s ease,border-color .2s ease,transform .25s ease;scrollbar-width:thin}
+    aside h2{margin:0;font-size:15px;color:var(--fg)}
+    .controls{flex:1;display:flex;flex-direction:column;gap:12px;overflow:auto;padding-right:4px;-webkit-overflow-scrolling:touch}
+    .control{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,160px);gap:10px;align-items:center}
     .control label{font-size:12px;color:var(--muted)}
     .control span.value{color:var(--fg);font-variant-numeric:tabular-nums}
     .control input[type=range]{width:100%}
@@ -31,30 +32,40 @@
     button:disabled{opacity:.55;cursor:not-allowed}
     .toggle.active{background:var(--acc);color:#041024;border-color:#5d8df4}
     .toggles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+    .btn-toggle{background:#10192a;color:var(--fg);border:1px solid #233047;border-radius:10px;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,border .2s ease,color .2s ease}
+    .btn-toggle:hover{background:#17253b}
+    .app.collapsed aside{pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
+    .app.collapsed main{grid-column:1 / -1}
+    .app:not(.collapsed) aside{pointer-events:auto;opacity:1;transform:translateX(0)}
+    .app.collapsed header .row{gap:10px}
     #stats{position:absolute;left:12px;bottom:12px;padding:8px 10px;background:rgba(0,0,0,.45);border-radius:8px;font:12px ui-monospace;color:#cbd5e1;white-space:pre}
     #messages{position:absolute;right:12px;bottom:12px;padding:10px 14px;background:rgba(43,27,27,.85);color:#ffdcdc;border:1px solid #a55;border-radius:10px;font:12px ui-monospace;display:none;max-width:46ch}
     a{color:var(--acc)}
     @media (max-width:960px){
       .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
-      aside{grid-column:1 / -1;order:1}
+      .app.collapsed{grid-template-columns:1fr}
+      aside{grid-column:1 / -1;order:1;max-height:min(420px,60vh)}
       main{grid-column:1 / -1;order:2;min-height:55vh}
     }
     @media (max-width:640px){
       header h1{font-size:16px}
+      .btn-toggle{width:34px;height:34px}
       .control{grid-template-columns:1fr}
       .control input[type=checkbox]{justify-self:start}
+      .toggles{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
     }
   </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
   <header>
     <div class="row">
+      <button id="togglePanel" class="btn-toggle" aria-label="Collapse controls" aria-expanded="true">&laquo;</button>
       <h1>Dipole School Simulator</h1>
       <small>Potential-flow dipole swimmers with Voronoi vision control</small>
     </div>
   </header>
-  <aside>
+  <aside id="panel" tabindex="-1">
     <h2>Controls</h2>
     <div class="controls">
       <div class="control">
@@ -72,6 +83,10 @@
       <div class="control">
         <label for="follow">Follow school centroid</label>
         <input id="follow" type="checkbox">
+      </div>
+      <div class="control">
+        <label for="hydro">Hydrodynamic interactions</label>
+        <input id="hydro" type="checkbox" checked>
       </div>
       <div class="control">
         <label for="pause">Pause simulation</label>
@@ -108,6 +123,45 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const statsEl = document.getElementById('stats');
 const messageEl = document.getElementById('messages');
+const appEl = document.getElementById('app');
+const togglePanelBtn = document.getElementById('togglePanel');
+const panelEl = document.getElementById('panel');
+const collapseQuery = window.matchMedia('(max-width: 900px)');
+let userLockedPanel = false;
+
+const focusPanel = () => {
+  if(!panelEl || typeof panelEl.focus !== 'function') return;
+  try {
+    panelEl.focus({preventScroll:true});
+  } catch (err) {
+    panelEl.focus();
+  }
+};
+
+const setCollapsed = (collapsed) => {
+  appEl.classList.toggle('collapsed', collapsed);
+  togglePanelBtn.setAttribute('aria-expanded', String(!collapsed));
+  togglePanelBtn.innerHTML = collapsed ? '&raquo;' : '&laquo;';
+  togglePanelBtn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
+};
+
+togglePanelBtn.addEventListener('click', () => {
+  const collapsed = !appEl.classList.contains('collapsed');
+  userLockedPanel = true;
+  setCollapsed(collapsed);
+  if(!collapsed){
+    focusPanel();
+  }
+});
+
+const handleCollapseChange = (event) => {
+  if(userLockedPanel) return;
+  setCollapsed(event.matches);
+};
+
+collapseQuery.addEventListener?.('change', handleCollapseChange);
+collapseQuery.addListener?.(handleCollapseChange);
+setCollapsed(collapseQuery.matches);
 
 const controls = {
   N: document.getElementById('N'),
@@ -118,6 +172,7 @@ const controls = {
   InVal: document.getElementById('InVal'),
   follow: document.getElementById('follow'),
   pause: document.getElementById('pause'),
+  hydro: document.getElementById('hydro'),
   respawn: document.getElementById('respawn'),
   clearBaits: document.getElementById('clearBaits'),
 };
@@ -252,6 +307,7 @@ function computeStep(){
   const n = fishes.length;
   if(!n) return;
 
+  const hydroEnabled = controls.hydro.checked;
   const cosT = fishes.map(f => Math.cos(f.theta));
   const sinT = fishes.map(f => Math.sin(f.theta));
 
@@ -318,48 +374,54 @@ function computeStep(){
   const Uy = new Array(n).fill(0);
   const wHydro = new Array(n).fill(0);
 
-  for(let i=0;i<n;i++){
-    let uR = 0;
-    let uI = 0;
-    let wSum = 0;
-    for(let j=0;j<n;j++){
-      if(i === j) continue;
-      const dx = fishes[i].x - fishes[j].x;
-      const dy = fishes[i].y - fishes[j].y;
-      const r2 = dx*dx + dy*dy;
-      if(r2 < 1e-6) continue;
-      const invr4 = 1/(r2*r2);
-      const invr6 = invr4/r2;
-      const c2r = dx*dx - dy*dy;
-      const c2i = -2*dx*dy;
-      const c3r = c2r*dx - c2i*dy;
-      const c3i = c2r*(-dy) + c2i*dx;
-      const expOjR = cosT[j];
-      const expOjI = sinT[j];
-      const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
-      const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
-      const termUr = expOjR*c2r - expOjI*c2i;
-      const termUi = expOjR*c2i + expOjI*c2r;
-      const termWr = expTermR*c3r - expTermI*c3i;
-      const termWi = expTermR*c3i + expTermI*c3r;
-      uR += termUr * invr4;
-      uI += termUi * invr4;
-      wSum += termWi * invr6 * 2;
+  if(hydroEnabled){
+    for(let i=0;i<n;i++){
+      let uR = 0;
+      let uI = 0;
+      let wSum = 0;
+      for(let j=0;j<n;j++){
+        if(i === j) continue;
+        const dx = fishes[i].x - fishes[j].x;
+        const dy = fishes[i].y - fishes[j].y;
+        const r2 = dx*dx + dy*dy;
+        if(r2 < 1e-6) continue;
+        const invr4 = 1/(r2*r2);
+        const invr6 = invr4/r2;
+        const c2r = dx*dx - dy*dy;
+        const c2i = -2*dx*dy;
+        const c3r = c2r*dx - c2i*dy;
+        const c3i = c2r*(-dy) + c2i*dx;
+        const expOjR = cosT[j];
+        const expOjI = sinT[j];
+        const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+        const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+        const termUr = expOjR*c2r - expOjI*c2i;
+        const termUi = expOjR*c2i + expOjI*c2r;
+        const termWr = expTermR*c3r - expTermI*c3i;
+        const termWi = expTermR*c3i + expTermI*c3r;
+        uR += termUr * invr4;
+        uI += termUi * invr4;
+        wSum += termWi * invr6 * 2;
+      }
+      const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+      Ux[i] = uR / Math.PI * params.If * avoid;
+      Uy[i] = -uI / Math.PI * params.If * avoid;
+      wHydro[i] = wSum / Math.PI * params.If * avoid;
     }
-    const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
-    Ux[i] = uR / Math.PI * params.If * avoid;
-    Uy[i] = -uI / Math.PI * params.If * avoid;
-    wHydro[i] = wSum / Math.PI * params.If * avoid;
   }
 
   if(stateFlags.shark){
-    addPredatorFlow(sharkState, params.sharkH, 1000, Ux, Uy, wHydro);
+    if(hydroEnabled){
+      addPredatorFlow(sharkState, params.sharkH, 1000, Ux, Uy, wHydro);
+    }
   }else{
     sharkState.pos = {x:meanX()-25, y:meanY()};
     sharkState.theta = 0;
   }
   if(stateFlags.whale){
-    addPredatorFlow(whaleState, params.whaleH, 6, Ux, Uy, wHydro);
+    if(hydroEnabled){
+      addPredatorFlow(whaleState, params.whaleH, 6, Ux, Uy, wHydro);
+    }
   }else{
     whaleState.pos = {x:meanX(), y:meanY()-25};
     whaleState.theta = Math.PI/2;
