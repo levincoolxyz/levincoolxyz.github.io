@@ -18,6 +18,12 @@ local.properties
 
 # External tool builders
 .externalToolBuilders/
+.bundle/
+.vscode/
+.vendor/
+.jekyll-metadata
+Gemfile
+Gemfile.lock
 
 # Locally stored "Eclipse launch configurations"
 *.launch
