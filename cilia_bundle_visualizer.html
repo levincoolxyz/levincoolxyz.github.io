@@ -660,6 +660,7 @@
       canvas.height = Math.max(10, Math.floor(h * dpr));
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
+      canvas._dpr = dpr;
       draw();
     }
 
@@ -681,6 +682,17 @@
       const v = 1 - (y - r.y) / Math.max(1, r.h);
       return { s: s, v: v };
     }
+    function currentDpr(){ return canvas._dpr || 1; }
+    function markerCssRadius(){
+      const rect = box.getBoundingClientRect();
+      const w = rect.width || box.clientWidth || canvas.clientWidth || 0;
+      const h = rect.height || box.clientHeight || canvas.clientHeight || 0;
+      const minSide = Math.min(w, h);
+      if (minSide <= 140 || window.innerWidth <= 480) return 11;
+      if (minSide <= 220 || window.innerWidth <= 768) return 9;
+      return 7;
+    }
+    function markerRadius(){ return markerCssRadius() * currentDpr() / 1.8; }
     function cpsSorted(cps){ return cps.slice().sort((a,b)=>a.s-b.s); }
     function draw(){
       const ctx=profile.ctx; if(!ctx) return;
@@ -717,18 +729,23 @@
       }
       ctx.stroke();
       // points
+      const radius = markerRadius();
+      const strokeWidth = Math.max(1, currentDpr());
       for(let i=0;i<cps.length;i++){
         const p=xyFromSV(cps[i].s, cps[i].v);
-        ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+        ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI*2);
         ctx.fillStyle = (i===0 || i===cps.length-1) ? '#8ab4f8' : '#ffffff';
-        ctx.fill(); ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1; ctx.stroke();
+        ctx.fill(); ctx.strokeStyle='rgba(0,0,0,0.6)';
+        ctx.lineWidth = strokeWidth;
+        ctx.stroke();
       }
     }
     function hitTest(x,y){
       const cps = cpsSorted(profile.edit || profile.cps);
+      const hitR = markerRadius() + 6 * currentDpr();
       for(let i=0;i<cps.length;i++){
         const p=xyFromSV(cps[i].s, cps[i].v); const dx=x-p.x, dy=y-p.y;
-        if (dx*dx+dy*dy <= 8*8) return i;
+        if (dx*dx+dy*dy <= hitR*hitR) return i;
       }
       return -1;
     }
