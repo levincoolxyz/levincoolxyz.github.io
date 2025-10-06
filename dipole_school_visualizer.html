@@ -68,6 +68,7 @@
     <div class="row">
       <button id="togglePanel" class="btn-toggle" aria-label="Collapse controls" aria-expanded="true">&laquo;</button>
       <h1>Fish School Simulation</h1>
+      <button id="playPause">Pause</button>
       <small>Potential-flow dipole swimmers with Voronoi vision control</small>
     </div>
   </header>
@@ -79,8 +80,8 @@
         <input id="N" type="range" min="10" max="10000" step="1" value="150">
       </div>
       <div class="control">
-        <label for="Ip">Vision control power I<sub>p</sub>: <span class="value" id="IpVal">1.50</span></label>
-        <input id="Ip" type="range" min="0.01" max="10" step="0.01" value="1.5">
+        <label for="Ia">Alignment by vision I<sub>a</sub>: <span class="value" id="IpVal">1.50</span></label>
+        <input id="Ia" type="range" min="0.01" max="10" step="0.01" value="1.5">
       </div>
       <div class="control">
         <label for="In">Free-will noise I<sub>n</sub>: <span class="value" id="InVal">0.30</span></label>
@@ -93,10 +94,6 @@
       <div class="control">
         <label for="hydro">Hydrodynamic interactions (works okay for N ⪅ 1200)</label>
         <input id="hydro" type="checkbox" checked>
-      </div>
-      <div class="control">
-        <label for="pause">Pause</label>
-        <input id="pause" type="checkbox">
       </div>
       <div class="buttons">
         <button id="respawn">Respawn school</button>
@@ -113,7 +110,7 @@
         <div class="toggle" data-key="hard">Hard mode</div>
       </div>
       <p class="algo-note">
-        Vision torques are averaged over Delaunay neighbors, hydrodynamic dipole terms shape the flow field, Gaussian noise injects free-will variation, and predators pursue targets via cone-restricted heuristics with median steering.
+        Alignement torques are averaged over Delaunay neighbors with vision cone bias, dipole flow field shape hydrodynamic interactions, Gaussian turning noise injects 'agency' per fish, evasive behavior based on vision and orthogonal turning.
       </p>
     </div>
   </aside>
@@ -175,16 +172,29 @@ setCollapsed(false);
 const controls = {
   N: document.getElementById('N'),
   NVal: document.getElementById('NVal'),
-  Ip: document.getElementById('Ip'),
+  Ia: document.getElementById('Ia'),
   In: document.getElementById('In'),
   IpVal: document.getElementById('IpVal'),
   InVal: document.getElementById('InVal'),
   follow: document.getElementById('follow'),
-  pause: document.getElementById('pause'),
   hydro: document.getElementById('hydro'),
   respawn: document.getElementById('respawn'),
   clearBaits: document.getElementById('clearBaits'),
 };
+const playPauseBtn = document.getElementById('playPause');
+let isPlaying = true;
+const setPlaying = (playing) => {
+  isPlaying = playing;
+  if (playPauseBtn) {
+    playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+  }
+  startTime = performance.now();
+};
+if (playPauseBtn){
+  playPauseBtn.addEventListener('click', () => {
+    setPlaying(!isPlaying);
+  });
+}
 
 const stateFlags = {
   mouse: false,
@@ -321,7 +331,7 @@ function getAngle(phi, dx, dy, dist){
 
 function computeStep(){
   const dt = params.dt;
-  const Ip = parseFloat(controls.Ip.value);
+  const Ia = parseFloat(controls.Ia.value);
   const In = parseFloat(controls.In.value);
   const n = fishes.length;
   if(!n) return;
@@ -350,7 +360,7 @@ function computeStep(){
         const phi = wrapAngle(fishes[j].theta - fishes[i].theta);
         const weight = 1 + Math.cos(theta);
         if(weight <= 0) continue;
-        sum += (Ip*Math.sin(phi) + dist*Math.sin(theta))*weight;
+        sum += (Ia*Math.sin(phi) + dist*Math.sin(theta))*weight;
         denom += weight;
         if(dist < minR) minR = dist;
       }
@@ -533,13 +543,13 @@ function addPredatorFlow(predState, scaleH, factor, Ux, Uy, wHydro){
 function applySharkEvade(wVision){
   const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
   const orth = {x: -esk.y, y: esk.x};
-  const head = getSharkHeadPos(esk);
+  const Sharkhead = getSharkHeadPos(esk);
   for(let i=0;i<fishes.length;i++){
     const fish = fishes[i];
-    const d = Math.hypot(head.x - fish.x, head.y - fish.y);
+    const d = Math.hypot(Sharkhead.x - fish.x, Sharkhead.y - fish.y);
     if(d === 0) continue;
-    const dop1 = Math.hypot(head.x - orth.x - fish.x, head.y - orth.y - fish.y);
-    const dop2 = Math.hypot(head.x + orth.x - fish.x, head.y + orth.y - fish.y);
+    const dop1 = Math.hypot(Sharkhead.x - orth.x - fish.x, Sharkhead.y - orth.y - fish.y);
+    const dop2 = Math.hypot(Sharkhead.x + orth.x - fish.x, Sharkhead.y + orth.y - fish.y);
     const sign = dop1 <= dop2 ? -1 : 1;
     const wSk = getAngle(fish.theta, orth.x * sign, orth.y * sign);
     const blend = Math.exp((params.sharkH - d));
@@ -669,7 +679,7 @@ function showMessage(msg){
 
 function updateStats(){
   const elapsed = (performance.now() - startTime);
-  statsEl.textContent = `N = ${fishes.length}\nIp = ${parseFloat(controls.Ip.value).toFixed(2)}\nIn = ${parseFloat(controls.In.value).toFixed(2)}\nRender time ${elapsed.toFixed(1)} ms`;
+  statsEl.textContent = `N = ${fishes.length}\nIp = ${parseFloat(controls.Ia.value).toFixed(2)}\nIn = ${parseFloat(controls.In.value).toFixed(2)}\nRender time ${elapsed.toFixed(1)} ms`;
 }
 
 function resize(){
@@ -813,7 +823,7 @@ function speedColor(speed){
 }
 
 function tick(){
-  if(!controls.pause.checked){
+  if(isPlaying){
     computeStep();
   }
   updateStats();
@@ -822,8 +832,8 @@ function tick(){
   startTime = performance.now();
 }
 
-controls.Ip.addEventListener('input', () => {
-  controls.IpVal.textContent = parseFloat(controls.Ip.value).toFixed(2);
+controls.Ia.addEventListener('input', () => {
+  controls.IpVal.textContent = parseFloat(controls.Ia.value).toFixed(2);
 });
 controls.In.addEventListener('input', () => {
   controls.InVal.textContent = parseFloat(controls.In.value).toFixed(2);
@@ -864,7 +874,8 @@ canvas.addEventListener('click', e => {
 
 document.addEventListener('keydown', e => {
   if(e.key === ' '){
-    controls.pause.checked = !controls.pause.checked;
+    e.preventDefault();
+    setPlaying(!isPlaying);
   }
 });
 

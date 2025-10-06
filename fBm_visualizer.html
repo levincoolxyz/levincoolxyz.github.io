@@ -63,6 +63,7 @@
   <div class="row">
     <button id="togglePanel" class="btn-toggle" title="Collapse/expand panel">&lt;&lt;</button>
     <h1>Particle Scattering Simulator</h1>
+    <button id="playPause" class="btn">Pause</button>
     <small>ESM: three.js + fft.js</small>
   </div>
 </header>
@@ -145,8 +146,6 @@
     <input id="dt" type="range" min="5" max="100" step="1" value="20"></div>
   <div class="row"><label>Max FPS [Hz]: <span id="fpsval">20</span></label>
     <input id="fps" type="range" min="5" max="60" step="1" value="20"></div>
-  <div class="row"><label>Pause</label>
-    <div class="right" style="gap:6px"><input id="paused" type="checkbox"></div></div>
 
   <div class="row"><label>Scale bar [μm]:</label>
     <div class="right"><input id="barum" type="number" min="0.5" max="50" step="0.5" value="5"></div></div>
@@ -194,7 +193,7 @@ import FFT from 'https://esm.sh/fft.js@4.0.4';
 const UI={
   N:q('#N'), px:q('#px'), lambda:q('#lambda'), NA:q('#NA'), z:q('#z'), zstd:q('#zstd'),
   Npart:q('#Npart'), R:q('#R'),
-  H:q('#H'), etaLog:q('#etaLog'), dt:q('#dt'), fps:q('#fps'), paused:q('#paused'),
+  H:q('#H'), etaLog:q('#etaLog'), dt:q('#dt'), fps:q('#fps'),
   barum:q('#barum'), verbose:q('#verbose'),
   Nval:q('#Nval'), pxval:q('#pxval'), lambdaval:q('#lambdaval'), NAval:q('#NAval'),
   zval:q('#zval'), zstdval:q('#zstdval'), Npartval:q('#Npartval'), Rval:q('#Rval'), Hval:q('#Hval'), etaval:q('#etaval'), dtval:q('#dtval'), fpsval:q('#fpsval'),
@@ -202,6 +201,15 @@ const UI={
   bar:q('#bar'), barlabel:q('#barlabel'),
   mode:q('#mode'), pcfrac:q('#pcfrac'), pcphi:q('#pcphi'), pcalpha:q('#pcalpha'), dfinner:q('#dfinner'), pcphival:q('#pcphival'), pcalphaval:q('#pcalphaval'), dfinnerval:q('#dfinnerval'), dn:q('#dn'), kappa:q('#kappa'), flI:q('#flI'), dnval:q('#dnval'), kappaval:q('#kappaval'), flIval:q('#flIval'),  cohI: q('#cohI'), cohIval: q('#cohIval')
 };
+const playPauseBtn = q('#playPause');
+let isPlaying = true;
+if (playPauseBtn){
+  playPauseBtn.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+    simulate._last = performance.now();
+  });
+}
 function q(s){return document.querySelector(s)}
 function fmt(x,p=2){return Number(x).toFixed(p)}
 const POW2=[256,512,1024,2048];
@@ -299,7 +307,7 @@ function syncLabels(){
 ['input','change'].forEach(ev => {
   [
     'N','px','lambda','NA','z','zstd','Npart','R','phi','amp',
-    'H','etaLog','dt','fps','barum','verbose','paused'
+    'H','etaLog','dt','fps','barum','verbose'
   ].forEach(id => {
     if (!UI[id]) return;
     UI[id].addEventListener(ev, () => {
@@ -519,7 +527,12 @@ async function simulate(){
     const now = performance.now();
     if(!simulate._last) simulate._last = now;
     const dt_ms = Number(UI.dt.value);
-    const stepsNeeded = UI.paused.checked ? 0 : Math.max(0, Math.floor((now - simulate._last)/dt_ms));
+    let stepsNeeded = 0;
+    if (!isPlaying) {
+      simulate._last = now;
+    } else {
+      stepsNeeded = Math.max(0, Math.floor((now - simulate._last)/dt_ms));
+    }
     if(stepsNeeded>0){
       const d = dyn.tick(stepsNeeded);
       const Npix = N;
