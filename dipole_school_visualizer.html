@@ -20,7 +20,7 @@
     canvas{width:100%;height:100%;display:block;background:#05070c}
     aside{background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:16px;overflow:hidden;min-height:0;transition:padding .2s ease,border-color .2s ease,transform .25s ease;scrollbar-width:thin}
     aside h2{margin:0;font-size:15px;color:var(--fg)}
-    .controls{flex:1;display:flex;flex-direction:column;gap:12px;overflow:auto;padding:0 4px 20px 0;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch}
+    .controls{flex:1;display:flex;flex-direction:column;gap:12px;overflow:auto;padding:0 4px 0 0;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;scroll-padding-bottom:120px;padding-bottom:max(72px,env(safe-area-inset-bottom,0px)+48px)}
     .control{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,160px);gap:10px;align-items:center}
     .control label{font-size:12px;color:var(--muted)}
     .control span.value{color:var(--fg);font-variant-numeric:tabular-nums}
@@ -34,6 +34,7 @@
     .toggles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
     .btn-toggle{background:#10192a;color:var(--fg);border:1px solid #233047;border-radius:10px;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,border .2s ease,color .2s ease}
     .btn-toggle:hover{background:#17253b}
+    .algo-note{margin:16px 4px 0;padding:12px 14px;border:1px solid rgba(143,160,181,.35);border-radius:12px;background:rgba(15,23,42,.55);color:var(--muted);font-size:12px;line-height:1.5}
     .app.collapsed aside{pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
     .app.collapsed main{grid-column:1 / -1}
     .app:not(.collapsed) aside{pointer-events:auto;opacity:1;transform:translateX(0)}
@@ -111,6 +112,9 @@
         <div class="toggle active" data-key="death">Enable death</div>
         <div class="toggle" data-key="hard">Hard mode</div>
       </div>
+      <p class="algo-note">
+        Vision torques are averaged over Delaunay neighbors, hydrodynamic dipole terms shape the flow field, Gaussian noise injects free-will variation, and predators pursue targets via cone-restricted heuristics with median steering.
+      </p>
     </div>
   </aside>
   <main>
