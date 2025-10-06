@@ -76,7 +76,7 @@
     <div class="controls">
       <div class="control">
         <label for="N">School size (force respawn): <span class="value" id="NVal">150</span></label>
-        <input id="N" type="range" min="10" max="1000" step="1" value="150">
+        <input id="N" type="range" min="10" max="10000" step="1" value="150">
       </div>
       <div class="control">
         <label for="Ip">Vision control power I<sub>p</sub>: <span class="value" id="IpVal">1.50</span></label>
@@ -91,11 +91,11 @@
         <input id="follow" type="checkbox" checked>
       </div>
       <div class="control">
-        <label for="hydro">Hydrodynamic interactions</label>
+        <label for="hydro">Hydrodynamic interactions (works okay for N ⪅ 1200)</label>
         <input id="hydro" type="checkbox" checked>
       </div>
       <div class="control">
-        <label for="pause">Pause simulation</label>
+        <label for="pause">Pause</label>
         <input id="pause" type="checkbox">
       </div>
       <div class="buttons">
@@ -268,7 +268,6 @@ let pointerActive = false;
 let sharkState = {pos:{x:-25,y:0},theta:0};
 let whaleState = {pos:{x:0,y:-25},theta:Math.PI/2};
 let startTime = performance.now();
-let frameCount = 0;
 
 function resetSchool(){
   fishes = [];
@@ -669,10 +668,8 @@ function showMessage(msg){
 }
 
 function updateStats(){
-  frameCount++;
-  const elapsed = (performance.now() - startTime)/1000;
-  const fps = frameCount / Math.max(elapsed, 1e-3);
-  statsEl.textContent = `N = ${fishes.length}\nIp = ${parseFloat(controls.Ip.value).toFixed(2)}\nIn = ${parseFloat(controls.In.value).toFixed(2)}\nFPS ≈ ${fps.toFixed(1)}`;
+  const elapsed = (performance.now() - startTime);
+  statsEl.textContent = `N = ${fishes.length}\nIp = ${parseFloat(controls.Ip.value).toFixed(2)}\nIn = ${parseFloat(controls.In.value).toFixed(2)}\nRender time ${elapsed.toFixed(1)} ms`;
 }
 
 function resize(){
@@ -822,6 +819,7 @@ function tick(){
   updateStats();
   draw();
   requestAnimationFrame(tick);
+  startTime = performance.now();
 }
 
 controls.Ip.addEventListener('input', () => {

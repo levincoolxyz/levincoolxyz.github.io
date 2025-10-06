@@ -166,6 +166,7 @@ footer img {
 .thumbnail {
     position:relative;
     overflow:hidden;
+    background-color: #222;;
 }
  
 .caption {
@@ -226,11 +227,11 @@ footer img {
 .presence-icon { width: 1.6rem; height: 1.6rem; border-radius: 0.4rem; color: #fff; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; text-transform: uppercase; }
 .presence-link-linkedin .presence-icon { background: #0a66c2; }
 .presence-link-google-scholar .presence-icon { background: #673ab7; }
-.presence-link-slides .presence-icon { background: #fbbc05; color: #111; font-weight: 600; }
+.presence-link-slides .presence-icon { background: #f8245c; color: #ffffff; font-weight: 600; }
 .presence-link-youtube .presence-icon { background: #ff0000; }
 .presence-link-instructables .presence-icon { background: #fbd32d; color: #111; }
 .presence-link-thingiverse .presence-icon { background: #0094ff; }
-.presence-link-mubi .presence-icon { background: #1a1f36; font-size: 0.8rem; }
+.presence-link-movie .presence-icon { background: #1a1f36; font-size: 0.8rem; }
 .presence-link-newgrounds .presence-icon { background: #ff6b00; }
 .presence-link-github .presence-icon { background: #171515; }
 
@@ -245,10 +246,37 @@ footer img {
   background-color: #fff;
 }
 
+.presence-link-youtube .presence-icon {
+  background: transparent;
+  background-image: url('https://www.youtube.com/s/desktop/ba50859b/img/favicon_32x32.png');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: transparent;
+}
+
+.presence-link-google-scholar .presence-icon {
+  background: transparent;
+  background-image: url('https://scholar.google.com/favicon.ico');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: transparent;
+}
+
+.presence-link-movie .presence-icon {
+  background: transparent;
+  background-image: url('https://www.themoviedb.org/favicon.ico');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: transparent;
+}
+
 /* use Slides.com favicon as icon (fallback to letters) */
 .presence-link-slides .presence-icon {
   background: transparent;
-  background-image: url('https://slides.com/favicon-32x32.png');
+  background-image: url('https://slides.com/favicon.ico');
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
