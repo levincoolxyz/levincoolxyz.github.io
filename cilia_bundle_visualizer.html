@@ -25,7 +25,7 @@
   .app.collapsed #minimap { display:none; }
   #minimap > div { position:absolute; inset:0; }
   /* compact kappa(s) editor next to minimap */
-  #kappaEditor { position:absolute; right:12px; bottom:200px; width:200px; height:120px; border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.45); display:flex; flex-direction:column; z-index:3 }
+  #kappaEditor { position:absolute; right:12px; bottom:var(--kappa-bottom, 200px); width:200px; height:120px; border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.45); display:flex; flex-direction:column; z-index:3 }
   .app.collapsed #kappaEditor { display:none; }
   #kappaEditor .title { font-size:12px; color:#cbd5e1; padding:4px 4px; border-bottom:1px solid rgba(255,255,255,.08); }
   #kappaCanvas { flex:1; display:block; width:95%; height:95%; }
@@ -58,6 +58,7 @@
   #threeMini { position:absolute; inset:0; }
   /* improve mobile pointer interactions on minimap */
   #threeMini, #threeMini canvas { touch-action: none; }
+  #bfcanvas { touch-action:none; }
   /* simple D-pad overlay for BF panning */
   #dpad { position:absolute; right:16px; top:16px; display:grid; grid-template-columns:28px 28px 28px; grid-template-rows:28px 28px 28px; gap:6px; user-select:none; z-index:2 }
   #dpad button { width:28px; height:28px; border-radius:6px; border:1px solid #374151; background:#0b1220; color:#e5e7eb; cursor:pointer; }
@@ -257,6 +258,33 @@
     ctx: null
   };
 
+  function setupOverlayLayout(){
+    const minimap = document.getElementById('minimap');
+    const editor = document.getElementById('kappaEditor');
+    if (!minimap || !editor) return;
+
+    const apply = () => {
+      const rect = minimap.getBoundingClientRect();
+      const height = rect.height || minimap.clientHeight || 0;
+      const style = window.getComputedStyle(minimap);
+      let base = parseFloat(style.bottom);
+      if (!isFinite(base)) base = 12;
+      const gap = Math.max(8, Math.min(24, height * 0.12));
+      const total = base + height + gap;
+      editor.style.setProperty('--kappa-bottom', total + 'px');
+    };
+
+    editor._updateKappaLayout = apply;
+
+    apply();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => apply());
+      ro.observe(minimap);
+      editor._minimapResizeObserver = ro;
+    }
+    window.addEventListener('resize', apply);
+  }
+
   // ===== BF renderer (full-frame) =====
   var bf = {
     renderer:null, scene:null, cam:null, quad:null,
@@ -427,33 +455,6 @@
     sim.renderer.setSize(w, h);
     container.innerHTML = ""; container.appendChild(sim.renderer.domElement);
 
-    // Pointer-based orbit (mobile + desktop)
-    var dragging=false, lastX=0, lastY=0;
-    sim.renderer.domElement.addEventListener('pointerdown', function(e){ dragging=true; lastX=e.clientX; lastY=e.clientY; e.preventDefault(); try{ e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); }catch(_){} });
-    sim.renderer.domElement.addEventListener('pointermove', function(e){
-      if(!dragging) return;
-      e.preventDefault();
-      var dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
-      var s = 0.005;
-      // yaw around world Z to match azimuth semantics
-      var qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), -dx*s);
-      sim.q.premultiply(qYaw);
-      var right = new THREE.Vector3(1,0,0).applyQuaternion(sim.q);
-      var qPitch = new THREE.Quaternion().setFromAxisAngle(right, -dy*s);
-      sim.q.premultiply(qPitch);
-      var ae = azElFromQuat(sim.q);
-      params.azimuth = sim.cam.az = toSignedDeg(ae.az);
-      params.elevation = sim.cam.el = ae.el;
-      var azEl = document.getElementById('azimuth'); if (azEl) { azEl.value = String(Math.round(params.azimuth)); setVal('azimuthv', params.azimuth); }
-      var elEl = document.getElementById('elevation'); if (elEl) { elEl.value = String(Math.round(params.elevation)); setVal('elevationv', params.elevation); }
-      placeCamera();
-      // keep both scenes in sync even when paused
-      renderBF();
-      updateMinimapLines();
-    });
-    sim.renderer.domElement.addEventListener('pointerup', function(){ dragging=false; });
-    sim.renderer.domElement.addEventListener('wheel', function(e){ sim.cam.r=Math.max(5, Math.min(200, sim.cam.r + (e.deltaY>0?2:-2))); placeCamera(); });
-
     var amb = new THREE.AmbientLight(0xffffff, 0.7); sim.scene.add(amb);
     var dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(20,20,30); sim.scene.add(dir);
 
@@ -568,6 +569,70 @@
     sim.renderer.autoClear = oldAC;
   }
 
+  function setupOrbitControls(target){
+    if (!target) return;
+    let dragging = false;
+    let lastX = 0, lastY = 0;
+
+    const onPointerDown = (e) => {
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      e.preventDefault();
+      try {
+        target.setPointerCapture && target.setPointerCapture(e.pointerId);
+      } catch (_) {}
+    };
+
+    const onPointerMove = (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      const s = 0.005;
+      const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), -dx * s);
+      sim.q.premultiply(qYaw);
+      const right = new THREE.Vector3(1,0,0).applyQuaternion(sim.q);
+      const qPitch = new THREE.Quaternion().setFromAxisAngle(right, -dy * s);
+      sim.q.premultiply(qPitch);
+      const ae = azElFromQuat(sim.q);
+      params.azimuth = sim.cam.az = toSignedDeg(ae.az);
+      params.elevation = sim.cam.el = ae.el;
+      const azEl = document.getElementById('azimuth');
+      if (azEl) { azEl.value = String(Math.round(params.azimuth)); setVal('azimuthv', params.azimuth); }
+      const elEl = document.getElementById('elevation');
+      if (elEl) { elEl.value = String(Math.round(params.elevation)); setVal('elevationv', params.elevation); }
+      sim.placeCamera && sim.placeCamera();
+      renderBF();
+      updateMinimapLines();
+    };
+
+    const endDrag = (e) => {
+      dragging = false;
+      if (e && typeof e.pointerId !== 'undefined') {
+        try {
+          target.releasePointerCapture && target.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+      }
+    };
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      sim.cam.r = Math.max(5, Math.min(200, sim.cam.r + (e.deltaY > 0 ? 2 : -2)));
+      sim.placeCamera && sim.placeCamera();
+    };
+
+    target.addEventListener('pointerdown', onPointerDown);
+    target.addEventListener('pointermove', onPointerMove);
+    target.addEventListener('pointerup', endDrag);
+    target.addEventListener('pointercancel', endDrag);
+    target.addEventListener('pointerleave', () => { dragging = false; });
+    target.addEventListener('lostpointercapture', () => { dragging = false; });
+    target.addEventListener('wheel', onWheel, { passive: false });
+  }
+
   // ===== BF three init =====
   function initBF(){
     const canvas = document.getElementById('bfcanvas');
@@ -577,6 +642,7 @@
     bf.cam = new THREE.OrthographicCamera(-1,1,1,-1,0.1,10); bf.cam.position.z=2;
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map:new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat)}));
     bf.scene.add(quad); bf.quad = quad;
+    setupOrbitControls(bf.renderer.domElement);
     resizeBF();
   }
   
@@ -1372,6 +1438,10 @@
         // ensure canvases resize to fill new layout
         setTimeout(resizeBF, 50);
         if (sim.renderer) { sim.renderer.setSize((document.getElementById('threeMini').clientWidth||240), (document.getElementById('threeMini').clientHeight||180)); }
+        var kappaBox = document.getElementById('kappaEditor');
+        if (kappaBox && typeof kappaBox._updateKappaLayout === 'function') {
+          requestAnimationFrame(() => kappaBox._updateKappaLayout());
+        }
       };
     }
     document.getElementById('presetSingle').onclick = function(){
@@ -1401,6 +1471,7 @@
     attachUI();
     initMini();
     initBF();
+    setupOverlayLayout();
     setupKappaEditor();
     generateGrid();
     reseedRandomFields();
