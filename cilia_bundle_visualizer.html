@@ -1449,11 +1449,11 @@
       syncPanel(); replot();
     };
     document.getElementById('presetSymp').onclick = function(){
-      params.nX=20; params.nY=1; params.density=1; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=Math.PI; params.angleMean=0; params.angleStd=0;
+      params.nX=20; params.nY=1; params.density=1; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=Math.PI; params.coverage=1; params.angleMean=0; params.angleStd=0;
       syncPanel(); replot();
     };
     document.getElementById('presetAnti').onclick = function(){
-      params.nX=20; params.nY=1; params.density=1; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=0; params.angleMean=0; params.angleStd=0;
+      params.nX=20; params.nY=1; params.density=1; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=0; params.coverage=1; params.angleMean=0; params.angleStd=0;
       syncPanel(); replot();
     };
     document.getElementById('presetBundle').onclick = function(){

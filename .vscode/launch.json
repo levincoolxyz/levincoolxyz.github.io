@@ -12,6 +12,24 @@
             "webRoot": "${workspaceFolder}",
             "preLaunchTask": "jekyll:serve",
             "postDebugTask": "terminateAll"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open Cilia Bundle Sim",
+            "file": "./cilia_bundle_visualizer.html"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open fBm Sim",
+            "file": "./fBm_visualizer.html"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open filament hand tracer",
+            "file": "./filament.html"
         }
     ],
     "compounds": []
