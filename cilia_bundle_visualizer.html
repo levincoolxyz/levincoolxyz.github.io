@@ -1375,19 +1375,19 @@
       };
     }
     document.getElementById('presetSingle').onclick = function(){
-      params.nX=1; params.nY=1; params.density=1; params.ampMean=1; params.ampStd=0; params.cbfMean=0.5; params.cbfStd=0; params.lengthMean=10; params.lengthStd=0; params.waveAmp=0; params.waveNoise=0; params.waveAngle=0; params.coverage=1; params.patchlength=0.5; params.crystalline=0; params.patchorder=0; params.angleMean=0; params.angleStd=0;
+      params.nX=1; params.nY=1; params.ampStd=0; params.cbfMean=1; params.cbfStd=0; params.lengthMean=10; params.lengthStd=0; params.waveAmp=0; params.waveNoise=0; params.waveAngle=0; params.coverage=1; params.angleMean=0; params.angleStd=0;
       syncPanel(); replot();
     };
     document.getElementById('presetSymp').onclick = function(){
-      params.nX=20; params.nY=1; params.density=1; params.ampMean=1; params.ampStd=0; params.cbfMean=5; params.cbfStd=0; params.lengthMean=10; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=Math.PI; params.coverage=1; params.patchlength=0.5; params.crystalline=0; params.patchorder=0; params.angleMean=0; params.angleStd=0;
+      params.nX=20; params.nY=1; params.density=1; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=Math.PI; params.angleMean=0; params.angleStd=0;
       syncPanel(); replot();
     };
     document.getElementById('presetAnti').onclick = function(){
-      params.nX=20; params.nY=1; params.density=1; params.ampMean=1; params.ampStd=0; params.cbfMean=5; params.cbfStd=0; params.lengthMean=10; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=0; params.coverage=1; params.patchlength=0.5; params.crystalline=0; params.patchorder=0; params.angleMean=0; params.angleStd=0;
+      params.nX=20; params.nY=1; params.density=1; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=0; params.angleMean=0; params.angleStd=0;
       syncPanel(); replot();
     };
     document.getElementById('presetBundle').onclick = function(){
-      params.nX=12; params.nY=4; params.density=1.0; params.ampMean=1.0; params.ampStd=0.1; params.cbfMean=8; params.cbfStd=0.01; params.lengthMean=10; params.lengthStd=1; params.waveAmp=0.3; params.waveNoise=0.01; params.waveAngle=-1.5; params.coverage=0.9; params.patchlength=0.8; params.crystalline=1; params.patchorder=0.5; params.angleMean=0; params.angleStd=0.3;
+      params.nX=12; params.nY=8; params.density=1; params.ampMean=5.0; params.ampStd=0.1; params.cbfMean=12; params.cbfStd=0.01; params.lengthMean=10; params.lengthStd=1; params.waveAmp=0.3; params.waveNoise=0.01; params.waveAngle=-1.5; params.coverage=0.9; params.patchlength=0.8; params.crystalline=1; params.patchorder=0.5; params.angleMean=0; params.angleStd=0.3;
       syncPanel(); replot();
     };
   }
