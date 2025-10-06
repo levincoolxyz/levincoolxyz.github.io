@@ -20,10 +20,11 @@ local.properties
 .externalToolBuilders/
 .bundle/
 .vscode/
-.vendor/
+vendor/
 .jekyll-metadata
 Gemfile
 Gemfile.lock
+.ruby-version
 
 # Locally stored "Eclipse launch configurations"
 *.launch
