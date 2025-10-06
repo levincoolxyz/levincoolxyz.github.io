@@ -18,17 +18,18 @@
   .panel h2{margin:0 0 8px 0;font-size:15px}
   .btn-toggle{background:#10192a;color:var(--fg);border:1px solid #2c3a4d;padding:6px;border-radius:8px;cursor:pointer;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center}
   .btn-toggle:hover{background:#162236}
-  .app.collapsed{grid-template-columns:48px 1fr}
-  .app.collapsed .panel{padding:6px;overflow:hidden}
-  .app.collapsed .panel > *{display:none}
+  .app.collapsed{grid-template-columns:0 1fr}
+  .app.collapsed .panel{padding:0;overflow:hidden;pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
+  .app.collapsed main.canvas-wrap{grid-column:1 / -1}
   .panel .row{display:grid;grid-template-columns:1fr minmax(120px,160px);gap:8px;align-items:center;margin:8px 0}
   .panel .row label{font-size:12px;color:var(--muted)}
   .panel input[type=range]{width:100%}
   .panel input[type=number]{width:100%;background:#111827;color:var(--fg);border:1px solid #2f3847;border-radius:8px;padding:6px}
   .panel select{width:100%;background:#111827;color:var(--fg);border:1px solid #2f3847;border-radius:8px;padding:6px}
   .panel .row .right{display:flex;align-items:center;gap:8px;justify-content:flex-end}
-  .btn{background:#1a73e8;color:#fff;border:0;border-radius:10px;padding:8px 10px;cursor:pointer}
+  .btn{background:#10192a;color:#fff;border:0;border-radius:10px;padding:8px 10px;cursor:pointer}
   .btn:disabled{opacity:.6;cursor:not-allowed}
+  .algo-note{margin:12px 4px 0;padding:10px 12px;border:1px solid rgba(143,160,181,.35);border-radius:12px;background:rgba(15,23,42,.55);color:var(--muted);font-size:12px;line-height:1.5}
   main.canvas-wrap{grid-column:2 / -1;position:relative;background:#05070c;display:flex;align-items:center;justify-content:center;min-height:0;padding:0}
   #view{position:relative;flex:1;width:100%;height:100%;min-height:clamp(280px,60vh,720px);display:flex;align-items:center;justify-content:center}
   #view canvas{display:block;max-width:100%;max-height:100%}
@@ -41,6 +42,7 @@
   a{color:var(--acc)}
   @media (max-width:900px){
     .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+    .app.collapsed{grid-template-columns:1fr}
     .panel{grid-column:1 / -1}
     main.canvas-wrap{grid-column:1 / -1;min-height:50vh}
     #view{min-height:clamp(260px,60vh,600px)}
@@ -64,6 +66,8 @@
     <button id="togglePanel" class="btn-toggle" title="Collapse/expand panel">&lt;&lt;</button>
     <h1>Particle Scattering Simulator</h1>
     <button id="playPause" class="btn">Pause</button>
+    <button id="rerun" class="btn">Respawn Particles</button>
+    <button id="save" class="btn">Save Frame (PNG)</button>
     <small>ESM: three.js + fft.js</small>
   </div>
 </header>
@@ -153,16 +157,13 @@
   <div class="row"><label>Verbose (show checks)</label>
     <div class="right"><input id="verbose" type="checkbox"></div></div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-    <button id="rerun" class="btn">Respawn Particles</button>
-    <button id="save" class="btn">Save Frame (PNG)</button>
-  </div>
+  
 
-  <p style="font-size:12px;color:#9aa0a6;margin-top:10px">
+  <p class="algo-note">
     Model: image field $U=\mathcal{F}^{-1}\!\{\, P(\mathbf{f})\,e^{i\pi\, \lambda\, z\, |\mathbf{f}|^2}\, \mathcal{F}\{T(\mathbf{x})\} \}\,$, intensity $I=|U|^2$. Pupil cutoff $f_c=\mathrm{NA}/\lambda$. Particles has depths $z_i \sim \mathcal{N}(0,\sigma_z^2)$. Motion: 3D fBm with step $\propto \eta^{-1/2}\,\Delta t^{H}$.
   </p>
-  <p style="font-size:12px;color:#9aa0a6">
-    ESM imports: three <code>https://unpkg.com/three@0.160.0/build/three.module.js</code>, fft.js <code>https://esm.sh/fft.js@4.0.4</code>
+  <p class="algo-note">
+    Key libraries used: three.js from unpkg.com, fft.js from esh.sh
   </p>
 </aside>
 
@@ -273,6 +274,12 @@ function fft2D(re,im,n,ft){ const rRe=new Float64Array(n), rIm=new Float64Array(
 function ifft2D(re,im,n,ft){ const rRe=new Float64Array(n), rIm=new Float64Array(n); for(let y=0;y<n;y++){ for(let x=0;x<n;x++){const i=y*n+x; rRe[x]=re[i]; rIm[x]=im[i];} const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); ft.inv(cout,cin); for(let x=0;x<n;x++){const i=y*n+x; re[i]=cout[2*x]; im[i]=cout[2*x+1];} } for(let x=0;x<n;x++){ for(let y=0;y<n;y++){const i=y*n+x; rRe[y]=re[i]; rIm[y]=im[i];} const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); ft.inv(cout,cin); for(let y=0;y<n;y++){const i=y*n+x; re[i]=cout[2*y]; im[i]=cout[2*y+1];} } }
 
 // ---------- Add syncLabels() ----------
+function setGroupVisibility(selector, isVisible){
+  document.querySelectorAll(selector).forEach(el => {
+    el.toggleAttribute('hidden', !isVisible);
+  });
+}
+
 function syncLabels(){
   UI.N.value = String(snapPow2(parseInt(UI.N.value,10)));
   UI.Nval.textContent = UI.N.value;
@@ -282,10 +289,10 @@ function syncLabels(){
   UI.dfinnerval.textContent = fmt(UI.dfinner.value,2);
   UI.cohIval.textContent = fmt(UI.cohI.value, 2);
   const mode = UI.mode.value;
-  document.querySelectorAll('.pc-only').forEach(el=>el.style.display = (mode==='pc')?'grid':'none');
-  document.querySelectorAll('.df-only').forEach(el=>el.style.display = (mode==='df')?'grid':'none');
-  document.querySelectorAll('.fl-only').forEach(el=>el.style.display = (mode==='fl')?'grid':'none');
-  document.querySelectorAll('.coh-only').forEach(el=>el.style.display = (mode!=='fl') ? 'grid' : 'none');
+  setGroupVisibility('.pc-only', mode === 'pc');
+  setGroupVisibility('.df-only', mode === 'df');
+  setGroupVisibility('.fl-only', mode === 'fl');
+  setGroupVisibility('.coh-only', mode !== 'fl');
   UI.lambdaval.textContent = UI.lambda.value;
   UI.NAval.textContent = fmt(UI.NA.value,2);
   UI.zval.textContent = fmt(UI.z.value,2);
@@ -1058,4 +1065,3 @@ if(window.MathJax && window.MathJax.typesetPromise) { MathJax.typesetPromise(); 
 </script>
 </body>
 </html>
-

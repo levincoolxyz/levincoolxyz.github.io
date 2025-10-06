@@ -14,8 +14,10 @@
   /* Toggle/collapsed panel styles */
   .btn-toggle { background:#0b1220; color:#e5e7eb; border:1px solid #374151; padding:6px; border-radius:8px; cursor:pointer; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; }
   .app.collapsed { grid-template-columns: 48px 1fr; }
-  .app.collapsed .panel { padding:6px; overflow:hidden; }
+  .app.collapsed .panel { padding:0; overflow:hidden; pointer-events:none; opacity:0; transform:translateX(-12px); border-right-color:transparent; }
   .app.collapsed .panel > * { display:none; }
+  /* Ensure BF brightfield scene remains visible when collapsed */
+  .app.collapsed #bfwrap { display:flex; }
   .btn { background:#111827; color:#e5e7eb; border:1px solid #374151; padding:8px 10px; border-radius:8px; cursor:pointer; }
   .btn:hover { background:#162032; }
   .canvas-wrap { position: relative; background:#000; }
