@@ -88,7 +88,7 @@
       </div>
       <div class="control">
         <label for="follow">Follow school centroid</label>
-        <input id="follow" type="checkbox">
+        <input id="follow" type="checkbox" checked>
       </div>
       <div class="control">
         <label for="hydro">Hydrodynamic interactions</label>
@@ -250,6 +250,8 @@ const sharkShape = {
   },
 };
 
+const sharkHeadOffset = 1.5; // distance from shark reference point to mouth
+
 const whaleShape = {
   x: [-3.9,-4,-3.75,-3.5,-1.5,0,-0.15,-0.4,0.25,0.75,1.5,1.85,2,1.85,1.5,0.75,0.25,-0.4,-0.15,0,-1.5,-3.5,-3.75,-4,-3.9].map(v => v*2),
   y: [0,0.9,0.67,0.2,0.75,1,1.5,2,1.5,1,0.75,0.45,0,-0.45,-0.75,-1,-1.5,-2,-1.5,-1,-0.75,-0.2,-0.67,-0.9,0].map(v => v*2),
@@ -291,6 +293,15 @@ function wrapAngle(a){
   a = (a + Math.PI) % (Math.PI*2);
   if(a < 0) a += Math.PI*2;
   return a - Math.PI;
+}
+
+function getSharkHeadPos(dir){
+  const ex = dir?.x ?? Math.cos(sharkState.theta);
+  const ey = dir?.y ?? Math.sin(sharkState.theta);
+  return {
+    x: sharkState.pos.x + ex * sharkHeadOffset,
+    y: sharkState.pos.y + ey * sharkHeadOffset,
+  };
 }
 
 function getAngle(phi, dx, dy, dist){
@@ -466,11 +477,12 @@ function computeStep(){
     const survivors = [];
     const survivorVel = [];
     const survivorTheta = [];
+    const sharkHead = stateFlags.shark ? getSharkHeadPos() : null;
     for(let i=0;i<fishes.length;i++){
       const fish = fishes[i];
       let dead = false;
       if(stateFlags.shark){
-        const d = Math.hypot(fish.x - sharkState.pos.x, fish.y - sharkState.pos.y);
+        const d = Math.hypot(fish.x - sharkHead.x, fish.y - sharkHead.y);
         if(d <= params.sharkH/3) dead = true;
       }
       if(!dead && stateFlags.whale){
@@ -522,12 +534,13 @@ function addPredatorFlow(predState, scaleH, factor, Ux, Uy, wHydro){
 function applySharkEvade(wVision){
   const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
   const orth = {x: -esk.y, y: esk.x};
+  const head = getSharkHeadPos(esk);
   for(let i=0;i<fishes.length;i++){
     const fish = fishes[i];
-    const d = Math.hypot(sharkState.pos.x - fish.x, sharkState.pos.y - fish.y);
+    const d = Math.hypot(head.x - fish.x, head.y - fish.y);
     if(d === 0) continue;
-    const dop1 = Math.hypot(sharkState.pos.x - orth.x - fish.x, sharkState.pos.y - orth.y - fish.y);
-    const dop2 = Math.hypot(sharkState.pos.x + orth.x - fish.x, sharkState.pos.y + orth.y - fish.y);
+    const dop1 = Math.hypot(head.x - orth.x - fish.x, head.y - orth.y - fish.y);
+    const dop2 = Math.hypot(head.x + orth.x - fish.x, head.y + orth.y - fish.y);
     const sign = dop1 <= dop2 ? -1 : 1;
     const wSk = getAngle(fish.theta, orth.x * sign, orth.y * sign);
     const blend = Math.exp((params.sharkH - d));
@@ -556,13 +569,14 @@ function applyWhaleEvade(wVision){
 function updateShark(Ux, Uy){
   const dt = params.dt;
   const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+  const head = getSharkHeadPos(esk);
   if(stateFlags.hard && fishes.length){
     let best = null;
     let bestDist = Infinity;
     const phiC = Math.PI/2;
     for(const fish of fishes){
-      const dx = fish.x - sharkState.pos.x;
-      const dy = fish.y - sharkState.pos.y;
+      const dx = fish.x - head.x;
+      const dy = fish.y - head.y;
       const dist = Math.hypot(dx, dy);
       const phi = getAngle(sharkState.theta, dx, dy, dist);
       if(Math.abs(phi) < phiC && dist < bestDist){
@@ -572,8 +586,8 @@ function updateShark(Ux, Uy){
     }
     if(!best){
       for(const fish of fishes){
-        const dx = fish.x - sharkState.pos.x;
-        const dy = fish.y - sharkState.pos.y;
+        const dx = fish.x - head.x;
+        const dy = fish.y - head.y;
         const dist = Math.hypot(dx, dy);
         if(dist < bestDist){
           best = {dx, dy, dist};
@@ -589,8 +603,8 @@ function updateShark(Ux, Uy){
     sharkState.pos.x += esk.x * dt * 1.5;
     sharkState.pos.y += esk.y * dt * 1.5;
   }else if(sharkGoal){
-    const dx = sharkGoal.x - sharkState.pos.x;
-    const dy = sharkGoal.y - sharkState.pos.y;
+    const dx = sharkGoal.x - head.x;
+    const dy = sharkGoal.y - head.y;
     const dist = Math.hypot(dx, dy);
     let w = getAngle(sharkState.theta, dx, dy, dist);
     w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
