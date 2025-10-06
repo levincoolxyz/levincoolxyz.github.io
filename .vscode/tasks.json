@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+        "label": "bundle:install",
+        "type": "shell",
+        "command": "bundle install",
+        "options": { "cwd": "${workspaceFolder}" }
+    },
+    {
+      "label": "jekyll:serve",
+      "type": "shell",
+      "command": "bundle exec jekyll serve --incremental --host 127.0.0.1 --port 4000",
+      "dependsOn": ["bundle:install"],
+      "isBackground": true,
+      "continueOnError": true,
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "silent", "panel": "dedicated", "revealProblems": "never" },
+      "problemMatcher": {
+        "owner": "jekyll",
+        "severity": "warning",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(?=a)b(.*)(.*)$",
+          "file": 1,
+          "message": 2
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Generating\\..*|.*Regenerating: .*|.*Configuration file: .*",
+          "endsPattern": ".*Server running.*|.*Server address: http://127\\.0\\.0\\.1:4000/.*"
+        }
+      }
+    },
+    {
+        "label": "terminateAll",
+        "type": "shell",
+        "command": "pkill -f 'jekyll serve' || true",
+        "problemMatcher": []
+    }
+  ]
+}
