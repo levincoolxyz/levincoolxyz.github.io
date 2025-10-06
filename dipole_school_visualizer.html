@@ -52,7 +52,6 @@
       .btn-toggle{width:34px;height:34px}
       .control{grid-template-columns:1fr}
       .control input[type=checkbox]{justify-self:start}
-      .toggles{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
     }
   </style>
 </head>
@@ -60,9 +59,8 @@
 <div class="app" id="app">
   <header>
     <div class="row">
-      <button id="togglePanel" class="btn-toggle" aria-label="Collapse controls" aria-expanded="true">&laquo;</button>
       <h1>Fish School Simulation</h1>
-      <small>Potential-flow dipole swimmers with Voronoi-neighbor based vision control</small>
+      <small>Potential-flow dipole swimmers with Voronoi vision control</small>
     </div>
   </header>
   <aside id="panel" tabindex="-1">
@@ -123,45 +121,6 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const statsEl = document.getElementById('stats');
 const messageEl = document.getElementById('messages');
-const appEl = document.getElementById('app');
-const togglePanelBtn = document.getElementById('togglePanel');
-const panelEl = document.getElementById('panel');
-const collapseQuery = window.matchMedia('(max-width: 900px)');
-let userLockedPanel = false;
-
-const focusPanel = () => {
-  if(!panelEl || typeof panelEl.focus !== 'function') return;
-  try {
-    panelEl.focus({preventScroll:true});
-  } catch (err) {
-    panelEl.focus();
-  }
-};
-
-const setCollapsed = (collapsed) => {
-  appEl.classList.toggle('collapsed', collapsed);
-  togglePanelBtn.setAttribute('aria-expanded', String(!collapsed));
-  togglePanelBtn.innerHTML = collapsed ? '&raquo;' : '&laquo;';
-  togglePanelBtn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
-};
-
-togglePanelBtn.addEventListener('click', () => {
-  const collapsed = !appEl.classList.contains('collapsed');
-  userLockedPanel = true;
-  setCollapsed(collapsed);
-  if(!collapsed){
-    focusPanel();
-  }
-});
-
-const handleCollapseChange = (event) => {
-  if(userLockedPanel) return;
-  setCollapsed(event.matches);
-};
-
-collapseQuery.addEventListener?.('change', handleCollapseChange);
-collapseQuery.addListener?.(handleCollapseChange);
-setCollapsed(collapseQuery.matches);
 
 const controls = {
   N: document.getElementById('N'),
