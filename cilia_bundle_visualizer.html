@@ -1440,6 +1440,18 @@
     if (btnRight) btnRight.addEventListener('click', ev=>{ params.panX -= panStep(ev); renderBF(); });
     if (btnCenter) btnCenter.addEventListener('click', ()=>{ sim.panInited=false; renderBF(); });
 
+    // Keyboard Arrow support for panning (Shift = x5)
+    document.addEventListener('keydown', (e)=>{
+      const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+      const typing = tag==='input' || tag==='textarea' || (e.target && e.target.isContentEditable);
+      if (typing) return;
+      const step = e.shiftKey ? 50 : 10;
+      if (e.key === 'ArrowUp'){ params.panY -= step; renderBF(); e.preventDefault(); }
+      else if (e.key === 'ArrowDown'){ params.panY += step; renderBF(); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft'){ params.panX += step; renderBF(); e.preventDefault(); }
+      else if (e.key === 'ArrowRight'){ params.panX -= step; renderBF(); e.preventDefault(); }
+    });
+
     document.getElementById('playPause').onclick = function(){
       sim.isPlaying = !sim.isPlaying;
       document.getElementById('playPause').textContent = sim.isPlaying ? 'Pause' : 'Play';

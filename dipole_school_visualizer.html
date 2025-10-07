@@ -42,6 +42,10 @@
     #stats{position:absolute;left:12px;bottom:12px;padding:8px 10px;background:rgba(0,0,0,.45);border-radius:8px;font:12px ui-monospace;color:#cbd5e1;white-space:pre}
     #messages{position:absolute;right:12px;bottom:12px;padding:10px 14px;background:rgba(43,27,27,.85);color:#ffdcdc;border:1px solid #a55;border-radius:10px;font:12px ui-monospace;display:none;max-width:46ch}
     a{color:var(--acc)}
+    /* D‑pad overlay (top-right) */
+    #fishDpad{position:absolute;right:16px;top:16px;display:grid;grid-template-columns:28px 28px 28px;grid-template-rows:28px 28px 28px;gap:6px;user-select:none;z-index:4}
+    #fishDpad button{width:28px;height:28px;border-radius:6px;border:1px solid #233047;background:#10192a;color:#e8eaed;cursor:pointer}
+    #fishDpad button:hover{background:#17253b}
     @media (max-width:960px){
       .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
       .app.collapsed{grid-template-columns:1fr}
@@ -88,12 +92,20 @@
         <input id="In" type="range" min="0" max="5" step="0.01" value="0.3">
       </div>
       <div class="control">
-        <label for="follow">Follow school centroid</label>
-        <input id="follow" type="checkbox" checked>
-      </div>
-      <div class="control">
         <label for="hydro">Hydrodynamic interactions (works okay for N ⪅ 1200)</label>
         <input id="hydro" type="checkbox" checked>
+      </div>
+      <div class="control">
+        <label for="hydroShell">Hydro: Delaunay shell only</label>
+        <input id="hydroShell" type="checkbox">
+      </div>
+      <div class="control">
+        <label for="hydroRange">Hydro: distance cutoff R <span class="value" id="hydroRVal">3.0</span></label>
+        <input id="hydroRange" type="checkbox">
+      </div>
+      <div class="control">
+        <label for="hydroRadius">Cutoff radius R</label>
+        <input id="hydroRadius" type="range" min="0.5" max="10" step="0.1" value="3.0">
       </div>
       <div class="buttons">
         <button id="respawn">Respawn school</button>
@@ -120,6 +132,17 @@
       <canvas id="canvas"></canvas>
       <div id="stats"></div>
       <div id="messages"></div>
+      <div id="fishDpad" title="Pan view (arrow keys or buttons); center to follow">
+        <div></div>
+        <button id="fishPanUp">↑</button>
+        <div></div>
+        <button id="fishPanLeft">←</button>
+        <button id="fishPanCenter">•</button>
+        <button id="fishPanRight">→</button>
+        <div></div>
+        <button id="fishPanDown">↓</button>
+        <div></div>
+      </div>
     </div>
   </main>
 </div>
@@ -177,8 +200,11 @@ const controls = {
   In: document.getElementById('In'),
   IpVal: document.getElementById('IpVal'),
   InVal: document.getElementById('InVal'),
-  follow: document.getElementById('follow'),
   hydro: document.getElementById('hydro'),
+  hydroShell: document.getElementById('hydroShell'),
+  hydroRange: document.getElementById('hydroRange'),
+  hydroRadius: document.getElementById('hydroRadius'),
+  hydroRVal: document.getElementById('hydroRVal'),
   respawn: document.getElementById('respawn'),
   clearBaits: document.getElementById('clearBaits'),
 };
@@ -280,6 +306,23 @@ let sharkState = {pos:{x:-25,y:0},theta:0};
 let whaleState = {pos:{x:0,y:-25},theta:Math.PI/2};
 let startTime = performance.now();
 
+// View state for panning/following centroid
+let viewState = {follow: true, centerX: 0, centerY: 0};
+function getViewCenter(){
+  if(viewState.follow){ return {x: meanX(), y: meanY()}; }
+  return {x: viewState.centerX, y: viewState.centerY};
+}
+function nudgeView(dx, dy){
+  if(viewState.follow){
+    const c = {x: meanX(), y: meanY()};
+    viewState.centerX = c.x;
+    viewState.centerY = c.y;
+    viewState.follow = false;
+  }
+  viewState.centerX += dx;
+  viewState.centerY += dy;
+}
+
 function resetSchool(){
   fishes = [];
   velocities = [];
@@ -338,16 +381,20 @@ function computeStep(){
   if(!n) return;
 
   const hydroEnabled = controls.hydro.checked;
+  const hydroShellOnly = hydroEnabled && controls.hydroShell?.checked;
+  const hydroRangeOnly = hydroEnabled && controls.hydroRange?.checked;
+  const rCut = parseFloat(controls.hydroRadius?.value ?? '3');
   const cosT = fishes.map(f => Math.cos(f.theta));
   const sinT = fishes.map(f => Math.sin(f.theta));
 
   const delaunay = n >= 3 ? Delaunay.from(fishes, f => f.x, f => f.y) : null;
+  const delaunayNeighbors = delaunay ? Array.from({length:n}, (_,i) => Array.from(delaunay.neighbors(i))) : null;
   const wVision = new Array(n).fill(0);
   const minDist = new Array(n).fill(Infinity);
 
   if(delaunay){
     for(let i=0;i<n;i++){
-      const neighbors = Array.from(delaunay.neighbors(i));
+      const neighbors = delaunayNeighbors[i];
       let sum = 0;
       let denom = 0;
       let minR = Infinity;
@@ -405,38 +452,126 @@ function computeStep(){
   const wHydro = new Array(n).fill(0);
 
   if(hydroEnabled){
-    for(let i=0;i<n;i++){
-      let uR = 0;
-      let uI = 0;
-      let wSum = 0;
-      for(let j=0;j<n;j++){
-        if(i === j) continue;
-        const dx = fishes[i].x - fishes[j].x;
-        const dy = fishes[i].y - fishes[j].y;
-        const r2 = dx*dx + dy*dy;
-        if(r2 < 1e-6) continue;
-        const invr4 = 1/(r2*r2);
-        const invr6 = invr4/r2;
-        const c2r = dx*dx - dy*dy;
-        const c2i = -2*dx*dy;
-        const c3r = c2r*dx - c2i*dy;
-        const c3i = c2r*(-dy) + c2i*dx;
-        const expOjR = cosT[j];
-        const expOjI = sinT[j];
-        const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
-        const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
-        const termUr = expOjR*c2r - expOjI*c2i;
-        const termUi = expOjR*c2i + expOjI*c2r;
-        const termWr = expTermR*c3r - expTermI*c3i;
-        const termWi = expTermR*c3i + expTermI*c3r;
-        uR += termUr * invr4;
-        uI += termUi * invr4;
-        wSum += termWi * invr6 * 2;
+    if(hydroShellOnly && delaunayNeighbors){
+      // O(N * average degree) using Delaunay neighbors only
+      for(let i=0;i<n;i++){
+        let uR = 0, uI = 0, wSum = 0;
+        const neighbors = delaunayNeighbors[i];
+        for(const j of neighbors){
+          if(i === j) continue;
+          const dx = fishes[i].x - fishes[j].x;
+          const dy = fishes[i].y - fishes[j].y;
+          const r2 = dx*dx + dy*dy;
+          if(r2 < 1e-6) continue;
+          const invr4 = 1/(r2*r2);
+          const invr6 = invr4/r2;
+          const c2r = dx*dx - dy*dy;
+          const c2i = -2*dx*dy;
+          const c3r = c2r*dx - c2i*dy;
+          const c3i = c2r*(-dy) + c2i*dx;
+          const expOjR = cosT[j];
+          const expOjI = sinT[j];
+          const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+          const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+          const termUr = expOjR*c2r - expOjI*c2i;
+          const termUi = expOjR*c2i + expOjI*c2r;
+          const termWr = expTermR*c3r - expTermI*c3i;
+          const termWi = expTermR*c3i + expTermI*c3r;
+          uR += termUr * invr4;
+          uI += termUi * invr4;
+          wSum += termWi * invr6 * 2;
+        }
+        const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+        Ux[i] = uR / Math.PI * params.If * avoid;
+        Uy[i] = -uI / Math.PI * params.If * avoid;
+        wHydro[i] = wSum / Math.PI * params.If * avoid;
       }
-      const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
-      Ux[i] = uR / Math.PI * params.If * avoid;
-      Uy[i] = -uI / Math.PI * params.If * avoid;
-      wHydro[i] = wSum / Math.PI * params.If * avoid;
+    } else if(hydroRangeOnly){
+      // Spatial hash for O(N) range queries
+      const cell = rCut > 0 ? rCut : 1.0;
+      const r2cut = rCut*rCut;
+      const grid = new Map();
+      const key = (ix,iy) => ix + ',' + iy;
+      for(let i=0;i<n;i++){
+        const ix = Math.floor(fishes[i].x / cell);
+        const iy = Math.floor(fishes[i].y / cell);
+        const k = key(ix,iy);
+        let arr = grid.get(k);
+        if(!arr){ arr = []; grid.set(k, arr); }
+        arr.push(i);
+      }
+      for(let i=0;i<n;i++){
+        let uR = 0, uI = 0, wSum = 0;
+        const ix = Math.floor(fishes[i].x / cell);
+        const iy = Math.floor(fishes[i].y / cell);
+        for(let gx=ix-1; gx<=ix+1; gx++){
+          for(let gy=iy-1; gy<=iy+1; gy++){
+            const arr = grid.get(key(gx,gy));
+            if(!arr) continue;
+            for(const j of arr){
+              if(i === j) continue;
+              const dx = fishes[i].x - fishes[j].x;
+              const dy = fishes[i].y - fishes[j].y;
+              const r2 = dx*dx + dy*dy;
+              if(r2 > r2cut || r2 < 1e-6) continue;
+              const invr4 = 1/(r2*r2);
+              const invr6 = invr4/r2;
+              const c2r = dx*dx - dy*dy;
+              const c2i = -2*dx*dy;
+              const c3r = c2r*dx - c2i*dy;
+              const c3i = c2r*(-dy) + c2i*dx;
+              const expOjR = cosT[j];
+              const expOjI = sinT[j];
+              const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+              const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+              const termUr = expOjR*c2r - expOjI*c2i;
+              const termUi = expOjR*c2i + expOjI*c2r;
+              const termWr = expTermR*c3r - expTermI*c3i;
+              const termWi = expTermR*c3i + expTermI*c3r;
+              uR += termUr * invr4;
+              uI += termUi * invr4;
+              wSum += termWi * invr6 * 2;
+            }
+          }
+        }
+        const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+        Ux[i] = uR / Math.PI * params.If * avoid;
+        Uy[i] = -uI / Math.PI * params.If * avoid;
+        wHydro[i] = wSum / Math.PI * params.If * avoid;
+      }
+    } else {
+      // Fallback: full O(N^2) hydrodynamics (small N)
+      for(let i=0;i<n;i++){
+        let uR = 0, uI = 0, wSum = 0;
+        for(let j=0;j<n;j++){
+          if(i === j) continue;
+          const dx = fishes[i].x - fishes[j].x;
+          const dy = fishes[i].y - fishes[j].y;
+          const r2 = dx*dx + dy*dy;
+          if(r2 < 1e-6) continue;
+          const invr4 = 1/(r2*r2);
+          const invr6 = invr4/r2;
+          const c2r = dx*dx - dy*dy;
+          const c2i = -2*dx*dy;
+          const c3r = c2r*dx - c2i*dy;
+          const c3i = c2r*(-dy) + c2i*dx;
+          const expOjR = cosT[j];
+          const expOjI = sinT[j];
+          const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+          const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+          const termUr = expOjR*c2r - expOjI*c2i;
+          const termUi = expOjR*c2i + expOjI*c2r;
+          const termWr = expTermR*c3r - expTermI*c3i;
+          const termWi = expTermR*c3i + expTermI*c3r;
+          uR += termUr * invr4;
+          uI += termUi * invr4;
+          wSum += termWi * invr6 * 2;
+        }
+        const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+        Ux[i] = uR / Math.PI * params.If * avoid;
+        Uy[i] = -uI / Math.PI * params.If * avoid;
+        wHydro[i] = wSum / Math.PI * params.If * avoid;
+      }
     }
   }
 
@@ -703,8 +838,9 @@ function worldToScreen(x,y){
   const rect = canvas.getBoundingClientRect();
   const aspect = rect.width/rect.height;
   const viewHalf = 20;
-  const cx = controls.follow.checked ? meanX() : 0;
-  const cy = controls.follow.checked ? meanY() : 0;
+  const c = getViewCenter();
+  const cx = c.x;
+  const cy = c.y;
   const scale = rect.height/(viewHalf*2);
   return {
     x: rect.width/2 + (x - cx) * scale,
@@ -716,8 +852,9 @@ function worldToScreen(x,y){
 function screenToWorld(clientX, clientY){
   const rect = canvas.getBoundingClientRect();
   const viewHalf = 20;
-  const cx = controls.follow.checked ? meanX() : 0;
-  const cy = controls.follow.checked ? meanY() : 0;
+  const c = getViewCenter();
+  const cx = c.x;
+  const cy = c.y;
   const scale = rect.height/(viewHalf*2);
   return {
     x: cx + (clientX - rect.width/2)/scale,
@@ -729,8 +866,9 @@ function draw(){
   const rect = canvas.getBoundingClientRect();
   ctx.clearRect(0,0,rect.width,rect.height);
   ctx.save();
-  const cx = controls.follow.checked ? meanX() : 0;
-  const cy = controls.follow.checked ? meanY() : 0;
+  const c = getViewCenter();
+  const cx = c.x;
+  const cy = c.y;
   const scale = rect.height/(40);
   ctx.translate(rect.width/2, rect.height/2);
   ctx.scale(scale, -scale);
@@ -839,6 +977,34 @@ controls.Ia.addEventListener('input', () => {
 controls.In.addEventListener('input', () => {
   controls.InVal.textContent = parseFloat(controls.In.value).toFixed(2);
 });
+controls.hydroRadius?.addEventListener('input', () => {
+  if(controls.hydroRVal){
+    controls.hydroRVal.textContent = parseFloat(controls.hydroRadius.value).toFixed(1);
+  }
+});
+// Disable sub-controls when hydro off
+controls.hydro?.addEventListener('change', () => {
+  const on = controls.hydro.checked;
+  [controls.hydroShell, controls.hydroRange, controls.hydroRadius].forEach(el => {
+    if(!el) return;
+    el.disabled = !on;
+  });
+});
+// Keep radius slider disabled unless range mode is on
+controls.hydroRange?.addEventListener('change', () => {
+  if(controls.hydroRadius){
+    controls.hydroRadius.disabled = !controls.hydro.checked || !controls.hydroRange.checked;
+  }
+});
+// Initialize disabled states on load
+(() => {
+  if(controls.hydroRadius){
+    controls.hydroRadius.disabled = !controls.hydro.checked || !controls.hydroRange.checked;
+  }
+  [controls.hydroShell, controls.hydroRange].forEach(el => {
+    if(el) el.disabled = !controls.hydro.checked;
+  });
+})();
 controls.respawn.addEventListener('click', () => {
   params.n = parseInt(controls.N.value, 10);
   resetSchool();
@@ -874,9 +1040,19 @@ canvas.addEventListener('click', e => {
 });
 
 document.addEventListener('keydown', e => {
+  const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+  const typing = tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable);
+  if(typing) return;
   if(e.key === ' '){
     e.preventDefault();
     setPlaying(!isPlaying);
+  } else if(e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+    const step = e.shiftKey ? 5 : 1; // world units
+    if(e.key === 'ArrowUp') nudgeView(0, step);
+    if(e.key === 'ArrowDown') nudgeView(0, -step);
+    if(e.key === 'ArrowLeft') nudgeView(-step, 0);
+    if(e.key === 'ArrowRight') nudgeView(step, 0);
+    e.preventDefault();
   }
 });
 
@@ -887,6 +1063,18 @@ controls.N.value = String(params.n);
 controls.N.dispatchEvent(new Event('input'));
 resetSchool();
 requestAnimationFrame(tick);
+// D‑pad bindings (fish)
+function panStep(ev){ return (ev && ev.shiftKey) ? 5 : 1; }
+const btnU = document.getElementById('fishPanUp');
+const btnD = document.getElementById('fishPanDown');
+const btnL = document.getElementById('fishPanLeft');
+const btnR = document.getElementById('fishPanRight');
+const btnC = document.getElementById('fishPanCenter');
+if(btnU) btnU.addEventListener('click', ev => { nudgeView(0, panStep(ev)); });
+if(btnD) btnD.addEventListener('click', ev => { nudgeView(0, -panStep(ev)); });
+if(btnL) btnL.addEventListener('click', ev => { nudgeView(-panStep(ev), 0); });
+if(btnR) btnR.addEventListener('click', ev => { nudgeView(panStep(ev), 0); });
+if(btnC) btnC.addEventListener('click', () => { viewState.follow = true; });
 </script>
 </body>
 </html>
