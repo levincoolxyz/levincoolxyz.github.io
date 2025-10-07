@@ -142,6 +142,7 @@
         <h3>Microscopy setup</h3>
         <div class="slider"><label for="azimuth">view azimuth (deg)</label><input id="azimuth" type="range" min="-180" max="180" step="1" value="-90"><div class="value" id="azimuthv">-90</div></div>
         <div class="slider"><label for="elevation">view elevation (deg)</label><input id="elevation" type="range" min="-90" max="90" step="1" value="0"><div class="value" id="elevationv">0</div></div>
+        <div class="slider"><label for="cilRes">cilium resolution (×)</label><input id="cilRes" type="range" min="0.7" max="2" step="0.01" value="0.8"><div class="value" id="cilResv">0.8</div></div>
         <div class="slider"><label for="imgN">field of view [px]</label><input id="imgN" type="range" min="256" max="1024" step="1" value="256"><div class="value" id="imgNv">256</div></div>
         <div class="slider"><label for="px">pixel size [μm]</label><input id="px" type="range" min="0.05" max="0.50" step="0.01" value="0.1"><div class="value" id="pxv">0.1</div></div>
         <div class="slider"><label for="NA">NA (numerical aperture)</label><input id="NA" type="range" min="0.10" max="1.40" step="0.01" value="0.80"><div class="value" id="NAv">0.80</div></div>
@@ -161,7 +162,6 @@
         <div class="slider"><label for="lambda">source wavelength λ [nm]</label><input id="lambda" type="range" min="400" max="700" step="5" value="550"><div class="value" id="lambdav">550</div></div>
         <div class="slider"><label for="cohI">source relative intensity I</label><input id="cohI" type="range" min="0.001" max="1.00" step="0.001" value="0.50"><div class="value" id="cohIv">0.50</div></div>
         <div class="slider"><label for="z0">z_0 (focus distance) [μm]</label><input id="z0" type="range" min="-20.0" max="20.0" step="0.01" value="0.00"><div class="value" id="z0v">0.00</div></div>
-        <div class="slider"><label for="bfNSpheres">beads per cilium</label><input id="bfNSpheres" type="range" min="3" max="60" step="1" value="20"><div class="value" id="bfNSpheresv">20</div></div>
         <div class="slider"><label for="dn">Δn (refractive index diff)</label><input id="dn" type="range" min="-0.20" max="0.20" step="0.001" value="0.05"><div class="value" id="dnv">0.05</div></div>
         <div class="slider"><label for="kappa">κ (cilia absorption)</label><input id="kappa" type="range" min="0.000" max="0.1" step="0.001" value="0.05"><div class="value" id="kappav">0.05</div></div>
         <div class="slider"><label for="barum">scale bar [μm]</label><input id="barum" type="range" min="1" max="30" step="1" value="10"><div class="value" id="barumv">10</div></div>
@@ -219,7 +219,7 @@
     azimuth:-90, elevation:1,
     // microscopy
     imgN:256, px:0.10, lambda:550, NA:0.80, z0:0.001, cohI:0.50, dn:0.05, kappa:0.05,
-    bfNSpheres:20, barum:10,
+    cilRes:0.8, barum:10,
     // modes
     mode:'bf', pcfrac:8, pcphi:1.5708, pcalpha:0.60, dfinner:0.25,
     // 2D pan (pixels in the rendered square)
@@ -323,7 +323,7 @@
     setSlider('azimuth', params.azimuth); setSlider('elevation', params.elevation);
     // BF
     setSlider('imgN', params.imgN); setSlider('px', params.px); setSlider('lambda', params.lambda); setSlider('NA', params.NA); setSlider('z0', params.z0);
-    setSlider('bfNSpheres', params.bfNSpheres); setSlider('cilRadius', params.cilRadius);
+    setSlider('cilRes', params.cilRes); setSlider('cilRadius', params.cilRadius);
     setSlider('dn', params.dn); setSlider('kappa', params.kappa); setSlider('cohI', params.cohI);
     setSlider('barum', params.barum);
     // Modes
@@ -1149,14 +1149,17 @@
   // ===== build scatterers from cilia centerlines =====
   var xTmp = new Float32Array(4096), zTmp = new Float32Array(4096);
   function collectSpheres(){
-    const Nbead = Math.max(3, (params.bfNSpheres|0));
-    if (xTmp.length < Nbead){ xTmp = new Float32Array(Nbead); zTmp = new Float32Array(Nbead); }
+    // Per-cilium bead resolution: N_i ≈ cilRes * (L_i / diameter)
+    const diam = Math.max(1e-6, 2*Number(params.cilRadius));
+    const resScale = Math.max(0.01, Number(params.cilRes || 1));
     const rot = computeCameraAxesFromQuat(sim.q);
     const list = []; // each: {x_um, y_um, z_um}
     for(let k=0;k<sim.total;k++){
       if (!sim.isCiliated || !sim.isCiliated[k]) continue;
       const tFrac = (sim.tNow * sim.ciliaFreq[k] + sim.initPhase[k]) % 1.0;
       const A0scale = sim.ampScale[k]; const L = sim.ciliaLen[k];
+      const Nbead = Math.max(3, Math.round((L/diam) * resScale));
+      if (xTmp.length < Nbead){ xTmp = new Float32Array(Nbead); zTmp = new Float32Array(Nbead); }
       centerlineFromCurvatureN(Nbead, tFrac, A0scale, L, xTmp, zTmp);
       const a = sim.beatAngle[k]; const s = Math.sin(a), c = Math.cos(a);
       const bx = sim.cx[k], by = sim.cy[k], bz = sim.cz[k];
@@ -1184,7 +1187,7 @@
     const kappa = Number(params.kappa); setVal('kappav', kappa);
     const cohI = Number(params.cohI); setVal('cohIv', cohI);
     const bar_um = Math.max(1, Math.min(100, Math.round(Number(params.barum)))); params.barum = bar_um; setVal('barumv', bar_um);
-    const R_um = Number(params.cilRadius); setVal('bfRadiusv', R_um); setVal('bfNSpheresv', params.bfNSpheres);
+    const R_um = Number(params.cilRadius); setVal('cilRadiusv', R_um); setVal('cilResv', params.cilRes);
 
     ensureOptics(N, px_um, lam_um, NA, z0, dn, kappa, R_um);
 
@@ -1418,7 +1421,7 @@
       ['angleMean','angleMean'], ['angleStd','angleStd'],
       ['azimuth','azimuth'], ['elevation','elevation'],
       // BF + optics
-      ['imgN','imgN'], ['px','px'], ['lambda','lambda'], ['NA','NA'], ['z0','z0'], ['bfNSpheres','bfNSpheres'], ['cilRadius','cilRadius'], ['dn','dn'], ['kappa','kappa'], ['cohI','cohI'], ['barum','barum'],
+      ['imgN','imgN'], ['px','px'], ['lambda','lambda'], ['NA','NA'], ['z0','z0'], ['cilRes','cilRes'], ['cilRadius','cilRadius'], ['dn','dn'], ['kappa','kappa'], ['cohI','cohI'], ['barum','barum'],
       // PC/DF params
       ['pcfrac','pcfrac'], ['pcphi','pcphi'], ['pcalpha','pcalpha'], ['dfinner','dfinner']
     ];
@@ -1517,7 +1520,7 @@
 
   // ===== minimal self-test checks =====
   (function selfTests(){
-    var ids = ['imgN','px','lambda','NA','z0','bfNSpheres','cilRadius','nX','nY'];
+    var ids = ['imgN','px','lambda','NA','z0','cilRes','cilRadius','nX','nY'];
     for (var i=0;i<ids.length;i++){ console.assert(document.getElementById(ids[i]), 'Missing element id="'+ids[i]+'"'); }
   })();
   </script>
