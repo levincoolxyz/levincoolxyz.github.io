@@ -15,8 +15,10 @@
     header .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
     header h1{font-size:18px;margin:0}
     header small{color:var(--muted)}
-    main{grid-column:2 / -1;position:relative;background:#05070c;display:flex;align-items:center;justify-content:center}
-    #view{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;min-height:clamp(320px,60vh,780px)}
+    main{grid-column:2 / -1;position:relative;background:#05070c;display:flex;align-items:stretch;justify-content:stretch}
+    /* Ensure the drawing surface always fills its slot and never leaves
+       stray gaps due to min-heights/flex sizing rounding */
+    #view{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;min-height:0;flex:1 1 auto}
     canvas{width:100%;height:100%;display:block;background:#05070c}
     aside{background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:16px;overflow:hidden;min-height:0;transition:padding .2s ease,border-color .2s ease,transform .25s ease;scrollbar-width:thin}
     aside h2{margin:0;font-size:15px;color:var(--fg)}
@@ -48,9 +50,12 @@
     #fishDpad button:hover{background:#17253b}
     @media (max-width:960px){
       .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
-      .app.collapsed{grid-template-columns:1fr}
-      aside{grid-column:1 / -1;order:1;max-height:min(420px,60vh)}
-      main{grid-column:1 / -1;order:2;min-height:55vh}
+      /* When collapsed on narrow screens, remove the aside row entirely. */
+      .app.collapsed{grid-template-columns:1fr;grid-template-rows:auto 0 1fr}
+      aside{grid-column:1 / -1;max-height:min(420px,60vh)}
+      /* Ensure collapsed aside contributes zero height and doesn't leave a gap */
+      .app.collapsed aside{max-height:0 !important;height:0 !important;padding:0 !important;border:0 !important;overflow:hidden}
+      main{grid-column:1 / -1;min-height:55vh}
     }
     @media (max-width:640px){
       header h1{font-size:16px}
@@ -156,7 +161,8 @@ const messageEl = document.getElementById('messages');
 const appEl = document.getElementById('app');
 const togglePanelBtn = document.getElementById('togglePanel');
 const panelEl = document.getElementById('panel');
-const collapseQuery = window.matchMedia('(max-width: 900px)');
+// Keep JS breakpoint in sync with CSS media query (960px)
+const collapseQuery = window.matchMedia('(max-width: 960px)');
 let userLockedPanel = false;
 
 const focusPanel = () => {
@@ -173,6 +179,7 @@ const setCollapsed = (collapsed) => {
   togglePanelBtn.setAttribute('aria-expanded', String(!collapsed));
   togglePanelBtn.innerHTML = collapsed ? '&raquo;' : '&laquo;';
   togglePanelBtn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
+  requestAnimationFrame(resize);
 };
 
 togglePanelBtn.addEventListener('click', () => {
@@ -191,7 +198,8 @@ const handleCollapseChange = (event) => {
 
 collapseQuery.addEventListener?.('change', handleCollapseChange);
 collapseQuery.addListener?.(handleCollapseChange);
-setCollapsed(false);
+// Initialize collapsed state to match media query layout
+setCollapsed(collapseQuery.matches);
 
 const controls = {
   N: document.getElementById('N'),
@@ -818,11 +826,19 @@ function updateStats(){
   statsEl.textContent = `N = ${fishes.length}\nIp = ${parseFloat(controls.Ia.value).toFixed(2)}\nIn = ${parseFloat(controls.In.value).toFixed(2)}\nRender time ${elapsed.toFixed(1)} ms`;
 }
 
+// Keep canvas backing store in lock-step with CSS size using DPR, and
+// guard against fractional rounding mismatches that can leave uncleared bands.
 function resize(){
   const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * devicePixelRatio;
-  canvas.height = rect.height * devicePixelRatio;
-  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  // Establish device-pixel scaling baseline for subsequent draws
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 function meanX(){
@@ -863,8 +879,14 @@ function screenToWorld(clientX, clientY){
 }
 
 function draw(){
+  // Clear using the actual backing-store size to avoid leaving a strip
+  // of uncleared pixels when CSS size changes slightly without a resize.
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Reapply DPR scaling for drawing
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
   const rect = canvas.getBoundingClientRect();
-  ctx.clearRect(0,0,rect.width,rect.height);
   ctx.save();
   const c = getViewCenter();
   const cx = c.x;
@@ -1058,6 +1080,10 @@ document.addEventListener('keydown', e => {
 
 window.addEventListener('resize', resize);
 resize();
+// Also react to layout-driven size changes that don't emit window resize
+// (e.g. panel collapse/expand, fonts, scrollbars, zoom changes).
+const ro = new ResizeObserver(() => requestAnimationFrame(resize));
+ro.observe(document.getElementById('view'));
 // Initialize school-size UI from params
 controls.N.value = String(params.n);
 controls.N.dispatchEvent(new Event('input'));

@@ -208,7 +208,9 @@ if (playPauseBtn){
   playPauseBtn.addEventListener('click', () => {
     isPlaying = !isPlaying;
     playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
-    simulate._last = performance.now();
+    if (isPlaying) {
+      simulate._last = performance.now();
+    }
   });
 }
 function q(s){return document.querySelector(s)}
@@ -534,12 +536,8 @@ async function simulate(){
     const now = performance.now();
     if(!simulate._last) simulate._last = now;
     const dt_ms = Number(UI.dt.value);
-    let stepsNeeded = 0;
-    if (!isPlaying) {
-      simulate._last = now;
-    } else {
-      stepsNeeded = Math.max(0, Math.floor((now - simulate._last)/dt_ms));
-    }
+    const elapsed = now - simulate._last;
+    const stepsNeeded = Math.max(0, Math.floor(elapsed/dt_ms));
     if(stepsNeeded>0){
       const d = dyn.tick(stepsNeeded);
       const Npix = N;
@@ -602,6 +600,15 @@ async function simulate(){
       }
 
       simulate._last += stepsNeeded*dt_ms;
+    }
+
+    if (!isPlaying) {
+      const aliveCount = alive ? alive.reduce((a,b)=>a+(b?1:0),0) : nParts;
+      const status = UI.verbose.checked
+        ? `Paused — #Particles=${aliveCount}, Δt=${dt_ms.toFixed(0)} ms`
+        : `Paused · #Particles=${aliveCount}`;
+      UI.stats.textContent = status;
+      return;
     }
 
     const ft=makeFFT(N);
