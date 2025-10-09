@@ -35,6 +35,16 @@
   #threeMini, #threeMini canvas { touch-action:none; }
   .hud { position:absolute; left:10px; bottom:64px; font-size:12px; color:#cbd5e1;
          background:rgba(0,0,0,.45); padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,.06); white-space:pre; }
+  .tutorial-note { position:absolute; right:16px; top:120px; width:min(280px, 90vw); padding:12px 14px; background:rgba(15,23,42,.78);
+    border:1px solid rgba(148,163,184,.35); border-radius:12px; color:#e5e7eb; font-size:12px; line-height:1.5; z-index:5;
+    box-shadow:0 14px 38px rgba(0,0,0,.45); backdrop-filter:blur(4px); }
+  .tutorial-note header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; }
+  .tutorial-note header strong { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; }
+  .tutorial-note button[data-close] { background:transparent; border:1px solid rgba(148,163,184,.4); color:#9ca3af; border-radius:6px;
+    width:22px; height:22px; cursor:pointer; font-size:12px; line-height:1; padding:0; display:flex; align-items:center; justify-content:center; }
+  .tutorial-note button[data-close]:hover { color:#e5e7eb; border-color:rgba(148,163,184,.7); }
+  .tutorial-note ul { margin:0; padding-left:18px; display:flex; flex-direction:column; gap:4px; }
+  .tutorial-note li { color:#cbd5e1; }
   .group { margin-bottom: 12px; }
   .group h3 { margin: 8px 0; font-size:12px; color:#9ca3af; text-transform:capitalize; letter-spacing:.08em; }
   .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -91,6 +101,7 @@
         <button id="togglePanel" class="btn-toggle" title="Collapse/expand panel">&lt;&lt;</button>
         <h1>Cilia Bundle Visualizer</h1>
         <button id="playPause" class="btn">Pause</button>
+        <button id="save" class="btn">Snapshot (PNG)</button>
         <button id="presetSingle" class="btn">Single</button>
         <button id="presetSymp" class="btn">Symplectic</button>
         <button id="presetAnti" class="btn">Antiplectic</button>
@@ -188,8 +199,23 @@
       </div>
       <div id="minimap"><div id="threeMini"></div></div>
       <div id="kappaEditor">
-        <div class="title">Curvature profile ϰ(s)</div>
+        <div class="title">Beat amplitude profile (s)</div>
         <canvas id="kappaCanvas"></canvas>
+      </div>
+      <div class="tutorial-note" id="ciliaNavNote">
+        <header>
+          <strong>Navigation tips</strong>
+          <button type="button" data-close aria-label="Hide navigation tips">×</button>
+        </header>
+        <ul>
+          <li>Drag on the 3D inset or microscopy view to rotate the bundle.</li>
+          <li>Change beat amplitude profile along arclength (s) by adding or dragging points on the profile inset (delete handle by dragg point out of inset).</li>
+          <li>Scroll the mouse wheel over the 3D inset to zoom in/out the centerline view.</li>
+          <li>Scroll the mouse wheel over the microscopy view to change focal plane z<sub>0</sub> (Shift = faster).</li>
+          <li>Pan the microscopy view with arrow keys or the D-pad (Shift = faster).</li>
+          <li>Use the center dot of D-pad to recentre the micrscopy view on cilia bundle.</li>
+          <li>Press Space in microscopy view or Pause/Play button to halt the simulation.</li>
+        </ul>
       </div>
       <div class="hud" id="stats">—</div>
       <div id="err"></div>
@@ -290,7 +316,9 @@
   // ===== BF renderer (full-frame) =====
   var bf = {
     renderer:null, scene:null, cam:null, quad:null,
-    tex:null, texSize:0
+    tex:null, texSize:0,
+    // keep a copy of the latest RGBA buffer for saving
+    savePixels:null, saveSize:0
   };
 
   // ===== optics precompute =====
@@ -1356,6 +1384,9 @@
     // Present texture (reuse DataTexture)
     if (!bf.tex || bf.texSize !== N){ bf.tex = new THREE.DataTexture(new Uint8Array(4*N*N), N, N, THREE.RGBAFormat); bf.tex.needsUpdate=true; bf.texSize=N; bf.quad.material.map=bf.tex; bf.quad.material.needsUpdate=true; }
     bf.tex.image.data.set(rgba); bf.tex.needsUpdate=true; bf.renderer.render(bf.scene, bf.cam);
+    // store for snapshot save
+    bf.savePixels = new Uint8ClampedArray(rgba); // copy
+    bf.saveSize = N;
 
     const t1 = performance.now();
     const statsEl = document.getElementById('stats'); if (statsEl) statsEl.textContent = `N=${N}  px=${px_um.toFixed(3)} μm  λ=${(lam_um*1e3).toFixed(0)} nm  NA=${NA.toFixed(2)}  z0=${z0.toFixed(2)} μm  pan=(${params.panX|0},${params.panY|0}) px\nspots=${sim.total}, cilia=${sim.totalCiliated}, beads=${beads.length}: render ${(t1-t0).toFixed(1)} ms`;
@@ -1491,7 +1522,13 @@
     if (btnRight) btnRight.addEventListener('click', ev=>{ params.panX -= panStep(ev); renderBF(); });
     if (btnCenter) btnCenter.addEventListener('click', ()=>{ sim.panInited=false; renderBF(); });
 
-    // Keyboard Arrow support for panning (Shift = x5)
+    const navNote = document.getElementById('ciliaNavNote');
+    if (navNote) {
+      const closeBtn = navNote.querySelector('[data-close]');
+      closeBtn && closeBtn.addEventListener('click', () => navNote.remove());
+    }
+
+    // Keyboard Arrow support for panning (Shift = x5) and Space to toggle play/pause
     document.addEventListener('keydown', (e)=>{
       const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
       const typing = tag==='input' || tag==='textarea' || (e.target && e.target.isContentEditable);
@@ -1501,12 +1538,71 @@
       else if (e.key === 'ArrowDown'){ params.panY += step; renderBF(); e.preventDefault(); }
       else if (e.key === 'ArrowLeft'){ params.panX += step; renderBF(); e.preventDefault(); }
       else if (e.key === 'ArrowRight'){ params.panX -= step; renderBF(); e.preventDefault(); }
+      else if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar'){
+        if (e.repeat) return; // avoid rapid toggling when held
+        var btn = document.getElementById('playPause');
+        if (btn){ e.preventDefault(); btn.click(); }
+      }
     });
 
     document.getElementById('playPause').onclick = function(){
       sim.isPlaying = !sim.isPlaying;
       document.getElementById('playPause').textContent = sim.isPlaying ? 'Pause' : 'Play';
     };
+    // Snapshot (PNG)
+    (function(){
+      var saveBtn = document.getElementById('save');
+      if (!saveBtn) return;
+      function fmtNum(x, p){
+        var n = Number(x);
+        if (!isFinite(n)) return String(x);
+        var places = (typeof p==='number') ? p : (Math.abs(n) >= 10 ? 2 : 2);
+        return n.toFixed(places);
+      }
+      function buildFilename(){
+        // lattice and patching
+        var s1 = `nX${params.nX}nY${params.nY}d${fmtNum(params.density)}CR${fmtNum(params.coverage)}PL${fmtNum(params.patchlength)}CO${fmtNum(params.crystalline)}PO${fmtNum(params.patchorder)}`;
+        // size
+        var s2 = `_Lm${fmtNum(params.lengthMean)}std${fmtNum(params.lengthStd)}R${fmtNum(params.cilRadius)}`;
+        // kinematics
+        var s3 = `_k0${fmtNum(params.k0)}a0${fmtNum(params.aK)}Am${fmtNum(params.ampMean)}std${fmtNum(params.ampStd)}`;
+        // frequency
+        var s4 = `_CBFm${fmtNum(params.cbfMean)}std${fmtNum(params.cbfStd)}`;
+        // wave
+        var wDeg = Math.round((Number(params.waveAngle)||0) * 180/Math.PI);
+        var s5 = `_wAmp${fmtNum(params.waveAmp)}wAng${wDeg}wN${fmtNum(params.waveNoise)}`;
+        // orientation
+        var s6 = `_BAm${fmtNum(params.angleMean)}std${fmtNum(params.angleStd)}`;
+        // amplitude control list
+        var cps = (profile && Array.isArray(profile.cps)) ? profile.cps.slice().sort((a,b)=>a.s-b.s) : [];
+        var actl = '_Actl' + (cps.length? cps.map(c=>`(s${fmtNum(c.s)},a${fmtNum(c.v)})`).join('') : '(s0.00,a0.20)(s1.00,a1.00)');
+        return s1 + s2 + s3 + s4 + s5 + s6 + actl + '.png';
+      }
+      function doSave(){
+        // Prefer last computed RGBA buffer to avoid WebGL readbacks
+        var N = bf.saveSize|0; var px = bf.savePixels;
+        if (!N || !px || px.length !== 4*N*N){ return; }
+        var c = document.createElement('canvas');
+        c.width = N; c.height = N;
+        var ctx = c.getContext('2d', { alpha:false });
+        // WebGL/texture data uses bottom-left origin; Canvas ImageData expects top-left origin.
+        // Flip rows vertically so saved PNG matches on-screen orientation.
+        var rowBytes = 4*N;
+        var flipped = new Uint8ClampedArray(4*N*N);
+        for (var y=0; y<N; y++){
+          var srcStart = (N-1-y) * rowBytes;
+          var dstStart = y * rowBytes;
+          flipped.set(px.subarray(srcStart, srcStart + rowBytes), dstStart);
+        }
+        var img = new ImageData(flipped, N, N);
+        ctx.putImageData(img, 0, 0);
+        var a = document.createElement('a');
+        a.download = buildFilename();
+        a.href = c.toDataURL('image/png');
+        a.click();
+      }
+      saveBtn.addEventListener('click', doSave);
+    })();
     // panel collapse/expand toggle
     var toggleBtn = document.getElementById('togglePanel');
     if (toggleBtn){

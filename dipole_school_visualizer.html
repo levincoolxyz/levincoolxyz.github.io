@@ -43,6 +43,13 @@
     .app.collapsed header .row{gap:10px}
     #stats{position:absolute;left:12px;bottom:12px;padding:8px 10px;background:rgba(0,0,0,.45);border-radius:8px;font:12px ui-monospace;color:#cbd5e1;white-space:pre}
     #messages{position:absolute;right:12px;bottom:12px;padding:10px 14px;background:rgba(43,27,27,.85);color:#ffdcdc;border:1px solid #a55;border-radius:10px;font:12px ui-monospace;display:none;max-width:46ch}
+    .tutorial-note{position:absolute;right:16px;top:120px;width:min(280px,90vw);padding:12px 14px;background:rgba(15,23,42,.78);border:1px solid rgba(148,163,184,.35);border-radius:12px;color:var(--fg);font-size:12px;line-height:1.5;z-index:5;box-shadow:0 14px 38px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+    .tutorial-note header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+    .tutorial-note header strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .tutorial-note button[data-close]{background:transparent;border:1px solid rgba(148,163,184,.4);color:var(--muted);border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+    .tutorial-note button[data-close]:hover{color:var(--fg);border-color:rgba(148,163,184,.7)}
+    .tutorial-note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+    .tutorial-note li{color:var(--fg)}
     a{color:var(--acc)}
     /* D‑pad overlay (top-right) */
     #fishDpad{position:absolute;right:16px;top:16px;display:grid;grid-template-columns:28px 28px 28px;grid-template-rows:28px 28px 28px;gap:6px;user-select:none;z-index:4}
@@ -97,20 +104,20 @@
         <input id="In" type="range" min="0" max="5" step="0.01" value="0.3">
       </div>
       <div class="control">
-        <label for="hydro">Hydrodynamic interactions (works okay for N ⪅ 1200)</label>
+        <label for="hydro">Regularized dipole-field hydrodynamic interactions</label>
         <input id="hydro" type="checkbox" checked>
       </div>
       <div class="control">
-        <label for="hydroShell">Hydro: Delaunay shell only</label>
-        <input id="hydroShell" type="checkbox">
+        <label for="hydroShell">Hydrodynamics for nearest Voronoi only (unchecked renders well for N ⪅ 1200)</label>
+        <input id="hydroShell" type="checkbox" checked>
       </div>
       <div class="control">
-        <label for="hydroRange">Hydro: distance cutoff R <span class="value" id="hydroRVal">3.0</span></label>
+        <label for="hydroRange">Hydrodynamics with cutoff distance R <span class="value" id="hydroRVal">5.0</span></label>
         <input id="hydroRange" type="checkbox">
       </div>
       <div class="control">
         <label for="hydroRadius">Cutoff radius R</label>
-        <input id="hydroRadius" type="range" min="0.5" max="10" step="0.1" value="3.0">
+        <input id="hydroRadius" type="range" min="0.5" max="20" step="0.1" value="5.0">
       </div>
       <div class="buttons">
         <button id="respawn">Respawn school</button>
@@ -147,6 +154,17 @@
         <div></div>
         <button id="fishPanDown">↓</button>
         <div></div>
+      </div>
+      <div class="tutorial-note" id="dipoleNavNote">
+        <header>
+          <strong>Navigation tips</strong>
+          <button type="button" data-close aria-label="Hide navigation tips">×</button>
+        </header>
+        <ul>
+          <li>Pan the camera with arrow keys or the D-pad buttons (Shift = bigger step).</li>
+          <li>Use the center dot to focus on the school centroid.</li>
+          <li>Press Space or Pause/Play to halt the simulation.</li>
+        </ul>
       </div>
     </div>
   </main>
@@ -1101,6 +1119,11 @@ if(btnD) btnD.addEventListener('click', ev => { nudgeView(0, -panStep(ev)); });
 if(btnL) btnL.addEventListener('click', ev => { nudgeView(-panStep(ev), 0); });
 if(btnR) btnR.addEventListener('click', ev => { nudgeView(panStep(ev), 0); });
 if(btnC) btnC.addEventListener('click', () => { viewState.follow = true; });
+const dipoleNote = document.getElementById('dipoleNavNote');
+if(dipoleNote){
+  const closeBtn = dipoleNote.querySelector('[data-close]');
+  closeBtn?.addEventListener('click', () => dipoleNote.remove());
+}
 </script>
 </body>
 </html>

@@ -40,6 +40,13 @@
   #barlabel{font:12px ui-monospace;color:#e8eaed;text-shadow:0 1px 0 rgba(0,0,0,.6)}
   #err{position:fixed;right:12px;bottom:12px;max-width:44ch;background:#2b1b1b;color:#ffdcdc;border:1px solid #a55;padding:8px 10px;border-radius:10px;font:12px ui-monospace;display:none;white-space:pre-wrap;z-index:100}
   a{color:var(--acc)}
+  .tutorial-note{position:absolute;right:16px;top:120px;width:min(280px,90vw);padding:12px 14px;background:rgba(15,23,42,.78);border:1px solid rgba(148,163,184,.35);border-radius:12px;color:var(--fg);font-size:12px;line-height:1.5;z-index:5;box-shadow:0 14px 38px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+  .tutorial-note header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+  .tutorial-note header strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .tutorial-note button[data-close]{background:transparent;border:1px solid rgba(148,163,184,.4);color:var(--muted);border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+  .tutorial-note button[data-close]:hover{color:var(--fg);border-color:rgba(148,163,184,.7)}
+  .tutorial-note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+  .tutorial-note li{color:var(--fg)}
   @media (max-width:900px){
     .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
     .app.collapsed{grid-template-columns:1fr}
@@ -67,7 +74,7 @@
     <h1>Particle Scattering Simulator</h1>
     <button id="playPause" class="btn">Pause</button>
     <button id="rerun" class="btn">Respawn Particles</button>
-    <button id="save" class="btn">Save Frame (PNG)</button>
+    <button id="save" class="btn">Snapshot (PNG)</button>
     <small>ESM: three.js + fft.js</small>
   </div>
 </header>
@@ -130,7 +137,7 @@
   </div>
 
   <div class="row"><label>Focal defocus $z$ [μm]: <span id="zval">0.00</span></label>
-    <input id="z" type="range" min="-5" max="5" step="0.02" value="0.00"></div>
+    <input id="z" type="range" min="-15" max="15" step="0.01" value="0.00"></div>
 
   <div class="row"><label>Scatterers: <span id="Npartval">10</span></label>
     <input id="Npart" type="range" min="1" max="50" step="1" value="10"></div>
@@ -172,6 +179,17 @@
   <div id="tests"></div>
   <div id="stats"></div>
   <div id="scalebar"><div id="bar"></div><div id="barlabel"></div></div>
+  <div class="tutorial-note" id="fbmNavNote">
+    <header>
+      <strong>Navigation tips</strong>
+      <button type="button" data-close aria-label="Hide navigation tips">×</button>
+    </header>
+    <ul>
+      <li>Scroll the mouse wheel to change the focal plane z (Shift = faster)).</li>
+      <li>Press spacebar or Pause/Play button to halt microscopy view (simulated Brownian motion continues).</li>
+      <li>Switch imaging modes to see how contrast differs.</li>
+    </ul>
+  </div>
 </div>
 <div id="err"></div>
 </main>
@@ -213,6 +231,16 @@ if (playPauseBtn){
     }
   });
 }
+// Global spacebar toggles play/pause (ignore when typing)
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+  const typing = tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable);
+  if (typing) return;
+  if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+    if (e.repeat) return; // avoid rapid toggle when held down
+    if (playPauseBtn) { e.preventDefault(); playPauseBtn.click(); }
+  }
+});
 function q(s){return document.querySelector(s)}
 function fmt(x,p=2){return Number(x).toFixed(p)}
 const POW2=[256,512,1024,2048];
@@ -225,7 +253,42 @@ try{
   renderer = new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   UI.view.appendChild(renderer.domElement);
+  const note = document.getElementById('fbmNavNote');
+  if(note && !note.dataset.bound){
+    const closeBtn = note.querySelector('[data-close]');
+    closeBtn?.addEventListener('click', () => note.remove());
+    note.dataset.bound = '1';
+  }
+  const focusSlider = UI.z;
+  if (renderer.domElement && focusSlider){
+    const decimals = (() => {
+      const step = focusSlider.step ? String(focusSlider.step) : '';
+      if(!step.includes('.')) return 0;
+      return step.split('.')[1].length;
+    })();
+    const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+    const handleWheel = (event) => {
+      if(event.ctrlKey) return;
+      event.preventDefault();
+      const dir = event.deltaY > 0 ? 1 : -1;
+      const step = 0.5;
+      const min = focusSlider.min !== undefined ? parseFloat(focusSlider.min) : -Infinity;
+      const max = focusSlider.max !== undefined ? parseFloat(focusSlider.max) : Infinity;
+      const current = parseFloat(focusSlider.value);
+      const next = clamp(current + dir * step, min, max);
+      focusSlider.value = decimals ? next.toFixed(decimals) : String(next);
+      focusSlider.dispatchEvent(new Event('input', { bubbles: true }));
+      focusSlider.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    renderer.domElement.addEventListener('wheel', handleWheel, { passive: false });
+  }
 }catch(e){ showErr(e); }
+const fbmNote = document.getElementById('fbmNavNote');
+if(fbmNote && !fbmNote.dataset.bound){
+  const closeBtn = fbmNote.querySelector('[data-close]');
+  closeBtn?.addEventListener('click', () => fbmNote.remove());
+  fbmNote.dataset.bound = '1';
+}
 const scene=new THREE.Scene();
 const cam=new THREE.OrthographicCamera(-1,1,1,-1,0.1,10); cam.position.z=2;
 const quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map:new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat)}));
