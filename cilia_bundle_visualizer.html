@@ -456,6 +456,8 @@
     sim.renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
     sim.renderer.setSize(w, h);
     container.innerHTML = ""; container.appendChild(sim.renderer.domElement);
+    // Minimap owns the zoom wheel; dragging here also rotates orientation
+    setupOrbitControls(sim.renderer.domElement, { wheelZoom: true });
 
     var amb = new THREE.AmbientLight(0xffffff, 0.7); sim.scene.add(amb);
     var dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(20,20,30); sim.scene.add(dir);
@@ -571,10 +573,11 @@
     sim.renderer.autoClear = oldAC;
   }
 
-  function setupOrbitControls(target){
+  function setupOrbitControls(target, opts){
     if (!target) return;
     let dragging = false;
     let lastX = 0, lastY = 0;
+    const allowWheelZoom = !(opts && opts.wheelZoom === false);
 
     const onPointerDown = (e) => {
       dragging = true;
@@ -632,7 +635,9 @@
     target.addEventListener('pointercancel', endDrag);
     target.addEventListener('pointerleave', () => { dragging = false; });
     target.addEventListener('lostpointercapture', () => { dragging = false; });
-    target.addEventListener('wheel', onWheel, { passive: false });
+    if (allowWheelZoom) {
+      target.addEventListener('wheel', onWheel, { passive: false });
+    }
   }
 
   // ===== BF three init =====
@@ -644,7 +649,21 @@
     bf.cam = new THREE.OrthographicCamera(-1,1,1,-1,0.1,10); bf.cam.position.z=2;
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map:new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat)}));
     bf.scene.add(quad); bf.quad = quad;
-    setupOrbitControls(bf.renderer.domElement);
+    // Enable drag-to-rotate on BF canvas, but keep wheel free for defocus adjustment
+    setupOrbitControls(bf.renderer.domElement, { wheelZoom: false });
+    if (canvas){
+      const focusWheel = (e) => {
+        if (e.ctrlKey) return;
+        e.preventDefault();
+        const slider = document.getElementById('z0');
+        if (!slider) return;
+        const step = 0.1;
+        const mul = e.shiftKey ? 10 : 1;
+        const dir = (e.deltaY > 0) ? 1 : -1;
+        adjustDefocus(dir * step * mul);
+      };
+      canvas.addEventListener('wheel', focusWheel, { passive:false });
+    }
     resizeBF();
   }
   
@@ -1149,16 +1168,27 @@
   // ===== build scatterers from cilia centerlines =====
   var xTmp = new Float32Array(4096), zTmp = new Float32Array(4096);
   function collectSpheres(){
-    // Per-cilium bead resolution: N_i ≈ cilRes * (L_i / diameter)
-    const diam = Math.max(1e-6, 2*Number(params.cilRadius));
+    // Bead sampling along centerline should be set by optical bandwidth, not bead diameter.
+    // Coherent cutoff f_c ≈ NA/λ → characteristic length λ/NA; we sample at a fraction c of that.
+    // Also cap spacing by a pixel-based criterion to avoid excessive sampling when px is small.
+    // Effective step: sStep = min(c * λ/NA, pPix * px_um) / cilRes
     const resScale = Math.max(0.01, Number(params.cilRes || 1));
+    const lam_um = Math.max(1e-9, Number(params.lambda) * 1e-3);
+    const NA = Math.max(1e-6, Number(params.NA) || 0.1);
+    const px_um = Math.max(1e-9, Number(params.px) || 0.1);
+    const c = 0.55;   // fraction of λ/NA yielding smooth results
+    const pPix = 5.0; // aim for ≤5 pixels between beads (at most)
+    const sNA = c * (lam_um / NA);
+    const sPix = pPix * px_um;
+    const sBase = Math.min(sNA, sPix);
     const rot = computeCameraAxesFromQuat(sim.q);
     const list = []; // each: {x_um, y_um, z_um}
     for(let k=0;k<sim.total;k++){
       if (!sim.isCiliated || !sim.isCiliated[k]) continue;
       const tFrac = (sim.tNow * sim.ciliaFreq[k] + sim.initPhase[k]) % 1.0;
       const A0scale = sim.ampScale[k]; const L = sim.ciliaLen[k];
-      const Nbead = Math.max(3, Math.round((L/diam) * resScale));
+      const sStep = Math.max(1e-6, sBase / resScale);
+      const Nbead = Math.max(3, Math.ceil(L / sStep));
       if (xTmp.length < Nbead){ xTmp = new Float32Array(Nbead); zTmp = new Float32Array(Nbead); }
       centerlineFromCurvatureN(Nbead, tFrac, A0scale, L, xTmp, zTmp);
       const a = sim.beatAngle[k]; const s = Math.sin(a), c = Math.cos(a);
@@ -1400,11 +1430,29 @@
     updateMinimapLines();
   }
 
+  function adjustDefocus(delta){
+    const slider = document.getElementById('z0');
+    if (!slider) return;
+    const step = Math.abs(parseFloat(slider.step)) || 0.01;
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    let next = Number(params.z0) + Number(delta || 0);
+    if (Number.isFinite(min)) next = Math.max(min, next);
+    if (Number.isFinite(max)) next = Math.min(max, next);
+    next = Math.round(next / step) * step;
+    next = Number(next.toFixed(4));
+    if (Math.abs(next - Number(params.z0)) < 1e-9) return;
+    params.z0 = next;
+    slider.value = String(next);
+    setVal('z0v', next);
+    onParamChange('z0');
+  }
+
   function bindSlider(id, key){
     var el = document.getElementById(id); if (!el) return;
-    el.oninput = function(){ 
+    el.oninput = function(){
       var v = (id==='waveAngle') ? (parseFloat(el.value)*Math.PI/180) : parseFloat(el.value);
-      if (id==='imgN') v = snapPow2(v|0); params[key] = v; 
+      if (id==='imgN') v = snapPow2(v|0); params[key] = v;
       setVal(id+'v', (id==='waveAngle') ? Math.round(parseFloat(el.value)) : v); 
       onParamChange(key); 
     };
