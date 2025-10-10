@@ -180,9 +180,12 @@
       <div class="group">
         <h3>Tracer &amp; fluid</h3>
         <div class="slider"><label for="fluidVisc">fluid viscosity [mPa·s]</label><input id="fluidVisc" type="range" min="0.1" max="5.0" step="0.1" value="1.0"><div class="value" id="fluidViscv">1.0</div></div>
-        <div class="slider"><label for="tracerRadius">tracer radius [μm]</label><input id="tracerRadius" type="range" min="0.1" max="5.0" step="0.1" value="0.6"><div class="value" id="tracerRadiusv">0.6</div></div>
-        <div class="slider"><label for="tracerHeight">tracer height [μm]</label><input id="tracerHeight" type="range" min="0.1" max="15.0" step="0.1" value="2.0"><div class="value" id="tracerHeightv">2.0</div></div>
+        <div class="slider"><label for="tracerRadius">tracer radius [μm]</label><input id="tracerRadius" type="range" min="0.1" max="2.0" step="0.1" value="0.5"><div class="value" id="tracerRadiusv">0.5</div></div>
         <div class="slider"><label for="regEps">regularisation ε [μm]</label><input id="regEps" type="range" min="0.05" max="3.0" step="0.05" value="0.5"><div class="value" id="regEpsv">0.5</div></div>
+        <div class="row">
+          <button id="clearTracers" class="btn" title="Remove all seeded tracers">Clear tracers</button>
+          <div></div>
+        </div>
       </div>
     </aside>
 
@@ -251,7 +254,7 @@
     waveAmp:1.0, waveAngle:-Math.PI/2, waveNoise:0.01,
     coverage:0.25, patchlength:0.48, crystalline:1.0, patchorder:0.5,
     angleMean:0.0, angleStd:0.01,
-    azimuth:-90, elevation:1,
+    azimuth:-90, elevation:-1,
     // microscopy
     imgN:256, px:0.10, lambda:550, NA:0.80, z0:0.001, cohI:0.50, dn:0.05, kappa:0.05,
     cilRes:0.8, barum:10,
@@ -259,8 +262,8 @@
     mode:'bf', pcfrac:8, pcphi:1.5708, pcalpha:0.60, dfinner:0.25,
     // 2D pan (pixels in the rendered square)
     panX:0, panY:0,
-    // tracer / fluid
-    fluidVisc:1.0, tracerRadius:0.6, tracerHeight:2.0, regEps:0.5,
+    // tracer and fluid
+    fluidVisc:1.0, tracerRadius:0.5, regEps:0.5,
   };
 
   // ===== state =====
@@ -277,20 +280,22 @@
     nLineSeg:160, // high-res line for minimap
     // axis gizmo overlay
     axisScene:null, axisCam:null, axesGroup:null,
+    // optional thick points for cilia visualization
+    pointsGeom:null, pointsMesh:null,
     cam:null, placeCamera:null,
     // orientation quaternion (camera local -> world)
     q:null,
     // pan initialization flag (auto-center once at boot)
     panInited:false,
     // minimap centering along z
-    czCenterZ:0
+    czCenterZ:0,
+    // no-slip plane mesh (minimap)
+    noSlipPlane:null
   };
 
+  // Tracer manager: supports multiple concurrently seeded tracers
   var tracer = {
-    active:false,
-    pos:new THREE.Vector3(0,0, params.tracerHeight || 0),
-    vel:new THREE.Vector3(),
-    mesh:null,
+    items: [], // each: { pos:THREE.Vector3, vel:THREE.Vector3, mesh:THREE.Mesh }
     armKey:false,
     lastTouch:0
   };
@@ -363,20 +368,18 @@
     setSlider('nX', params.nX); setSlider('nY', params.nY); setSlider('density', params.density);
     setSlider('k0', params.k0); setSlider('aK', params.aK);
     setSlider('ampMean', params.ampMean); setSlider('ampStd', params.ampStd);
-    setSlider('lengthMean', params.lengthMean); setSlider('lengthStd', params.lengthStd);
+    setSlider('lengthMean', params.lengthMean); setSlider('lengthStd', params.lengthStd); setSlider('cilRadius', params.cilRadius);
     setSlider('cbfMean', params.cbfMean); setSlider('cbfStd', params.cbfStd);
     setSlider('coverage', params.coverage); setSlider('patchlength', params.patchlength); setSlider('crystalline', params.crystalline); setSlider('patchorder', params.patchorder);
     setSlider('waveAmp', params.waveAmp); setSlider('waveAngle', params.waveAngle); setSlider('waveNoise', params.waveNoise);
     setSlider('angleMean', params.angleMean); setSlider('angleStd', params.angleStd);
     setSlider('azimuth', params.azimuth); setSlider('elevation', params.elevation);
-    // BF
     setSlider('imgN', params.imgN); setSlider('px', params.px); setSlider('lambda', params.lambda); setSlider('NA', params.NA); setSlider('z0', params.z0);
-    setSlider('cilRes', params.cilRes); setSlider('cilRadius', params.cilRadius);
+    setSlider('cilRes', params.cilRes);
     setSlider('dn', params.dn); setSlider('kappa', params.kappa); setSlider('cohI', params.cohI);
     setSlider('barum', params.barum);
-    // Modes
     setSlider('pcfrac', params.pcfrac); setSlider('pcphi', params.pcphi); setSlider('pcalpha', params.pcalpha); setSlider('dfinner', params.dfinner);
-    setSlider('fluidVisc', params.fluidVisc); setSlider('tracerRadius', params.tracerRadius); setSlider('tracerHeight', params.tracerHeight); setSlider('regEps', params.regEps);
+    setSlider('fluidVisc', params.fluidVisc); setSlider('tracerRadius', params.tracerRadius); setSlider('regEps', params.regEps);
     var m=document.getElementById('mode'); if (m) m.value = params.mode;
     updateModeVisibility();
   }
@@ -413,6 +416,34 @@
         cz.push(-params.lengthMean/2 + (Math.random()-0.5)*jitter);
       }
     }
+    // Enforce minimum XY spacing based on cilium radius to reduce overlap
+    (function enforceMinSpacing(){
+      var minD = Math.max(0, 2.0 * Number(params.cilRadius || 0));
+      if (!(minD > 0)) return;
+      var minD2 = minD*minD;
+      // run a few relaxation passes
+      for (var pass=0; pass<2; pass++){
+        for (var p=0; p<cx.length; p++){
+          for (var q=0; q<p; q++){
+            var dx = cx[p]-cx[q];
+            var dy = cy[p]-cy[q];
+            var d2 = dx*dx + dy*dy;
+            if (d2 < 1e-12) { dx = (Math.random()-0.5)*1e-3; dy=(Math.random()-0.5)*1e-3; d2 = dx*dx+dy*dy; }
+            if (d2 < minD2){
+              var d = Math.sqrt(d2);
+              var push = (minD - d) * 0.5; // split correction
+              var nx = dx / d, ny = dy / d;
+              cx[p] += nx*push; cy[p] += ny*push;
+              cx[q] -= nx*push; cy[q] -= ny*push;
+            }
+          }
+          // clamp to domain bounds
+          cx[p] = Math.min(xSize/2, Math.max(-xSize/2, cx[p]));
+          cy[p] = Math.min(ySize/2, Math.max(-ySize/2, cy[p]));
+        }
+      }
+    })();
+
     sim.cx = new Float32Array(cx); sim.cy = new Float32Array(cy); sim.cz = new Float32Array(cz);
     sim.total = nX*nY; sim.xSize = xSize; sim.ySize = ySize;
     sim.isCiliated = presence(sim.cx, sim.cy, params.coverage, params.patchlength, params.crystalline, params.patchorder, nX, nY, dX, dY);
@@ -420,7 +451,6 @@
     // compute mean cz for minimap centering (ignore non-ciliated)
     var sumZ=0, cntZ=0; for(i=0;i<sim.total;i++){ if(!sim.isCiliated || sim.isCiliated[i]){ sumZ+=sim.cz[i]; cntZ++; } }
     sim.czCenterZ = (cntZ>0)? (sumZ/cntZ) : 0;
-    tracer.pos.z = sim.czCenterZ + Number(params.tracerHeight || 0);
     updateTracerVisual();
   }
 
@@ -513,8 +543,8 @@
     var amb = new THREE.AmbientLight(0xffffff, 0.7); sim.scene.add(amb);
     var dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(20,20,30); sim.scene.add(dir);
 
-    ensureTracerMesh();
     updateTracerVisual();
+    updateNoSlipPlane();
 
     // axis overlay: its own scene and camera, rendered into a small viewport
     sim.axisScene = new THREE.Scene();
@@ -546,6 +576,34 @@
       var line = new THREE.Line(geom, mat);
       line.visible = !sim.isCiliated || sim.isCiliated[i];
       sim.scene.add(line); sim.lines.push(line);
+    }
+    // Build/refresh thick points cloud for optional radius hint
+    if (sim.pointsMesh){ sim.scene.remove(sim.pointsMesh); sim.pointsMesh.geometry.dispose(); sim.pointsMesh.material.dispose(); sim.pointsMesh=null; sim.pointsGeom=null; }
+    var totalPts = Math.max(1, sim.total * sim.nLineSeg);
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(totalPts*3), 3));
+    var pm = new THREE.PointsMaterial({ color:0x99ccff, size: Math.max(2.0, 1.0 + 2.0*(Number(params.cilRadius)||0.2)), sizeAttenuation:false, transparent:true, opacity:0.9 });
+    var pts = new THREE.Points(g, pm);
+    sim.pointsGeom = g; sim.pointsMesh = pts; sim.scene.add(pts);
+  }
+
+  function updateNoSlipPlane(){
+    if (!sim.scene) return;
+    const w = Math.max(params.lengthMean, params.nX*params.dX+params.lengthMean);
+    const h = Math.max(params.lengthMean, params.nY*params.dY+params.lengthMean);
+    // console.log("No-slip plane size:", w, h);
+    if (!sim.noSlipPlane){
+      const geom = new THREE.PlaneGeometry(w, h);
+      const mat = new THREE.MeshStandardMaterial({ color:0x777777, transparent:true, opacity:0.35, roughness:1.0, metalness:0.0, depthWrite:false, side:THREE.DoubleSide });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(0,0,0); // z = 0 after centering
+      sim.noSlipPlane = mesh;
+      sim.scene.add(mesh);
+    } else {
+      const geom = new THREE.PlaneGeometry(w, h);
+      sim.noSlipPlane.geometry.dispose();
+      sim.noSlipPlane.geometry = geom;
+      sim.noSlipPlane.position.set(0,0,0);
     }
   }
 
@@ -664,7 +722,7 @@
       const elEl = document.getElementById('elevation');
       if (elEl) { elEl.value = String(Math.round(params.elevation)); setVal('elevationv', params.elevation); }
       sim.placeCamera && sim.placeCamera();
-      renderBF();
+      renderCoherent();
       updateMinimapLines();
     };
 
@@ -891,7 +949,7 @@
       profile.edit = null; dragging=false; dragIdx=-1;
       draw();
       // apply to simulation (update both views now)
-      renderBF(); updateMinimapLines();
+      renderCoherent(); updateMinimapLines();
     });
 
     window.addEventListener('resize', resizeCanvas);
@@ -1244,6 +1302,8 @@
     const camera = [];
     const world = [];
     const velocity = [];
+    const kIndex = [];
+    const sIndex = [];
     for(let k=0;k<sim.total;k++){
       if (!sim.isCiliated || !sim.isCiliated[k]) continue;
       const tFrac = (sim.tNow * sim.ciliaFreq[k] + sim.initPhase[k]) % 1.0;
@@ -1278,44 +1338,67 @@
         }
         world.push(xw, yw, zw);
         velocity.push(vx, vy, vz);
+        kIndex.push(k); sIndex.push(i);
         const p = transformPoint(rot, xw, yw, zw);
         camera.push({x:p[0], y:p[1], z:p[2]});
       }
     }
-    if (tracer.active){
-      const p = transformPoint(rot, tracer.pos.x, tracer.pos.y, tracer.pos.z);
-      camera.push({x:p[0], y:p[1], z:p[2], tracer:true});
+    if (tracer.items && tracer.items.length){
+      for (let i=0;i<tracer.items.length;i++){
+        const it = tracer.items[i];
+        const p = transformPoint(rot, it.pos.x, it.pos.y, it.pos.z);
+        camera.push({x:p[0], y:p[1], z:p[2], tracer:true, tracerIndex:i});
+      }
     }
     return {
       camera,
       world: Float64Array.from(world),
-      velocity: Float64Array.from(velocity)
+      velocity: Float64Array.from(velocity),
+      beadKIndex: Int32Array.from(kIndex),
+      beadSIndex: Int32Array.from(sIndex)
     };
   }
 
   function ensureTracerMesh(){
-    if (!sim.scene) return;
-    if (!tracer.mesh){
-      const geom = new THREE.SphereGeometry(1, 24, 24);
-      const mat = new THREE.MeshStandardMaterial({ color:0xffcc66, emissive:0x332200, roughness:0.35, metalness:0.08 });
-      tracer.mesh = new THREE.Mesh(geom, mat);
-      tracer.mesh.visible = false;
-      sim.scene.add(tracer.mesh);
-    } else if (tracer.mesh.parent !== sim.scene){
-      sim.scene.add(tracer.mesh);
-    }
+    if (!sim.scene || !tracer.items) return;
     const r = Math.max(0.05, Number(params.tracerRadius) || 0.6);
-    tracer.mesh.scale.set(r, r, r);
+    for (const it of tracer.items){
+      if (!it.mesh){
+        const geom = new THREE.SphereGeometry(1, 24, 24);
+        const mat = new THREE.MeshStandardMaterial({ color:0xffcc66, emissive:0x332200, roughness:0.35, metalness:0.08 });
+        it.mesh = new THREE.Mesh(geom, mat);
+        it.mesh.visible = true;
+        sim.scene.add(it.mesh);
+      }
+      it.mesh.scale.set(r, r, r);
+    }
   }
 
   function updateTracerVisual(){
     if (!sim.scene) return;
     ensureTracerMesh();
-    if (!tracer.mesh) return;
-    tracer.mesh.visible = tracer.active;
-    if (!tracer.active) return;
-    tracer.mesh.position.set(tracer.pos.x, tracer.pos.y, tracer.pos.z - sim.czCenterZ);
-    tracer.mesh.updateMatrixWorld();
+    if (!tracer.items) return;
+    for (const it of tracer.items){
+      if (!it.mesh) continue;
+      it.mesh.visible = true;
+      it.mesh.position.set(it.pos.x, it.pos.y, it.pos.z - sim.czCenterZ);
+      it.mesh.updateMatrixWorld();
+    }
+  }
+
+  function clearTracers(){
+    if (!tracer.items) return;
+    for (const it of tracer.items){
+      if (it.mesh && sim.scene){
+        try { sim.scene.remove(it.mesh); } catch(_){ }
+        try { it.mesh.geometry && it.mesh.geometry.dispose(); } catch(_){ }
+        try { it.mesh.material && it.mesh.material.dispose(); } catch(_){ }
+      }
+    }
+    tracer.items.length = 0;
+    updateTracerVisual();
+    renderCoherent();
+    updateMinimapLines();
   }
 
   function solveWorldFromCamera(xCam, yCam, worldZ){
@@ -1333,14 +1416,16 @@
   }
 
   function placeTracerAtCamera(xCam, yCam){
-    const wall = sim.czCenterZ || 0;
-    const height = Math.max(0.05, Number(params.tracerHeight) || 0.5);
-    const world = solveWorldFromCamera(xCam, yCam, wall + height);
-    tracer.pos.set(world.x, world.y, world.z);
-    tracer.vel.set(0,0,0);
-    tracer.active = true;
+    // Place on the current imaging plane z0 in camera coordinates
+    const zCam = Number(params.z0) || 0;
+    const rot = computeCameraAxesFromQuat(sim.q);
+    // Inverse of rotation is transpose (orthonormal basis)
+    const worldX = rot[0][0]*xCam + rot[1][0]*yCam + rot[2][0]*zCam;
+    const worldY = rot[0][1]*xCam + rot[1][1]*yCam + rot[2][1]*zCam;
+    const worldZ = rot[0][2]*xCam + rot[1][2]*yCam + rot[2][2]*zCam;
+    tracer.items.push({ pos:new THREE.Vector3(worldX,worldY,worldZ), vel:new THREE.Vector3(), mesh:null, stuck:false });
     updateTracerVisual();
-    renderBF();
+    renderCoherent();
     updateMinimapLines();
   }
 
@@ -1371,21 +1456,24 @@
     const xi = u * N;
     const yi = v * N;
     const xCam = (xi - panX - cx) * px_um;
-    const yCam = (yi - panY - cy) * px_um;
+    // Image Y grows downward; camera Y is up → invert sign
+    const yCam = -(yi - panY - cy) * px_um;
     placeTracerAtCamera(xCam, yCam);
     ev.preventDefault();
   }
 
-  function advectTracer(dt, beadData){
-    if (!tracer.active) return;
+  function advectTracers(dt, beadData){
+    if (!tracer.items || tracer.items.length===0) return;
     if (!beadData || !beadData.world || beadData.world.length === 0) {
-      tracer.vel.set(0,0,0);
+      for (const it of tracer.items){ if (!it.stuck) it.vel.set(0,0,0); }
       return;
     }
     const worldArr = beadData.world;
     const velArr = beadData.velocity || new Float64Array(worldArr.length);
     const beadCount = Math.floor(worldArr.length / 3);
     if (beadCount === 0) return;
+    const kIndex = beadData.beadKIndex || null;
+    const sIndex = beadData.beadSIndex || null;
     const mu = Math.max(1e-6, Number(params.fluidVisc) * 1e-3);
     const eps = Math.max(1e-9, Number(params.regEps) * 1e-6);
     const a = Math.max(1e-9, Number(params.cilRadius) * 1e-6);
@@ -1409,23 +1497,97 @@
       F[b+1] = coeff * vx;
       F[b+2] = coeff * vy;
     }
-    const tracerHeight = Math.max(1e-6, tracer.pos.z - wall);
-    const Xq = new Float64Array([
-      tracerHeight * 1e-6,
-      tracer.pos.x * 1e-6,
-      tracer.pos.y * 1e-6
-    ]);
-    const vel = stokesletWithWall(Xq, X, F, eps);
-    const scale = 1e6 / mu;
-    tracer.vel.set(vel[1]*scale, vel[2]*scale, vel[0]*scale);
-    tracer.pos.x += tracer.vel.x * dt;
-    tracer.pos.y += tracer.vel.y * dt;
-    tracer.pos.z = wall + Math.max(1e-6, tracerHeight + tracer.vel.z * dt);
+
+    // Contact thresholds (μm)
+    const rTracer = Math.max(0, Number(params.tracerRadius) || 0.5);
+    const rCil = Math.max(0, Number(params.cilRadius) || 0.2);
+    const wallThresh = Math.max(0.02, rTracer);
+    const cilThreshSq = (rTracer + rCil) * (rTracer + rCil);
+
+    for (const it of tracer.items){
+      // Follow stuck cilium bead if applicable
+      if (it.stuck && it.stuck.type === 'cil'){
+        let idx = -1;
+        if (kIndex && sIndex){
+          for (let i=0;i<beadCount;i++){
+            if (kIndex[i] === it.stuck.k && sIndex[i] === it.stuck.s){ idx = i; break; }
+          }
+        }
+        if (idx < 0){
+          // fallback: nearest bead on same cilium
+          let best=Infinity, bestI=-1;
+          for (let i=0;i<beadCount;i++){
+            if (kIndex && kIndex[i] !== it.stuck.k) continue;
+            const b=i*3; const dx=it.pos.x-worldArr[b], dy=it.pos.y-worldArr[b+1], dz=it.pos.z-worldArr[b+2];
+            const d2=dx*dx+dy*dy+dz*dz; if (d2<best){ best=d2; bestI=i; }
+          }
+          idx = bestI;
+        }
+        if (idx >= 0){
+          const b = idx*3;
+          const bx = worldArr[b], by = worldArr[b+1], bz = worldArr[b+2];
+          const bvx = (velArr[b]||0), bvy = (velArr[b+1]||0), bvz = (velArr[b+2]||0);
+          const sep = Math.max(1e-6, (it.stuck.sep) || (rTracer + rCil));
+          let ox = it.stuck.ox, oy = it.stuck.oy, oz = it.stuck.oz;
+          let ol = Math.hypot(ox,oy,oz); if (ol < 1e-9) { ox=0; oy=0; oz=1; ol=1; }
+          const nx = ox/ol, ny = oy/ol, nz = oz/ol;
+          it.pos.set(bx + nx*sep, by + ny*sep, bz + nz*sep);
+          it.vel.set(bvx, bvy, bvz);
+          continue;
+        }
+      }
+
+      const tracerHeight = Math.max(1e-6, it.pos.z - wall);
+      const Xq = new Float64Array([
+        tracerHeight * 1e-6,
+        it.pos.x * 1e-6,
+        it.pos.y * 1e-6
+      ]);
+      const vel = stokesletWithWall(Xq, X, F, eps);
+      const scale = 1e6 / mu;
+      it.vel.set(vel[1]*scale, vel[2]*scale, vel[0]*scale);
+
+      const oldX = it.pos.x, oldY = it.pos.y, oldZ = it.pos.z;
+      const newX = oldX + it.vel.x * dt;
+      const newY = oldY + it.vel.y * dt;
+      const newZ = wall + Math.max(1e-6, tracerHeight + it.vel.z * dt);
+
+      // Wall stick
+      if ((newZ - wall) <= wallThresh){
+        it.pos.set(oldX, oldY, wall + wallThresh);
+        it.vel.set(0,0,0);
+        it.stuck = { type:'wall' };
+        continue;
+      }
+      // Cilium stick
+      for (let i=0;i<beadCount;i++){
+        const b = i*3;
+        const dx = newX - worldArr[b];
+        const dy = newY - worldArr[b+1];
+        const dz = newZ - worldArr[b+2];
+        const d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 <= cilThreshSq){
+          // Store offset direction and stick
+          let ox = oldX - worldArr[b], oy = oldY - worldArr[b+1], oz = oldZ - worldArr[b+2];
+          let ol = Math.hypot(ox,oy,oz); if (ol < 1e-9) { ox=0; oy=0; oz=1; ol=1; }
+          const nx = ox/ol, ny = oy/ol, nz = oz/ol;
+          const sep = (rTracer + rCil);
+          it.pos.set(worldArr[b] + nx*sep, worldArr[b+1] + ny*sep, worldArr[b+2] + nz*sep);
+          it.vel.set(0,0,0);
+          it.stuck = { type:'cil', k:(kIndex? kIndex[i] : -1), s:(sIndex? sIndex[i] : -1), ox:nx, oy:ny, oz:nz, sep:sep };
+          break;
+        }
+      }
+      if (!it.stuck || it.stuck.type !== 'cil'){
+        // Free move
+        it.pos.set(newX, newY, newZ);
+      }
+    }
     updateTracerVisual();
   }
 
-  // ===== BF render (coherent BF) =====
-  function renderBF(beadCache){
+  // ===== render coherent micrscopy view =====
+  function renderCoherent(beadCache){
     const t0 = performance.now();
     const N = snapPow2(params.imgN|0); params.imgN = N; setVal('imgNv', N);
     const px_um = Number(params.px); setVal('pxv', px_um);
@@ -1582,8 +1744,8 @@
     bf.saveSize = N;
 
     const t1 = performance.now();
-    const ciliaBeads = data.world ? Math.round(data.world.length / 3) : Math.max(0, beadCount - (tracer.active ? 1 : 0));
-    const tracerCount = tracer.active ? 1 : 0;
+    const ciliaBeads = data.world ? Math.round(data.world.length / 3) : Math.max(0, beadCount - ((tracer.items && tracer.items.length) ? tracer.items.length : 0));
+    const tracerCount = (tracer.items && tracer.items.length) ? tracer.items.length : 0;
     const statsEl = document.getElementById('stats'); if (statsEl) statsEl.textContent = `N=${N}  px=${px_um.toFixed(3)} μm  λ=${(lam_um*1e3).toFixed(0)} nm  NA=${NA.toFixed(2)}  z0=${z0.toFixed(2)} μm  pan=(${params.panX|0},${params.panY|0}) px\nspots=${sim.total}, cilia=${sim.totalCiliated}, beads=${ciliaBeads}, tracer=${tracerCount}: render ${(t1-t0).toFixed(1)} ms`;
 
     updateScaleBarWidth();
@@ -1602,22 +1764,21 @@
         sim.tNow += dtSim;
         if (sim.tNow > 10) sim.tNow -= 10;
         const beadData = collectSpheres({ dt: dtSim });
-        if (tracer.active){
-          advectTracer(dtSim, beadData);
+        if (tracer.items && tracer.items.length){
+          advectTracers(dtSim, beadData);
           if (beadData && Array.isArray(beadData.camera)){
             const rot = computeCameraAxesFromQuat(sim.q);
-            const p = transformPoint(rot, tracer.pos.x, tracer.pos.y, tracer.pos.z);
-            const idx = beadData.camera.length - 1;
-            if (idx >= 0 && beadData.camera[idx] && beadData.camera[idx].tracer){
-              beadData.camera[idx].x = p[0];
-              beadData.camera[idx].y = p[1];
-              beadData.camera[idx].z = p[2];
-            } else {
-              beadData.camera.push({ x:p[0], y:p[1], z:p[2], tracer:true });
+            let ti = 0;
+            for (let i=0;i<beadData.camera.length && ti<(tracer.items.length); i++){
+              const c = beadData.camera[i];
+              if (!c.tracer) continue;
+              const it = tracer.items[ti++];
+              const p = transformPoint(rot, it.pos.x, it.pos.y, it.pos.z);
+              c.x = p[0]; c.y = p[1]; c.z = p[2];
             }
           }
         }
-        renderBF(beadData);
+        renderCoherent(beadData);
         updateMinimapLines();
         updateTracerVisual();
       }
@@ -1632,9 +1793,12 @@
   function updateMinimapLines(){
     var n = sim.total, nC = sim.nLineSeg, i, j;
     var xLine = new Float32Array(nC), zLine = new Float32Array(nC);
+    var pAttr = sim.pointsGeom && sim.pointsGeom.getAttribute && sim.pointsGeom.getAttribute('position');
+    var pArray = pAttr ? pAttr.array : null;
+    var pOff = 0;
     for(let k=0;k<n;k++){
       var visible = !sim.isCiliated || sim.isCiliated[k];
-      var line = sim.lines[k]; if (!line) continue; line.visible = visible; if (!visible) continue;
+      var line = sim.lines[k]; if (!line) continue; line.visible = visible;
       var tFrac = (sim.tNow * sim.ciliaFreq[k] + sim.initPhase[k]) % 1.0;
       var A0scale = sim.ampScale[k]; var L = sim.ciliaLen[k];
       centerlineFromCurvatureN(nC, tFrac, A0scale, L, xLine, zLine);
@@ -1647,9 +1811,20 @@
         // For the minimap, recentre along Z by subtracting the bundle's mean cz
         var zc = zp0 + sim.cz[k] - sim.czCenterZ;
         pos[j3+0] = xc; pos[j3+1] = yc; pos[j3+2] = zc;
+        if (pArray){
+          var pj = (pOff+i)*3;
+          if (visible){
+            pArray[pj+0]=xc; pArray[pj+1]=yc; pArray[pj+2]=zc;
+          } else {
+            // hide points for non-ciliated sites by pushing them outside the camera frustum
+            pArray[pj+0]=0; pArray[pj+1]=0; pArray[pj+2]=1e6;
+          }
+        }
       }
       line.geometry.attributes.position.needsUpdate = true;
+      if (pArray){ pOff += nC; }
     }
+    if (pAttr){ pAttr.needsUpdate = true; }
   }
 
   function replot(){
@@ -1657,7 +1832,8 @@
     reseedRandomFields();
     buildLines();
     updateAxes();
-    renderBF();
+    updateNoSlipPlane();
+    renderCoherent();
     updateMinimapLines();
     updateTracerVisual();
   }
@@ -1674,12 +1850,7 @@
     }
     if (key==='azimuth' || key==='elevation') { updateCameraFromParams(); }
     if (key==='tracerRadius') { ensureTracerMesh(); updateTracerVisual(); }
-    if (key==='tracerHeight') {
-      tracer.pos.z = sim.czCenterZ + Number(params.tracerHeight || 0);
-      tracer.vel.set(0,0,0);
-      if (tracer.active) updateTracerVisual();
-    }
-    renderBF();
+    renderCoherent();
     updateMinimapLines();
   }
 
@@ -1725,12 +1896,15 @@
       ['imgN','imgN'], ['px','px'], ['lambda','lambda'], ['NA','NA'], ['z0','z0'], ['cilRes','cilRes'], ['cilRadius','cilRadius'], ['dn','dn'], ['kappa','kappa'], ['cohI','cohI'], ['barum','barum'],
       // PC/DF params
       ['pcfrac','pcfrac'], ['pcphi','pcphi'], ['pcalpha','pcalpha'], ['dfinner','dfinner'],
-      ['fluidVisc','fluidVisc'], ['tracerRadius','tracerRadius'], ['tracerHeight','tracerHeight'], ['regEps','regEps']
+      ['fluidVisc','fluidVisc'], ['tracerRadius','tracerRadius'], ['regEps','regEps']
     ];
     for (var i=0;i<ids.length;i++) bindSlider(ids[i][0], ids[i][1]);
 
     var modeEl = document.getElementById('mode');
-    if (modeEl){ modeEl.onchange = function(){ params.mode = modeEl.value; updateModeVisibility(); renderBF(); }; }
+    if (modeEl){ modeEl.onchange = function(){ params.mode = modeEl.value; updateModeVisibility(); renderCoherent(); }; }
+
+    const clearBtn = document.getElementById('clearTracers');
+    if (clearBtn){ clearBtn.addEventListener('click', ()=>{ clearTracers(); }); }
 
     // D‑pad controls for BF panning (pixel units). Hold Shift for x5 step.
     function panStep(ev){ return (ev && ev.shiftKey) ? 50 : 10; }
@@ -1739,11 +1913,11 @@
     var btnLeft=document.getElementById('panLeft');
     var btnRight=document.getElementById('panRight');
     var btnCenter=document.getElementById('panCenter');
-    if (btnUp) btnUp.addEventListener('click', ev=>{ params.panY -= panStep(ev); renderBF(); });
-    if (btnDown) btnDown.addEventListener('click', ev=>{ params.panY += panStep(ev); renderBF(); });
-    if (btnLeft) btnLeft.addEventListener('click', ev=>{ params.panX += panStep(ev); renderBF(); });
-    if (btnRight) btnRight.addEventListener('click', ev=>{ params.panX -= panStep(ev); renderBF(); });
-    if (btnCenter) btnCenter.addEventListener('click', ()=>{ sim.panInited=false; renderBF(); });
+    if (btnUp) btnUp.addEventListener('click', ev=>{ params.panY -= panStep(ev); renderCoherent(); });
+    if (btnDown) btnDown.addEventListener('click', ev=>{ params.panY += panStep(ev); renderCoherent(); });
+    if (btnLeft) btnLeft.addEventListener('click', ev=>{ params.panX += panStep(ev); renderCoherent(); });
+    if (btnRight) btnRight.addEventListener('click', ev=>{ params.panX -= panStep(ev); renderCoherent(); });
+    if (btnCenter) btnCenter.addEventListener('click', ()=>{ sim.panInited=false; renderCoherent(); });
 
     const navNote = document.getElementById('ciliaNavNote');
     if (navNote) {
@@ -1757,10 +1931,10 @@
       const typing = tag==='input' || tag==='textarea' || (e.target && e.target.isContentEditable);
       if (typing) return;
       const step = e.shiftKey ? 50 : 10;
-      if (e.key === 'ArrowUp'){ params.panY -= step; renderBF(); e.preventDefault(); }
-      else if (e.key === 'ArrowDown'){ params.panY += step; renderBF(); e.preventDefault(); }
-      else if (e.key === 'ArrowLeft'){ params.panX += step; renderBF(); e.preventDefault(); }
-      else if (e.key === 'ArrowRight'){ params.panX -= step; renderBF(); e.preventDefault(); }
+      if (e.key === 'ArrowUp'){ params.panY -= step; renderCoherent(); e.preventDefault(); }
+      else if (e.key === 'ArrowDown'){ params.panY += step; renderCoherent(); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft'){ params.panX += step; renderCoherent(); e.preventDefault(); }
+      else if (e.key === 'ArrowRight'){ params.panX -= step; renderCoherent(); e.preventDefault(); }
       else if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar'){
         if (e.repeat) return; // avoid rapid toggling when held
         var btn = document.getElementById('playPause');
@@ -1886,7 +2060,7 @@
     reseedRandomFields();
     buildLines();
     updateAxes();
-    renderBF();
+    renderCoherent();
     updateMinimapLines();
     syncPanel();
     requestAnimationFrame(loop);
