@@ -1,104 +1,97 @@
-function dXp = stokesletWithWall(Xq,X,F,e)
-% function [dXp] = stokesletWithWall(Xq,X,F,e)
-% 
-%  Vectorized calculation of fluid velocities due to 3D Stokeslets with a no-slip wall at x=0
-%  c.f., Ainley et al., 2008
-% 
-%  INPUT
-%  Xq  - [3nPhase x 1] vector of velocity query positions
-%  X   - [3N x 1] vector of Stokeslets positions
-%  F   - [3N x 1] vector of Stokeslets strengths
-%  e   - [3N x 1] vector of regularization parameters - or scalar regularization parameter
-% 
-%  OUTPUT
-%  dXp - [3nPhase x 1] vector of velocity at Xp
-%
-% Copyright (c) <2016> <Hanliang Guo> <2020> <Feng Ling>
-%
+export function stokesletWithWall(Xq, X, F, eps){
+  const N = Math.floor((X && X.length) ? X.length / 3 : 0);
+  const nQ = Math.floor((Xq && Xq.length) ? Xq.length / 3 : 0);
+  const out = new Float64Array(3 * nQ);
+  if (N === 0 || nQ === 0) {
+    return out;
+  }
+  const Fx = F.subarray(0, N);
+  const Fy = F.subarray(N, 2 * N);
+  const Fz = F.subarray(2 * N, 3 * N);
+  const X1 = X.subarray(0, N);
+  const X2 = X.subarray(N, 2 * N);
+  const X3 = X.subarray(2 * N, 3 * N);
+  const PI = Math.PI;
 
-  N = numel(X)/3;
-  nPhase = numel(Xq)/3;
+  function epsAt(i){
+    if (typeof eps === 'number') return eps;
+    if (!eps) return 1e-6;
+    if (Array.isArray(eps) || eps instanceof Float32Array || eps instanceof Float64Array) {
+      if (eps.length === 1) return eps[0];
+      return eps[i] != null ? eps[i] : eps[0];
+    }
+    return Number(eps) || 1e-6;
+  }
 
-  % forces
-  Fx = F(1:N);
-  Fy = F(N+1:2*N);
-  Fz = F(2*N+1:3*N);
+  for (let qi = 0; qi < nQ; qi++){
+    const qx = Xq[qi];
+    const qy = Xq[qi + nQ];
+    const qz = Xq[qi + 2 * nQ];
+    let u = 0, v = 0, w = 0;
 
-  % query positions
-  Xq1 = Xq(1:nPhase);
-  Xq2 = Xq(nPhase+1:2*nPhase);
-  Xq3 = Xq(2*nPhase+1:end);
+    for (let i = 0; i < N; i++){
+      const ex = X1[i];
+      const ey = X2[i];
+      const ez = X3[i];
+      const Fx_i = Fx[i];
+      const Fy_i = Fy[i];
+      const Fz_i = Fz[i];
+      const eVal = epsAt(i);
+      const e2 = eVal * eVal;
 
-  % original stokeslets
-  Xo1 = X(1:N);
-  Xo2 = X(N+1:2*N);
-  Xo3 = X(2*N+1:3*N);
+      const xs1 = qx - ex;
+      const xs2 = qy - ey;
+      const xs3 = qz - ez;
 
-  % image stokeslets
-  Xi1 = -Xo1;
-  Xi2 = Xo2;
-  Xi3 = Xo3;
+      const xi1 = qx + ex; // since image point reflects x: Xi1 = -Xo1
+      const xi2 = qy - ey;
+      const xi3 = qz - ez;
 
-  % higher order singularities
-  Xs1 = Xq1' - Xo1;
-  Xs2 = Xq2' - Xo2;
-  Xs3 = Xq3' - Xo3;
+      const rs2 = xs1 * xs1 + xs2 * xs2 + xs3 * xs3;
+      const r2 = xi1 * xi1 + xi2 * xi2 + xi3 * xi3;
 
-  X1 = Xq1' - Xi1;
-  X2 = Xq2' - Xi2;
-  X3 = Xq3' - Xi3;
+      const rser = Math.sqrt(rs2 + e2);
+      const rser3 = rser * rser * rser;
+      const rer = Math.sqrt(r2 + e2);
+      const rer3 = rer * rer * rer;
+      const rer5 = rer3 * rer * rer;
 
-  H = Xo1;
-  Hsq = H.*H;
+      const H1s = (1 / rser + e2 / rser3) / (8 * PI);
+      const H2s = 1 / (rser3 * 8 * PI);
+      const H1 = (1 / rer + e2 / rer3) / (8 * PI);
+      const H2 = 1 / (rer3 * 8 * PI);
+      const H1pr = (-1 / rer3 - 3 * e2 / rer5) / (8 * PI);
+      const H2pr = -3 / (rer5 * 8 * PI);
+      const D1 = (1 / rer3 - 3 * e2 / rer5) / (4 * PI);
+      const D2 = -3 / (rer5 * 4 * PI);
 
-  Rs2 = Xs1.^2 + Xs2.^2 + Xs3.^2;
-  R2 = X1.^2 + X2.^2 + X3.^2;
+      const Gx = Fx_i;
+      const Gy = -Fy_i;
+      const Gz = -Fz_i;
+      const GrotP = Gx * xi1 + Gy * xi2 + Gz * xi3;
 
-  e2 = e.^2;
-  Rser = sqrt(Rs2 + e2);
-  Rser3 = Rser.*Rser.*Rser;
-  Rer = sqrt(R2 + e2);
-  Rer3 = Rer.*Rer.*Rer;
-  Rer5 = Rer3.*Rer.*Rer;
+      const Fxs = Fx_i * xs1 + Fy_i * xs2 + Fz_i * xs3;
+      const FrotP = Fx_i * xi1 + Fy_i * xi2 + Fz_i * xi3;
 
-  H1s = (1./Rser + e2./Rser3)/8/pi;
-  H2s = 1./Rser3/8/pi;
+      const LCx1 = Fz_i * xi3 + Fy_i * xi2;
+      const LCx2 = -Fy_i * xi1;
+      const LCx3 = -Fz_i * xi1;
 
-  H1 = (1./Rer + e2./Rer3)/8/pi;
-  H2 = 1./Rer3/8/pi;
+      const xsCoeff = Fxs * H2s;
+      const Lcoeff = 2 * ex * (H1pr + H2);
+      const Xcoeff = 2 * ex * (Gx * H2 + xi1 * GrotP * H2pr) - FrotP * H2 - ex * ex * GrotP * D2;
+      const Fcoeff = H1s - H1;
+      const Gcoeff = 2 * ex * xi1 * H2 - ex * ex * D1;
 
-  H1pr = (-1./Rer3 - 3*e2./Rer5)/8/pi;
-  H2pr = -3./Rer5/8/pi;
+      u += Fcoeff * Fx_i + xsCoeff * xs1 + Xcoeff * xi1 + Lcoeff * LCx1 + Gcoeff * Gx + 2 * ex * GrotP * H1pr;
+      v += (H1s - H1) * Fy_i + xsCoeff * xs2 + Xcoeff * xi2 + Lcoeff * LCx2 + Gcoeff * Gy;
+      w += (H1s - H1) * Fz_i + xsCoeff * xs3 + Xcoeff * xi3 + Lcoeff * LCx3 + Gcoeff * Gz;
+    }
 
-  D1 = (1./Rer3 - 3*e2./Rer5)/4/pi;
-  D2 = -3./Rer5/4/pi;
+    out[qi] = u;
+    out[qi + nQ] = v;
+    out[qi + 2 * nQ] = w;
+  }
 
-  Gx = Fx;
-  Gy = -Fy;
-  Gz = -Fz;
-  GrotP = Gx.*X1 + Gy.*X2 + Gz.*X3;
-
-  Fxs = Fx.*Xs1 + Fy.*Xs2 + Fz.*Xs3;
-  FrotP = Fx.*X1 + Fy.*X2 + Fz.*X3;
-
-  LCx1 = Fz.*X3 + Fy.*X2;
-  LCx2 = -Fy.*X1;
-  LCx3 = -Fz.*X1;
-
-  Xscoeff = Fxs.*H2s;
-  Lcoeff = 2*H.*(H1pr + H2);
-  Xcoeff = 2*H.*(Gx.*H2 + X1.*GrotP.*H2pr) - FrotP.*H2 - Hsq.*GrotP.*D2;
-  Fcoeff = H1s - H1;
-  Gcoeff = 2*H.*X1.*H2 - Hsq.*D1;
-
-  u = Fcoeff.*Fx + Xscoeff.*Xs1 + Xcoeff.*X1 + ...
-    Lcoeff.*LCx1 + Gcoeff.*Gx + 2.*H.*GrotP.*H1pr;
-
-  v = (H1s-H1).*Fy + Xscoeff.*Xs2 + Xcoeff.*X2 + ...
-    Lcoeff.*LCx2 + Gcoeff.*Gy;
-
-  w = (H1s-H1).*Fz + Xscoeff.*Xs3 + Xcoeff.*X3 + ...
-    Lcoeff.*LCx3 + Gcoeff.*Gz;
-
-  dXp = [sum(u,1) sum(v,1) sum(w,1)]';
-end
+  return out;
+}

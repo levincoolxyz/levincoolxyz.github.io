@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cilia Bundle Tracer Visualizer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { height: 100%; margin: 0; background:#0b0b0b; color:#e5e7eb; font:14px/1.4 Arial, sans-serif; }
+  .app { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; grid-template-rows: auto 1fr; height: 100%; }
+  header { grid-column: 1 / -1; padding: 8px 12px; border-bottom: 1px solid #1f2937; background:#0f1113; }
+  header .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; color:#cbd5e1; }
+  .panel { background:#111417; border-right:1px solid #1f2937; padding:12px; overflow:auto; }
+  /* Toggle/collapsed panel styles */
+  .btn-toggle { background:#0b1220; color:#e5e7eb; border:1px solid #374151; padding:6px; border-radius:8px; cursor:pointer; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; }
+  .app.collapsed { grid-template-columns: 48px 1fr; }
+  .app.collapsed .panel { padding:0; overflow:hidden; pointer-events:none; opacity:0; transform:translateX(-12px); border-right-color:transparent; }
+  .app.collapsed .panel > * { display:none; }
+  /* Ensure BF brightfield scene remains visible when collapsed */
+  .app.collapsed #bfwrap { display:flex; }
+  .btn { background:#111827; color:#e5e7eb; border:1px solid #374151; padding:8px 10px; border-radius:8px; cursor:pointer; }
+  .btn:hover { background:#162032; }
+  .canvas-wrap { position: relative; background:#000; }
+  #bfwrap { position:absolute; inset:0; }
+  #minimap { position:absolute; right:12px; bottom:12px; width:240px; height:180px; border-radius:10px; overflow:hidden; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.35); }
+  /* hide minimap when the control panel is collapsed */
+  .app.collapsed #minimap { display:none; }
+  #minimap > div { position:absolute; inset:0; }
+  /* compact kappa(s) editor next to minimap */
+  #kappaEditor { position:absolute; right:12px; bottom:var(--kappa-bottom, 200px); width:200px; height:120px; border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.45); display:flex; flex-direction:column; z-index:3 }
+  .app.collapsed #kappaEditor { display:none; }
+  #kappaEditor .title { font-size:12px; color:#cbd5e1; padding:4px 4px; border-bottom:1px solid rgba(255,255,255,.08); }
+  #kappaCanvas { flex:1; display:block; width:95%; height:95%; }
+  /* improve mobile pointer interactions */
+  #threeMini, #threeMini canvas { touch-action:none; }
+  .hud { position:absolute; left:10px; bottom:64px; font-size:12px; color:#cbd5e1;
+         background:rgba(0,0,0,.45); padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,.06); white-space:pre; }
+  .tutorial-note { position:absolute; right:16px; top:120px; width:min(280px, 90vw); padding:12px 14px; background:rgba(15,23,42,.78);
+    border:1px solid rgba(148,163,184,.35); border-radius:12px; color:#e5e7eb; font-size:12px; line-height:1.5; z-index:5;
+    box-shadow:0 14px 38px rgba(0,0,0,.45); backdrop-filter:blur(4px); }
+  .tutorial-note header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; }
+  .tutorial-note header strong { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; }
+  .tutorial-note button[data-close] { background:transparent; border:1px solid rgba(148,163,184,.4); color:#9ca3af; border-radius:6px;
+    width:22px; height:22px; cursor:pointer; font-size:12px; line-height:1; padding:0; display:flex; align-items:center; justify-content:center; }
+  .tutorial-note button[data-close]:hover { color:#e5e7eb; border-color:rgba(148,163,184,.7); }
+  .tutorial-note ul { margin:0; padding-left:18px; display:flex; flex-direction:column; gap:4px; }
+  .tutorial-note li { color:#cbd5e1; }
+  .group { margin-bottom: 12px; }
+  .group h3 { margin: 8px 0; font-size:12px; color:#9ca3af; text-transform:capitalize; letter-spacing:.08em; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .slider { display:grid; grid-template-columns: 140px 1fr 56px; gap:8px; align-items:center; margin:6px 0; }
+  .slider label { font-size:12px; color:#9ca3af; }
+  .slider input[type="range"] { width:100%; }
+  .value { text-align:right; color:#d1d5db; font-variant-numeric: tabular-nums; }
+  #stats { position:absolute; left:10px; bottom:10px; font-size:12px; color:#cbd5e1; background:rgba(0,0,0,.45); padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,.06); white-space:pre; }
+  /* place scale bar at top-left inside the brightfield scene; closer to the top boundary */
+  #scalebar{ position:absolute; left:16px; top:20px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; z-index:1 }
+  /* dark-gray bar for brightfield and left-aligned label in matching dark-gray (not harsh black) */
+  #bar{ height:3px; background:#2b2b2b; border-radius:3px; box-shadow:0 0 0 1px rgba(255,255,255,.06) inset }
+  #barlabel{ font:12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color:#2b2b2b; text-align:left; margin-top:4px }
+  #err{ position:absolute; right:16px; top:16px; max-width:44ch; background:#2b1b1b; color:#ffdcdc; border:1px solid #a55; padding:8px 10px; border-radius:10px; font:12px ui-monospace; display:none; white-space:pre-wrap }
+  a{ color:#8ab4f8 }
+  /* Ensure canvas sizing: keep most canvases block-level, but keep the brightfield canvas at its intrinsic square size
+    (renderer sets pixel size to s x s). Prevent CSS from stretching #bfcanvas to parent aspect ratio. */
+  canvas { display:block; }
+  #bfwrap { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  /* frame that matches the BF renderer pixel square; canvas fills this frame */
+  #bfframe { position:relative; display:inline-block; max-width:100%; max-height:100%; }
+  #bfcanvas { display:block; width:100%; height:100%; }
+  #threeMini { position:absolute; inset:0; }
+  /* improve mobile pointer interactions on minimap */
+  #threeMini, #threeMini canvas { touch-action: none; }
+  #bfcanvas { touch-action:none; }
+  /* simple D-pad overlay for BF panning */
+  #dpad { position:absolute; right:16px; top:16px; display:grid; grid-template-columns:28px 28px 28px; grid-template-rows:28px 28px 28px; gap:6px; user-select:none; z-index:2 }
+  #dpad button { width:28px; height:28px; border-radius:6px; border:1px solid #374151; background:#0b1220; color:#e5e7eb; cursor:pointer; }
+  #dpad button:hover { background:#162032; }
+
+  /* Responsive: stack controls above views on narrow screens */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
+    .panel { grid-column: 1 / -1; }
+    .canvas-wrap { grid-column: 1 / -1; min-height: 50vh; }
+    #minimap { width: 180px; height: 140px; }
+    /* ensure scale bar remains readable on small screens */
+    #scalebar{ left:12px; top:20px }
+  }
+
+  /* smaller / mobile / portrait — reduce minimap proportionally */
+  @media (max-width: 600px), (orientation: portrait) {
+    #minimap { width: min(46vw, 200px); height: calc(min(46vw, 200px) * 0.75); right:8px; bottom:8px; border-radius:8px; }
+    /* make sure scalebar doesn't overlap header on very small screens */
+    #scalebar{ left:10px; top:16px }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="row">
+        <button id="togglePanel" class="btn-toggle" title="Collapse/expand panel">&lt;&lt;</button>
+        <h1>Cilia Bundle Tracer Visualizer</h1>
+        <button id="playPause" class="btn">Pause</button>
+        <button id="save" class="btn">Snapshot (PNG)</button>
+        <button id="presetSingle" class="btn">Single</button>
+        <button id="presetSymp" class="btn">Symplectic</button>
+        <button id="presetAnti" class="btn">Antiplectic</button>
+        <button id="presetBundle" class="btn">Bundle</button>
+      </div>
+    </header>
+
+    <aside class="panel" id="panel">
+      <div class="group">
+        <h3>Cilia lattice</h3>
+        <div class="slider"><label for="nX">N_spots in X</label><input id="nX" type="range" min="1" max="40" step="1" value="18"><div class="value" id="nXv">18</div></div>
+        <div class="slider"><label for="nY">N_spots in Y</label><input id="nY" type="range" min="1" max="40" step="1" value="16"><div class="value" id="nYv">16</div></div>
+        <div class="slider"><label for="density">average density</label><input id="density" type="range" min="0.2" max="3" step="0.01" value="2"><div class="value" id="densityv">2</div></div>
+        <div class="slider"><label for="coverage">coverage ratio</label><input id="coverage" type="range" min="0" max="1" step="0.01" value="0.25"><div class="value" id="coveragev">0.25</div></div>
+        <div class="slider"><label for="patchlength">patch length</label><input id="patchlength" type="range" min="0.01" max="1" step="0.01" value="0.33"><div class="value" id="patchlengthv">0.33</div></div>
+        <div class="slider"><label for="crystalline">crystalline order</label><input id="crystalline" type="range" min="0" max="2" step="0.01" value="1"><div class="value" id="crystallinev">1</div></div>
+        <div class="slider"><label for="patchorder">patch order</label><input id="patchorder" type="range" min="0" max="1" step="0.01" value="0.5"><div class="value" id="patchorderv">0.5</div></div>
+      </div>
+      <div class="group">
+        <h3>Cilia size</h3>
+        <div class="slider"><label for="lengthMean">cilia length mean</label><input id="lengthMean" type="range" min="1" max="30" step="0.1" value="10"><div class="value" id="lengthMeanv">10</div></div>
+        <div class="slider"><label for="lengthStd">cilia length std</label><input id="lengthStd" type="range" min="0" max="10" step="0.1" value="1"><div class="value" id="lengthStdv">1</div></div>
+        <div class="slider"><label for="cilRadius">cilia radius [μm]</label><input id="cilRadius" type="range" min="0.02" max="0.50" step="0.01" value="0.20"><div class="value" id="cilRadiusv">0.20</div>
+      </div>
+      <div class="group">
+        <h3>Ciliary beat kinematics</h3>
+        <div class="slider"><label for="k0">k_0 (static curvature)</label><input id="k0" type="range" min="-2" max="2" step="0.01" value="1"><div class="value" id="k0v">1</div></div>
+        <div class="slider"><label for="aK">a_0 (wave number)</label><input id="aK" type="range" min="-5" max="5" step="0.01" value="0.8"><div class="value" id="aKv">0.8</div></div>
+        <div class="slider"><label for="ampMean">beat amplitude mean</label><input id="ampMean" type="range" min="0" max="10" step="0.01" value="5"><div class="value" id="ampMeanv">5</div></div>
+        <div class="slider"><label for="ampStd">beat amplitude std</label><input id="ampStd" type="range" min="0" max="1" step="0.01" value="0"><div class="value" id="ampStdv">0</div></div>
+      </div>
+      <div class="group">
+        <h3>Ciliary beat frequency (CBF)</h3>
+        <div class="slider"><label for="cbfMean">CBF mean</label><input id="cbfMean" type="range" min="0" max="20" step="0.1" value="5"><div class="value" id="cbfMeanv">5</div></div>
+        <div class="slider"><label for="cbfStd">CBF std</label><input id="cbfStd" type="range" min="0" max="10" step="0.1" value="0.01"><div class="value" id="cbfStdv">0.01</div></div>
+      </div>
+      <div class="group">
+        <h3>Metachronal wave</h3>
+        <div class="slider"><label for="waveAmp">wave amplitude</label><input id="waveAmp" type="range" min="0" max="2" step="0.01" value="1"><div class="value" id="waveAmpv">1</div></div>
+        <div class="slider"><label for="waveAngle">wave angle (deg)</label><input id="waveAngle" type="range" min="-180" max="180" step="1" value="-90"><div class="value" id="waveAnglev">-90</div></div>
+        <div class="slider"><label for="waveNoise">wave noise</label><input id="waveNoise" type="range" min="0" max="1" step="0.01" value="0.01"><div class="value" id="waveNoisev">0.01</div></div>
+      </div>
+      <div class="group">
+        <h3>Ciliary beat orientation</h3>
+        <div class="slider"><label for="angleMean">beat angle mean (deg)</label><input id="angleMean" type="range" min="-90" max="90" step="1" value="0"><div class="value" id="angleMeanv">0</div></div>
+        <div class="slider"><label for="angleStd">beat angle std (deg)</label><input id="angleStd" type="range" min="0" max="90" step="1" value="5"><div class="value" id="angleStdv">5</div></div>
+      </div>
+      <div class="group">
+        <h3>Microscopy setup</h3>
+        <div class="slider"><label for="azimuth">view azimuth (deg)</label><input id="azimuth" type="range" min="-180" max="180" step="1" value="-90"><div class="value" id="azimuthv">-90</div></div>
+        <div class="slider"><label for="elevation">view elevation (deg)</label><input id="elevation" type="range" min="-90" max="90" step="1" value="0"><div class="value" id="elevationv">0</div></div>
+        <div class="slider"><label for="cilRes">cilium resolution (x)</label><input id="cilRes" type="range" min="0.7" max="2" step="0.01" value="0.8"><div class="value" id="cilResv">0.8</div></div>
+        <div class="slider"><label for="imgN">field of view [px]</label><input id="imgN" type="range" min="256" max="1024" step="1" value="256"><div class="value" id="imgNv">256</div></div>
+        <div class="slider"><label for="px">pixel size [μm]</label><input id="px" type="range" min="0.05" max="0.50" step="0.01" value="0.1"><div class="value" id="pxv">0.1</div></div>
+        <div class="slider"><label for="NA">NA (numerical aperture)</label><input id="NA" type="range" min="0.10" max="1.40" step="0.01" value="0.80"><div class="value" id="NAv">0.80</div></div>
+        <div class="row"><label for="mode">Imaging mode</label>
+          <div>
+            <select id="mode">
+              <option value="bf">Bright-field</option>
+              <option value="pc">Phase contrast</option>
+              <option value="df">Dark field</option>
+            </select>
+          </div>
+        </div>
+        <div class="slider pc-only"><label for="pcfrac">PC: plate radius [% pupil]</label><input id="pcfrac" type="range" min="3" max="25" step="1" value="8"><div class="value" id="pcfracv">8</div></div>
+        <div class="slider pc-only"><label for="pcphi">PC: phase shift [rad]</label><input id="pcphi" type="range" min="0" max="6.283" step="0.01" value="1.5708"><div class="value" id="pcphiv">1.57</div></div>
+        <div class="slider pc-only"><label for="pcalpha">PC: attenuation α</label><input id="pcalpha" type="range" min="0.1" max="1.0" step="0.01" value="0.60"><div class="value" id="pcalphav">0.60</div></div>
+        <div class="slider df-only"><label for="dfinner">DF: inner NA fraction</label><input id="dfinner" type="range" min="0.05" max="0.9" step="0.01" value="0.25"><div class="value" id="dfinnerv">0.25</div></div>
+        <div class="slider"><label for="lambda">source wavelength λ [nm]</label><input id="lambda" type="range" min="400" max="700" step="5" value="550"><div class="value" id="lambdav">550</div></div>
+        <div class="slider"><label for="cohI">source relative intensity I</label><input id="cohI" type="range" min="0.001" max="1.00" step="0.001" value="0.50"><div class="value" id="cohIv">0.50</div></div>
+        <div class="slider"><label for="z0">z_0 (focus distance) [μm]</label><input id="z0" type="range" min="-20.0" max="20.0" step="0.01" value="0.00"><div class="value" id="z0v">0.00</div></div>
+        <div class="slider"><label for="dn">Δn (refractive index diff)</label><input id="dn" type="range" min="-0.20" max="0.20" step="0.001" value="0.05"><div class="value" id="dnv">0.05</div></div>
+        <div class="slider"><label for="kappa">κ (cilia absorption)</label><input id="kappa" type="range" min="0.000" max="0.1" step="0.001" value="0.05"><div class="value" id="kappav">0.05</div></div>
+        <div class="slider"><label for="barum">scale bar [μm]</label><input id="barum" type="range" min="1" max="30" step="1" value="10"><div class="value" id="barumv">10</div></div>
+      </div>
+      <div class="group">
+        <h3>Tracer &amp; fluid</h3>
+        <div class="slider"><label for="fluidVisc">fluid viscosity [mPa·s]</label><input id="fluidVisc" type="range" min="0.1" max="5.0" step="0.1" value="1.0"><div class="value" id="fluidViscv">1.0</div></div>
+        <div class="slider"><label for="tracerRadius">tracer radius [μm]</label><input id="tracerRadius" type="range" min="0.1" max="5.0" step="0.1" value="0.6"><div class="value" id="tracerRadiusv">0.6</div></div>
+        <div class="slider"><label for="tracerHeight">tracer height [μm]</label><input id="tracerHeight" type="range" min="0.1" max="15.0" step="0.1" value="2.0"><div class="value" id="tracerHeightv">2.0</div></div>
+        <div class="slider"><label for="regEps">regularisation ε [μm]</label><input id="regEps" type="range" min="0.05" max="3.0" step="0.05" value="0.5"><div class="value" id="regEpsv">0.5</div></div>
+      </div>
+    </aside>
+
+    <main class="canvas-wrap">
+      <div id="bfwrap">
+        <div id="bfframe"><canvas id="bfcanvas"></canvas>
+          <div id="scalebar"><div id="bar"></div><div id="barlabel"></div></div>
+        </div>
+        <!-- D‑pad for 2D pan in the BF scene -->
+        <div id="dpad" title="Pan image (click arrows; center to auto-center)">
+          <div></div>
+          <button id="panUp">↑</button>
+          <div></div>
+          <button id="panLeft">←</button>
+          <button id="panCenter">•</button>
+          <button id="panRight">→</button>
+          <div></div>
+          <button id="panDown">↓</button>
+          <div></div>
+        </div>
+      </div>
+      <div id="minimap"><div id="threeMini"></div></div>
+      <div id="kappaEditor">
+        <div class="title">Beat amplitude profile (s)</div>
+        <canvas id="kappaCanvas"></canvas>
+      </div>
+      <div class="tutorial-note" id="ciliaNavNote">
+        <header>
+          <strong>Navigation tips</strong>
+          <button type="button" data-close aria-label="Hide navigation tips">×</button>
+        </header>
+        <ul>
+          <li>Drag on the 3D inset or microscopy view to rotate the bundle.</li>
+          <li>Change beat amplitude profile along arclength (s) by adding or dragging points on the profile inset (delete handle by dragg point out of inset).</li>
+          <li>Scroll the mouse wheel over the 3D inset to zoom in/out the centerline view.</li>
+          <li>Scroll the mouse wheel over the microscopy view to change focal plane z<sub>0</sub> (Shift = faster).</li>
+          <li>Pan the microscopy view with arrow keys or the D-pad (Shift = faster).</li>
+          <li>Hold <strong>T</strong> and click (or double-tap on touch) to seed a tracer bead on the imaging plane.</li>
+          <li>Use the center dot of D-pad to recentre the micrscopy view on cilia bundle.</li>
+          <li>Press Space in microscopy view or Pause/Play button to halt the simulation.</li>
+        </ul>
+      </div>
+      <div class="hud" id="stats">—</div>
+      <div id="err"></div>
+    </main>
+  </div>
+
+  <script type="module">
+  import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+  import FFT from 'https://esm.sh/fft.js@4.0.4';
+  import { stokesletWithWall } from './javascripts/stokesletWithWall.js';
+
+  // ===== helpers =====
+  function setVal(id, v){ var el = document.getElementById(id); if (el) { el.textContent = String(Math.round(v*1000)/1000); } }
+  function randn(){ var u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  const POW2=[256,512,1024,2048];
+  function snapPow2(val){ let best=POW2[0], d=1e9; for(const n of POW2){ const dd=Math.abs(val-n); if(dd<d){d=dd;best=n;} } return best; }
+
+  // ===== parameters (azimuth/elevation in DEGREES) =====
+  var params = {
+    nX:18, nY:16, dX:1.0, dY:1.0, density:2.0,
+    k0:1.0, aK:0.8,
+    ampMean:5.0, ampStd:0.0,
+    lengthMean:10.0, lengthStd:1.0,
+    cbfMean:5.0, cbfStd:0.01, cilRadius:0.20,
+    waveAmp:1.0, waveAngle:-Math.PI/2, waveNoise:0.01,
+    coverage:0.25, patchlength:0.48, crystalline:1.0, patchorder:0.5,
+    angleMean:0.0, angleStd:0.01,
+    azimuth:-90, elevation:1,
+    // microscopy
+    imgN:256, px:0.10, lambda:550, NA:0.80, z0:0.001, cohI:0.50, dn:0.05, kappa:0.05,
+    cilRes:0.8, barum:10,
+    // modes
+    mode:'bf', pcfrac:8, pcphi:1.5708, pcalpha:0.60, dfinner:0.25,
+    // 2D pan (pixels in the rendered square)
+    panX:0, panY:0,
+    // tracer / fluid
+    fluidVisc:1.0, tracerRadius:0.6, tracerHeight:2.0, regEps:0.5,
+  };
+
+  // ===== state =====
+  var sim = {
+    tNow:0, isPlaying:true,
+    // minimap (3D cilia)
+    scene:null, camera:null, renderer:null,
+    lines:[], total:0,
+    cx:null, cy:null, cz:null,
+    isCiliated:null,
+    totalCiliated:0,
+    ampScale:null, ciliaLen:null, ciliaFreq:null, initPhase:null,
+    beatAngle:null,
+    nLineSeg:160, // high-res line for minimap
+    // axis gizmo overlay
+    axisScene:null, axisCam:null, axesGroup:null,
+    cam:null, placeCamera:null,
+    // orientation quaternion (camera local -> world)
+    q:null,
+    // pan initialization flag (auto-center once at boot)
+    panInited:false,
+    // minimap centering along z
+    czCenterZ:0
+  };
+
+  var tracer = {
+    active:false,
+    pos:new THREE.Vector3(0,0, params.tracerHeight || 0),
+    vel:new THREE.Vector3(),
+    mesh:null,
+    armKey:false,
+    lastTouch:0
+  };
+
+  // ===== arclength profile (\u005E\u03BA(s)) editor state =====
+  var profile = {
+    // committed control points used by simulation (sorted by s)
+    cps: [ {s:0, v:0.2}, {s:1, v:1.0} ],
+    // transient editing copy during drag/add
+    edit: null,
+    dragging: { idx:-1, start:null },
+    canvas: null,
+    ctx: null
+  };
+
+  function setupOverlayLayout(){
+    const minimap = document.getElementById('minimap');
+    const editor = document.getElementById('kappaEditor');
+    if (!minimap || !editor) return;
+
+    const apply = () => {
+      const rect = minimap.getBoundingClientRect();
+      const height = rect.height || minimap.clientHeight || 0;
+      const style = window.getComputedStyle(minimap);
+      let base = parseFloat(style.bottom);
+      if (!isFinite(base)) base = 12;
+      const gap = Math.max(8, Math.min(24, height * 0.12));
+      const total = base + height + gap;
+      editor.style.setProperty('--kappa-bottom', total + 'px');
+    };
+
+    editor._updateKappaLayout = apply;
+
+    apply();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => apply());
+      ro.observe(minimap);
+      editor._minimapResizeObserver = ro;
+    }
+    window.addEventListener('resize', apply);
+  }
+
+  // ===== BF renderer (full-frame) =====
+  var bf = {
+    renderer:null, scene:null, cam:null, quad:null,
+    tex:null, texSize:0,
+    // keep a copy of the latest RGBA buffer for saving
+    savePixels:null, saveSize:0
+  };
+
+  // ===== optics precompute =====
+  var optics = {
+    N:0, px:0, lam:0, NA:0, z0:0, dn:0, kappa:0, Rpx:0,
+    ft:null, P:null, H0r:null, H0i:null, Mr:null, Mi:null, f2:null,
+    FTtRe:null, FTtIm:null
+  };
+
+  // (removed FPS HUD; render timer replaces FPS display)
+
+  function updateModeVisibility(){
+    var mode = params.mode || 'bf';
+    var pcEls = document.querySelectorAll('.pc-only');
+    var dfEls = document.querySelectorAll('.df-only');
+    for (var i=0;i<pcEls.length;i++){ pcEls[i].style.display = (mode==='pc') ? 'grid' : 'none'; }
+    for (var j=0;j<dfEls.length;j++){ dfEls[j].style.display = (mode==='df') ? 'grid' : 'none'; }
+  }
+
+  function syncPanel(){
+    function setSlider(id, val){ var el=document.getElementById(id); if(!el) return; if(id==='waveAngle'){ el.value = Math.round(val*180/Math.PI); setVal(id+'v', el.value); } else { el.value = val; setVal(id+'v', val); } }
+    setSlider('nX', params.nX); setSlider('nY', params.nY); setSlider('density', params.density);
+    setSlider('k0', params.k0); setSlider('aK', params.aK);
+    setSlider('ampMean', params.ampMean); setSlider('ampStd', params.ampStd);
+    setSlider('lengthMean', params.lengthMean); setSlider('lengthStd', params.lengthStd);
+    setSlider('cbfMean', params.cbfMean); setSlider('cbfStd', params.cbfStd);
+    setSlider('coverage', params.coverage); setSlider('patchlength', params.patchlength); setSlider('crystalline', params.crystalline); setSlider('patchorder', params.patchorder);
+    setSlider('waveAmp', params.waveAmp); setSlider('waveAngle', params.waveAngle); setSlider('waveNoise', params.waveNoise);
+    setSlider('angleMean', params.angleMean); setSlider('angleStd', params.angleStd);
+    setSlider('azimuth', params.azimuth); setSlider('elevation', params.elevation);
+    // BF
+    setSlider('imgN', params.imgN); setSlider('px', params.px); setSlider('lambda', params.lambda); setSlider('NA', params.NA); setSlider('z0', params.z0);
+    setSlider('cilRes', params.cilRes); setSlider('cilRadius', params.cilRadius);
+    setSlider('dn', params.dn); setSlider('kappa', params.kappa); setSlider('cohI', params.cohI);
+    setSlider('barum', params.barum);
+    // Modes
+    setSlider('pcfrac', params.pcfrac); setSlider('pcphi', params.pcphi); setSlider('pcalpha', params.pcalpha); setSlider('dfinner', params.dfinner);
+    setSlider('fluidVisc', params.fluidVisc); setSlider('tracerRadius', params.tracerRadius); setSlider('tracerHeight', params.tracerHeight); setSlider('regEps', params.regEps);
+    var m=document.getElementById('mode'); if (m) m.value = params.mode;
+    updateModeVisibility();
+  }
+
+  // ===== core sim helpers =====
+  function shape1d(x,a){ var m = ((x+1)%2+2)%2; return (m <= 2*a) ? (m/a - 1) : (1 - (m-2*a)/(1-a)); }
+  function presence(cx, cy, coverage, patchlength, crystalline, patchorder, nCols, nRows, dX, dY){
+    var n = cx.length; var out = new Array(n); var i;
+    function seedAt(x,y){ var px = Math.floor((x + (nCols-1)*dX/2) / dX); var py = Math.floor((y + (nRows-1)*dY/2) / dY); var s = Math.sin(px*12.9898 + py*78.233)*43758.5453; return s - Math.floor(s); }
+    for(i=0;i<n;i++){
+      var seed = seedAt(cx[i]+(Math.random()-0.5)*crystalline, cy[i]+(Math.random()-0.5)*crystalline);
+      var a = (seed-0.5)*patchorder + 0.5; if (a<0.01) a=0.01; if (a>0.99) a=0.99;
+      var pot = Math.min( shape1d(cx[i]/Math.max(1,(nCols-1)*dX)/patchlength, a), shape1d(cy[i]/Math.max(1,(nRows-1)*dY)/patchlength, a) );
+      out[i] = (pot >= (1 - 2*coverage));
+    }
+    return out;
+  }
+
+  function generateGrid(){
+    var nX = params.nX|0, nY = params.nY|0;
+    var dX = 1/Math.max(0.2, params.density); var dY = 1/Math.max(0.2, params.density);
+    params.dX = dX; params.dY = dY;
+    var xSize = (nX-1)*dX, ySize = (nY-1)*dY;
+    var coordx = [], coordy = [];
+    var i, j;
+    for(i=0;i<nX;i++){ coordx.push(-xSize/2 + (nX>1 ? i*(xSize/(nX-1)) : 0)); }
+    for(j=0;j<nY;j++){ coordy.push(-ySize/2 + (nY>1 ? j*(ySize/(nY-1)) : 0)); }
+    var cx=[], cy=[], cz=[];
+    for(j=0;j<nY;j++){
+      for(i=0;i<nX;i++){
+        var jitter = params.crystalline;
+        cx.push(coordx[i] + (Math.random()-0.5)*jitter);
+        cy.push(coordy[j] + (Math.random()-0.5)*jitter);
+        cz.push(-params.lengthMean/2 + (Math.random()-0.5)*jitter);
+      }
+    }
+    sim.cx = new Float32Array(cx); sim.cy = new Float32Array(cy); sim.cz = new Float32Array(cz);
+    sim.total = nX*nY; sim.xSize = xSize; sim.ySize = ySize;
+    sim.isCiliated = presence(sim.cx, sim.cy, params.coverage, params.patchlength, params.crystalline, params.patchorder, nX, nY, dX, dY);
+    sim.totalCiliated = 0; for(i=0;i<sim.total;i++){ if(sim.isCiliated[i]) sim.totalCiliated++; }
+    // compute mean cz for minimap centering (ignore non-ciliated)
+    var sumZ=0, cntZ=0; for(i=0;i<sim.total;i++){ if(!sim.isCiliated || sim.isCiliated[i]){ sumZ+=sim.cz[i]; cntZ++; } }
+    sim.czCenterZ = (cntZ>0)? (sumZ/cntZ) : 0;
+    tracer.pos.z = sim.czCenterZ + Number(params.tracerHeight || 0);
+    updateTracerVisual();
+  }
+
+  function getWave(wAmp, wAng, wNoise, cx, cy, xSize, ySize){
+    var n = cx.length; var out = new Float32Array(n);
+    var kvx = Math.cos(wAng)*wAmp, kvy = Math.sin(wAng)*wAmp; var i, base;
+    for (i=0;i<n;i++){
+      if (xSize===0 && ySize===0) base = 0;
+      else if (xSize===0) base = ((kvy * cy[i]/ySize) % 1 + 1) % 1;
+      else if (ySize===0) base = ((kvx * cx[i]/xSize) % 1 + 1) % 1;
+      else base = ((kvx * cx[i]/xSize + kvy * cy[i]/ySize) % 1 + 1) % 1;
+      out[i] = base * (1 - wNoise) + Math.random()*wNoise;
+    }
+    return out;
+  }
+
+  function reseedRandomFields(){
+    var n = sim.total, i;
+    sim.ampScale = new Float32Array(n);
+    sim.ciliaLen = new Float32Array(n);
+    sim.ciliaFreq = new Float32Array(n);
+    sim.beatAngle = new Float32Array(n);
+    for(i=0;i<n;i++){
+      sim.ampScale[i] = Math.max(0, params.ampMean + params.ampStd * randn());
+      sim.ciliaLen[i]  = Math.max(0.1, params.lengthMean + params.lengthStd * randn());
+      sim.ciliaFreq[i] = Math.max(0, params.cbfMean + params.cbfStd * randn());
+      sim.beatAngle[i] = (params.angleMean + params.angleStd * randn()) * Math.PI/180;
+    }
+    sim.initPhase = getWave(params.waveAmp, params.waveAngle, params.waveNoise, sim.cx, sim.cy, sim.xSize, sim.ySize);
+  }
+
+  function centerlineFromCurvatureN(N, tFrac, A0scale, L, outX, outZ){
+    var ds = 1.0/(N-1);
+    var i; var k0 = params.k0; var aK = params.aK;
+    var twoPiT = 2*Math.PI * tFrac;
+    var theta_prev = 0.0; var x_prev = 0.0; var z_prev = 0.0;
+    outX[0] = 0.0; outZ[0] = 0.0;
+    function profEval(s){
+      var cps = (profile && profile.cps && profile.cps.length>=2) ? profile.cps : [ {s:0,v:0.2}, {s:1,v:1.0} ];
+      // ensure sorted copy by s
+      cps = cps.slice().sort((a,b)=>a.s-b.s);
+      if (s<=cps[0].s) return cps[0].v;
+      if (s>=cps[cps.length-1].s) return cps[cps.length-1].v;
+      for (var i=0;i<cps.length-1;i++){
+        var a=cps[i], b=cps[i+1];
+        if (s>=a.s && s<=b.s){ var t=(s-a.s)/Math.max(1e-6,(b.s-a.s)); return a.v*(1-t)+b.v*t; }
+      }
+      return 1.0;
+    }
+    var kappa_prev = k0 + A0scale*params.aK*params.aK*profEval(0.0) * Math.cos(aK*2*Math.PI*0.0 - twoPiT);
+    for (i=1;i<N;i++){
+      var s = i/(N-1);
+      var kappa = k0 + A0scale*params.aK*params.aK*profEval(s) * Math.cos(aK*2*Math.PI*s - twoPiT);
+      var theta = theta_prev + 0.5*(kappa_prev + kappa) * ds;
+      var sx_prev = Math.sin(theta_prev), sz_prev = Math.cos(theta_prev);
+      var sx = Math.sin(theta), sz = Math.cos(theta);
+      x_prev = x_prev + 0.5*(sx_prev + sx)*ds;
+      z_prev = z_prev + 0.5*(sz_prev + sz)*ds;
+      outX[i] = x_prev * L; outZ[i] = z_prev * L;
+      theta_prev = theta; kappa_prev = kappa;
+    }
+  }
+
+  // ===== three.js minimap (simple mouse camera with DEG inputs) =====
+  function initMini(){
+    var container = document.getElementById('threeMini');
+    sim.scene = new THREE.Scene();
+    sim.scene.background = new THREE.Color(0x000000);
+    var w = container.clientWidth || 240;
+    var h = container.clientHeight || 180;
+    sim.camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 1000);
+    sim.cam = { r: 45, az: params.azimuth, el: params.elevation };
+    // initialize orientation quaternion
+    sim.q = quatFromAzEl(sim.cam.az, sim.cam.el);
+    function placeCamera(){
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(sim.q);
+      const up = new THREE.Vector3(0,1,0).applyQuaternion(sim.q);
+      const pos = forward.clone().multiplyScalar(-sim.cam.r);
+      sim.camera.position.copy(pos);
+      sim.camera.up.copy(up);
+      sim.camera.lookAt(0,0,0);
+    }
+    sim.placeCamera = placeCamera; placeCamera();
+    sim.renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+    sim.renderer.setSize(w, h);
+    container.innerHTML = ""; container.appendChild(sim.renderer.domElement);
+    // Minimap owns the zoom wheel; dragging here also rotates orientation
+    setupOrbitControls(sim.renderer.domElement, { wheelZoom: true });
+
+    var amb = new THREE.AmbientLight(0xffffff, 0.7); sim.scene.add(amb);
+    var dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(20,20,30); sim.scene.add(dir);
+
+    ensureTracerMesh();
+    updateTracerVisual();
+
+    // axis overlay: its own scene and camera, rendered into a small viewport
+    sim.axisScene = new THREE.Scene();
+    sim.axisCam   = new THREE.PerspectiveCamera(40, 1, 0.1, 10);
+    sim.axisCam.position.set(0,0,4); sim.axisCam.lookAt(0,0,0);
+
+    window.addEventListener('resize', function(){ var w2=container.clientWidth||240; var h2=container.clientHeight||180; sim.camera.aspect=w2/h2; sim.camera.updateProjectionMatrix(); sim.renderer.setSize(w2,h2); });
+  }
+  function updateCameraFromParams(){
+    sim.cam.az = params.azimuth;
+    sim.cam.el = params.elevation;
+    // update quaternion from sliders
+    sim.q = quatFromAzEl(sim.cam.az, sim.cam.el);
+    // keep sliders coherent if changed programmatically
+    var azEl = document.getElementById('azimuth'); if (azEl) azEl.value = String(Math.round(sim.cam.az));
+    var elEl = document.getElementById('elevation'); if (elEl) elEl.value = String(Math.round(sim.cam.el));
+    setVal('azimuthv', sim.cam.az); setVal('elevationv', sim.cam.el);
+    sim.placeCamera && sim.placeCamera();
+  }
+
+  function buildLines(){
+    var i; for(i=0;i<sim.lines.length;i++){ sim.scene.remove(sim.lines[i]); }
+    sim.lines = [];
+    var n = sim.total; var nC = sim.nLineSeg; var mat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    for(i=0;i<n;i++){
+      var geom = new THREE.BufferGeometry();
+      var positions = new Float32Array(nC*3);
+      geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      var line = new THREE.Line(geom, mat);
+      line.visible = !sim.isCiliated || sim.isCiliated[i];
+      sim.scene.add(line); sim.lines.push(line);
+    }
+  }
+
+  // ---- minimap axes (RGB = X,Y,Z) ----
+  function buildAxes(len){
+    if (!sim.axisScene) return;
+    if (sim.axesGroup) { sim.axisScene.remove(sim.axesGroup); sim.axesGroup = null; }
+    const L = Math.max(1.0, len);
+    const group = new THREE.Group();
+    const origin = new THREE.Vector3(0,0,0);
+    const head = 0.18*L, headWidth = 0.12*L;
+    const xArr = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), origin, L, 0xff4444, head, headWidth);
+    const yArr = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), origin, L, 0x44ff44, head, headWidth);
+    const zArr = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), origin, L, 0x4488ff, head, headWidth);
+    group.add(xArr); group.add(yArr); group.add(zArr);
+    sim.axesGroup = group; sim.axisScene.add(group);
+  }
+
+  function updateAxes(){
+    // Keep gizmo size consistent; world units relative to axisCam @ z=4
+    const L = 1.0; // constant length for overlay gizmo
+    buildAxes(L);
+  }
+
+  // ===== orientation helpers (shared by BF + minimap) =====
+  function toSignedDeg(a){ return ((a + 180) % 360 + 360) % 360 - 180; }
+  function quatFromAzEl(azDeg, elDeg){
+    const az = azDeg * Math.PI/180, el = elDeg * Math.PI/180;
+    const cx = Math.cos(el) * Math.cos(az);
+    const cy = Math.cos(el) * Math.sin(az);
+    const cz = Math.sin(el);
+    const f = new THREE.Vector3(-cx, -cy, -cz).normalize();
+    const upRef = new THREE.Vector3(0,0,1);
+    const o = new THREE.Object3D();
+    o.up.copy(upRef);
+    o.position.set(0,0,0);
+    o.lookAt(new THREE.Vector3().copy(f));
+    return o.quaternion.clone();
+  }
+  function azElFromQuat(q){
+    const f = new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize();
+    const az = toSignedDeg(Math.atan2(-f.y, -f.x) * 180/Math.PI);
+    const el = Math.asin(Math.max(-1, Math.min(1, -f.z))) * 180/Math.PI;
+    return { az, el };
+  }
+  function computeCameraAxesFromQuat(q){
+    const r = new THREE.Vector3(1,0,0).applyQuaternion(q);
+    const u = new THREE.Vector3(0,1,0).applyQuaternion(q);
+    const f = new THREE.Vector3(0,0,-1).applyQuaternion(q);
+    return [ [r.x, r.y, r.z], [u.x, u.y, u.z], [f.x, f.y, f.z] ];
+  }
+
+  function renderAxisGizmo(){
+    if (!sim.renderer || !sim.axisScene || !sim.axisCam) return;
+    // Rotate axes to match minimap view, keep camera fixed at origin
+    if (sim.axesGroup) {
+      sim.axesGroup.quaternion.copy(sim.camera.quaternion);
+      sim.axesGroup.updateMatrixWorld();
+    }
+    // compute bottom-left viewport in CSS pixels
+    const d = sim.renderer.domElement;
+    const cw = d.clientWidth || 0, ch = d.clientHeight || 0;
+    const padCss = 8; const sizeCss = 80; // fixed CSS size for stability
+    const pr = sim.renderer.getPixelRatio();
+    const x = Math.floor(padCss * pr), y = Math.floor(padCss * pr);
+    const vw = Math.floor(sizeCss * pr), vh = Math.floor(sizeCss * pr);
+    // preserve color buffer, render overlay with cleared depth only
+    const db = sim.renderer.getDrawingBufferSize(new THREE.Vector2());
+    const oldAC = sim.renderer.autoClear; sim.renderer.autoClear = false;
+    sim.renderer.clearDepth();
+    sim.renderer.setScissorTest(true);
+    sim.renderer.setScissor(x, y, vw, vh);
+    sim.renderer.setViewport(x, y, vw, vh);
+    sim.axisCam.aspect = vw/vh; sim.axisCam.updateProjectionMatrix();
+    sim.renderer.render(sim.axisScene, sim.axisCam);
+    // restore
+    sim.renderer.setScissorTest(false);
+    sim.renderer.setViewport(0,0,db.x,db.y);
+    sim.renderer.autoClear = oldAC;
+  }
+
+  function setupOrbitControls(target, opts){
+    if (!target) return;
+    let dragging = false;
+    let lastX = 0, lastY = 0;
+    const allowWheelZoom = !(opts && opts.wheelZoom === false);
+
+    const onPointerDown = (e) => {
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      e.preventDefault();
+      try {
+        target.setPointerCapture && target.setPointerCapture(e.pointerId);
+      } catch (_) {}
+    };
+
+    const onPointerMove = (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      const s = 0.005;
+      const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), -dx * s);
+      sim.q.premultiply(qYaw);
+      const right = new THREE.Vector3(1,0,0).applyQuaternion(sim.q);
+      const qPitch = new THREE.Quaternion().setFromAxisAngle(right, -dy * s);
+      sim.q.premultiply(qPitch);
+      const ae = azElFromQuat(sim.q);
+      params.azimuth = sim.cam.az = toSignedDeg(ae.az);
+      params.elevation = sim.cam.el = ae.el;
+      const azEl = document.getElementById('azimuth');
+      if (azEl) { azEl.value = String(Math.round(params.azimuth)); setVal('azimuthv', params.azimuth); }
+      const elEl = document.getElementById('elevation');
+      if (elEl) { elEl.value = String(Math.round(params.elevation)); setVal('elevationv', params.elevation); }
+      sim.placeCamera && sim.placeCamera();
+      renderBF();
+      updateMinimapLines();
+    };
+
+    const endDrag = (e) => {
+      dragging = false;
+      if (e && typeof e.pointerId !== 'undefined') {
+        try {
+          target.releasePointerCapture && target.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+      }
+    };
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      sim.cam.r = Math.max(5, Math.min(200, sim.cam.r + (e.deltaY > 0 ? 2 : -2)));
+      sim.placeCamera && sim.placeCamera();
+    };
+
+    target.addEventListener('pointerdown', onPointerDown);
+    target.addEventListener('pointermove', onPointerMove);
+    target.addEventListener('pointerup', endDrag);
+    target.addEventListener('pointercancel', endDrag);
+    target.addEventListener('pointerleave', () => { dragging = false; });
+    target.addEventListener('lostpointercapture', () => { dragging = false; });
+    if (allowWheelZoom) {
+      target.addEventListener('wheel', onWheel, { passive: false });
+    }
+  }
+
+  // ===== BF three init =====
+  function initBF(){
+    const canvas = document.getElementById('bfcanvas');
+    bf.renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:false});
+    bf.renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    bf.scene = new THREE.Scene();
+    bf.cam = new THREE.OrthographicCamera(-1,1,1,-1,0.1,10); bf.cam.position.z=2;
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({map:new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat)}));
+    bf.scene.add(quad); bf.quad = quad;
+    // Enable drag-to-rotate on BF canvas, but keep wheel free for defocus adjustment
+    setupOrbitControls(bf.renderer.domElement, { wheelZoom: false });
+    if (canvas){
+      const focusWheel = (e) => {
+        if (e.ctrlKey) return;
+        e.preventDefault();
+        const slider = document.getElementById('z0');
+        if (!slider) return;
+        const step = 0.1;
+        const mul = e.shiftKey ? 10 : 1;
+        const dir = (e.deltaY > 0) ? 1 : -1;
+        adjustDefocus(dir * step * mul);
+      };
+      canvas.addEventListener('wheel', focusWheel, { passive:false });
+      canvas.addEventListener('pointerdown', handleTracerPointer, { passive:false });
+    }
+    resizeBF();
+  }
+  
+  // ===== kappa(s) profile editor =====
+  function setupKappaEditor(){
+    const box = document.getElementById('kappaEditor');
+    const canvas = document.getElementById('kappaCanvas');
+    if (!box || !canvas) return;
+    profile.canvas = canvas; profile.ctx = canvas.getContext('2d');
+
+    function resizeCanvas(){
+      const dpr = Math.min(2, window.devicePixelRatio||1);
+      const w = box.clientWidth, h = box.clientHeight - 24; // minus title
+      canvas.width = Math.max(10, Math.floor(w * dpr));
+      canvas.height = Math.max(10, Math.floor(h * dpr));
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      canvas._dpr = dpr;
+      draw();
+    }
+
+    function plotRect(){
+      // a bit more padding around axes
+      const padL=36, padR=28, padT=18, padB=28;
+      return { x:padL, y:padT, w:canvas.width - padL - padR, h:canvas.height - padT - padB };
+    }
+    // map s horizontally (0..1 -> left..right), v vertically (0..1 -> bottom..top)
+    function xyFromSV(s,v){
+      const r=plotRect();
+      const x = r.x + Math.max(0, Math.min(1, s)) * r.w;
+      const y = r.y + (1 - Math.max(0, Math.min(1, v))) * r.h;
+      return {x,y};
+    }
+    function svFromXY(x,y){
+      const r=plotRect();
+      const s = (x - r.x) / Math.max(1, r.w);
+      const v = 1 - (y - r.y) / Math.max(1, r.h);
+      return { s: s, v: v };
+    }
+    function currentDpr(){ return canvas._dpr || 1; }
+    function markerCssRadius(){
+      const rect = box.getBoundingClientRect();
+      const w = rect.width || box.clientWidth || canvas.clientWidth || 0;
+      const h = rect.height || box.clientHeight || canvas.clientHeight || 0;
+      const minSide = Math.min(w, h);
+      if (minSide <= 140 || window.innerWidth <= 480) return 11;
+      if (minSide <= 220 || window.innerWidth <= 768) return 9;
+      return 7;
+    }
+    function markerRadius(){ return markerCssRadius() * currentDpr() / 1.8; }
+    function cpsSorted(cps){ return cps.slice().sort((a,b)=>a.s-b.s); }
+    function draw(){
+      const ctx=profile.ctx; if(!ctx) return;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const r=plotRect();
+      // bg
+      ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      // frame
+      ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1; ctx.strokeRect(r.x, r.y, r.w, r.h);
+      // axes ticks and labels
+      ctx.fillStyle='#9ca3af'; ctx.strokeStyle='#9ca3af'; ctx.font='10px system-ui, sans-serif';
+      // bottom axis (s): ticks at 0, 0.5, 1
+      const sTicks=[0,0.5,1];
+      for (const st of sTicks){
+        const p=xyFromSV(st, 0);
+        ctx.beginPath(); ctx.moveTo(p.x, r.y+r.h); ctx.lineTo(p.x, r.y+r.h+6); ctx.stroke();
+        const lbl = (st===0.5? '0.5' : (st===0? '0' : '1'));
+        ctx.fillText(lbl, p.x-6, r.y+r.h+18);
+      }
+      // left axis (v): ticks every 0.2
+      for (let vt=0; vt<=1.0001; vt+=0.2){
+        const p=xyFromSV(0, vt);
+        ctx.beginPath(); ctx.moveTo(r.x-6, p.y); ctx.lineTo(r.x, p.y); ctx.stroke();
+        const lbl = (Math.round(vt*10)/10).toFixed(1);
+        ctx.fillText(lbl, r.x-28, p.y+3);
+      }
+      // choose cps to draw (preview during drag)
+      const cps = cpsSorted(profile.edit || profile.cps);
+      // line
+      ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.beginPath();
+      for(let i=0;i<cps.length;i++){
+        const p=xyFromSV(cps[i].s, cps[i].v);
+        if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      // points
+      const radius = markerRadius();
+      const strokeWidth = Math.max(1, currentDpr());
+      for(let i=0;i<cps.length;i++){
+        const p=xyFromSV(cps[i].s, cps[i].v);
+        ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI*2);
+        ctx.fillStyle = (i===0 || i===cps.length-1) ? '#8ab4f8' : '#ffffff';
+        ctx.fill(); ctx.strokeStyle='rgba(0,0,0,0.6)';
+        ctx.lineWidth = strokeWidth;
+        ctx.stroke();
+      }
+    }
+    function hitTest(x,y){
+      const cps = cpsSorted(profile.edit || profile.cps);
+      const hitR = markerRadius() + 6 * currentDpr();
+      for(let i=0;i<cps.length;i++){
+        const p=xyFromSV(cps[i].s, cps[i].v); const dx=x-p.x, dy=y-p.y;
+        if (dx*dx+dy*dy <= hitR*hitR) return i;
+      }
+      return -1;
+    }
+    function normalizeCps(cps){
+      let maxv=0; for(const c of cps){ if (c.v>maxv) maxv=c.v; }
+      if (maxv<=0) return cps;
+      return cps.map(c=>({s:Math.max(0,Math.min(1,c.s)), v:Math.max(0,Math.min(1, c.v/maxv))}));
+    }
+
+    // pointer interactions
+    let dragging=false, dragIdx=-1, start={s:0,v:0};
+    canvas.addEventListener('pointerdown', function(e){
+      const rect=canvas.getBoundingClientRect();
+      const dpr = canvas.width/rect.width;
+      const x=(e.clientX-rect.left)*dpr, y=(e.clientY-rect.top)*dpr;
+      // begin from committed cps
+      profile.edit = profile.cps.map(c=>({s:c.s, v:c.v}));
+      dragIdx = hitTest(x,y);
+      if (dragIdx===-1){
+        // add new point at click
+        const sv=svFromXY(x,y);
+        profile.edit.push({s:Math.max(0,Math.min(1,sv.s)), v:Math.max(0,Math.min(1,sv.v))});
+        dragIdx = profile.edit.length - 1;
+      }
+      start = {s: profile.edit[dragIdx].s, v: profile.edit[dragIdx].v};
+      dragging=true; try{ canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);}catch(_){ }
+      e.preventDefault(); draw();
+    });
+    canvas.addEventListener('pointermove', function(e){
+      if(!dragging) return; const rect=canvas.getBoundingClientRect(); const dpr = canvas.width/rect.width;
+      const x=(e.clientX-rect.left)*dpr, y=(e.clientY-rect.top)*dpr; const r=plotRect();
+      const inRect = (x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h);
+      // endpoints (s=0 or s=1) lock s
+      const cps = profile.edit; const isEndpoint = (Math.abs(cps[dragIdx].s) < 1e-6) || (Math.abs(cps[dragIdx].s-1) < 1e-6);
+      const sv = svFromXY(x,y);
+      if (isEndpoint){
+        // only v changes while dragging; s snaps back later if out of bounds
+        cps[dragIdx].v = Math.max(0, Math.min(1, sv.v));
+      } else {
+        // free drag
+        cps[dragIdx].s = sv.s; cps[dragIdx].v = sv.v;
+      }
+      draw(); e.preventDefault();
+    });
+    canvas.addEventListener('pointerup', function(e){
+      if(!dragging) return; const rect=canvas.getBoundingClientRect(); const dpr = canvas.width/rect.width;
+      const x=(e.clientX-rect.left)*dpr, y=(e.clientY-rect.top)*dpr; const r=plotRect();
+      const cps = profile.edit; const isEndpoint = (Math.abs(cps[dragIdx].s) < 1e-6) || (Math.abs(cps[dragIdx].s-1) < 1e-6);
+      const flexZone = r.h/2; // allow a bit of leeway outside rect before deleting [px]
+      const inRect = (x>=r.x && x<=r.x+r.w && y+flexZone>=r.y && y-flexZone<=r.y+r.h);
+      if (!isEndpoint && !inRect){
+        // delete dragged point
+        cps.splice(dragIdx,1);
+      } else {
+        // clamp inside; endpoints keep s at 0 or 1
+        if (isEndpoint){ cps[dragIdx].s = (Math.abs(start.s) < 1e-6) ? 0 : 1; cps[dragIdx].v = Math.max(0,Math.min(1,cps[dragIdx].v)); }
+        else { cps[dragIdx].s = Math.max(0,Math.min(1,cps[dragIdx].s)); cps[dragIdx].v = Math.max(0,Math.min(1,cps[dragIdx].v)); }
+      }
+      // keep mandatory endpoints present
+      function ensureEndpoint(sFixed){
+        const idx=cps.findIndex(c=>Math.abs(c.s-sFixed)<1e-6);
+        if (idx<0) cps.push({s:sFixed, v: sFixed<1e-6 ? 0.2 : 1.0});
+      }
+      ensureEndpoint(0); ensureEndpoint(1);
+      // normalize to make max == 1
+      profile.cps = cpsSorted(normalizeCps(cps));
+      profile.edit = null; dragging=false; dragIdx=-1;
+      draw();
+      // apply to simulation (update both views now)
+      renderBF(); updateMinimapLines();
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+  }
+
+  function resizeBF(){
+    if(!bf.renderer) return;
+    const wrap = document.getElementById('bfwrap');
+    const frame = document.getElementById('bfframe');
+    const w = wrap.clientWidth; const h = wrap.clientHeight; const s = Math.floor(Math.min(w,h));
+    // renderer wants an integer square pixel size; create that size but the frame may scale down via CSS when parent smaller
+    bf.renderer.setSize(s, s, false);
+    // set CSS size of frame to match renderer size in CSS pixels (clamped to container)
+    frame.style.width = Math.min(s, wrap.clientWidth) + 'px';
+    frame.style.height = Math.min(s, wrap.clientHeight) + 'px';
+    updateScaleBarWidth();
+  }
+  window.addEventListener('resize', resizeBF);
+
+  // ---------- Scale bar (safe if renderer not yet ready) ----------
+  function updateScaleBarWidth(){
+    const frame = document.getElementById('bfframe');
+    if(!bf.renderer || !bf.renderer.domElement || !frame) return;
+    const bar_um=Number(params.barum); 
+    const px_um=Number(params.px); 
+    const N=parseInt(params.imgN,10);
+    // Use the actual displayed frame width in CSS pixels to compute scale bar width so it sits inside the square image
+    const canvasW = frame.clientWidth || bf.renderer.domElement.clientWidth || bf.renderer.getSize(new THREE.Vector2()).x;
+    const pxPerImgPix = canvasW / Math.max(1, N);
+    const cssW = Math.max(1, Math.round((bar_um/px_um) * pxPerImgPix));
+    document.getElementById('bar').style.width = cssW + 'px';
+    document.getElementById('barlabel').textContent = bar_um + ' μm';
+  }
+
+  // ===== optics helpers =====
+  function makeFFT(n){ 
+    console.log(`Creating FFT object for size ${n}`);
+
+    const fft = new FFT(n); 
+    if (!fft || typeof fft.transform !== 'function') {
+      console.error(`FFT creation failed for size ${n}`);
+      return null;
+    }
+
+    // Create a reusable buffer pool for this FFT size
+    const bufferPool = {
+      workBuf: new Float64Array(n * 2),
+      resultBuf: new Float64Array(n * 2)
+    };
+    
+    return {
+      fft,
+      cpx: () => {
+        // Return a fresh zeroed buffer
+        return new Float64Array(n * 2);
+      },
+      toCpx: (re, im) => {
+        // Zero the work buffer first
+        bufferPool.workBuf.fill(0);
+        
+        // Copy real and imaginary parts with bounds checking
+        const len = Math.min(re.length, n);
+        for(let i = 0; i < len; i++) {
+          bufferPool.workBuf[2*i] = Number.isFinite(re[i]) ? re[i] : 0;
+          bufferPool.workBuf[2*i + 1] = (im && Number.isFinite(im[i])) ? im[i] : 0;
+        }
+        
+        return bufferPool.workBuf;
+      },
+      fwd: (out, inp) => {
+        // Ensure we have valid buffers
+        if (!out || out.length !== n*2 || !inp || inp.length !== n*2) {
+          console.error('Invalid buffer sizes in transform');
+          return;
+        }
+        return fft.transform(out, inp);
+      },
+      inv: (out, inp) => {
+        // Ensure we have valid buffers
+        if (!out || out.length !== n*2 || !inp || inp.length !== n*2) {
+          console.error('Invalid buffer sizes in inverse transform');
+          return;
+        }
+        return fft.inverseTransform(out, inp);
+      }
+    }; 
+  }
+  function fft2D(re,im,n,ft){ 
+    const rRe=new Float64Array(n), rIm=new Float64Array(n); 
+    
+    // First pass - rows
+    for(let y=0;y<n;y++){ 
+        // Extract row
+        for(let x=0;x<n;x++){
+            const i=y*n+x; 
+            rRe[x]=re[i]; rIm[x]=im[i];
+        }
+        
+        const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); 
+        ft.fwd(cout,cin); 
+        
+        // Check output validity
+        let hasInvalid = false;
+        for(let x=0;x<n;x++){
+            if (!Number.isFinite(cout[2*x]) || !Number.isFinite(cout[2*x+1])) {
+                hasInvalid = true;
+                break;
+            }
+        }
+        
+        if (hasInvalid && y === 0) {  // Only log first occurrence to avoid spam
+            console.error(`Forward FFT produced invalid output at row ${y}`);
+            console.log('Input row (re):', Array.from(rRe).map(v => v.toExponential(2)));
+            console.log('Input row (im):', Array.from(rIm).map(v => v.toExponential(2)));
+            console.log('Output:', Array.from(cout).map(v => Number.isFinite(v) ? v.toExponential(2) : 'NaN'));
+        }
+        
+        // Store results
+        for(let x=0;x<n;x++){
+            const i=y*n+x; 
+            re[i]=Number.isFinite(cout[2*x]) ? cout[2*x] : 0;
+            im[i]=Number.isFinite(cout[2*x+1]) ? cout[2*x+1] : 0;
+        }
+    } 
+    
+    // Second pass - columns
+    for(let x=0;x<n;x++){ 
+        for(let y=0;y<n;y++){
+            const i=y*n+x; 
+            rRe[y]=re[i]; rIm[y]=im[i];
+        }
+        
+        const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); 
+        ft.fwd(cout,cin); 
+        
+        // Store results with validation
+        for(let y=0;y<n;y++){
+            const i=y*n+x; 
+            re[i]=Number.isFinite(cout[2*y]) ? cout[2*y] : 0;
+            im[i]=Number.isFinite(cout[2*y+1]) ? cout[2*y+1] : 0;
+        }
+    } 
+  }
+  function ifft2D(re,im,n,ft){ 
+    // Verify input arrays and log their state
+    if (!re || !im || re.length !== n*n || im.length !== n*n) {
+        console.error(`Invalid input arrays: re.length=${re?.length}, im.length=${im?.length}, expected=${n*n}`);
+        return;
+    }
+
+    // Log state of input arrays before any operations
+    let hasNonFinite = false;
+    let firstBadIndex = -1;
+    let firstBadValue = null;
+    for(let i = 0; i < n*n; i++) {
+        if (!Number.isFinite(re[i]) || !Number.isFinite(im[i])) {
+            if (firstBadIndex === -1) {
+                firstBadIndex = i;
+                firstBadValue = `re=${re[i]}, im=${im[i]}`;
+                hasNonFinite = true;
+                break;
+            }
+        }
+    }
+    if (hasNonFinite) {
+        console.error(`Input arrays contain non-finite values at index ${firstBadIndex}: ${firstBadValue}`);
+        // Log the surrounding context
+        const start = Math.max(0, firstBadIndex - 10);
+        const end = Math.min(n*n, firstBadIndex + 10);
+        console.log('Values around bad index (re):', Array.from(re.slice(start, end)).map(v => Number.isFinite(v) ? v.toExponential(2) : 'NaN'));
+        console.log('Values around bad index (im):', Array.from(im.slice(start, end)).map(v => Number.isFinite(v) ? v.toExponential(2) : 'NaN'));
+    }
+    
+    // Create temporary arrays for row/column operations
+    const rRe=new Float64Array(n), rIm=new Float64Array(n);
+    
+    // Verify FFT object and its methods
+    if (!ft || !ft.cpx || !ft.inv) {
+        console.error('Invalid FFT object');
+        return;
+    }
+
+    // First pass - rows
+    for(let y=0;y<n;y++){ 
+        for(let x=0;x<n;x++){
+            const i=y*n+x; rRe[x]=re[i]; rIm[x]=im[i];
+        }
+        
+        const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); 
+        ft.inv(cout,cin); 
+        
+        for(let x=0;x<n;x++){
+            const i=y*n+x; 
+            re[i]=cout[2*x]; 
+            im[i]=cout[2*x+1];
+        } 
+    }
+    
+    // Second pass - columns
+    for(let x=0;x<n;x++){ 
+        for(let y=0;y<n;y++){
+            const i=y*n+x; rRe[y]=re[i]; rIm[y]=im[i];
+        }
+        
+        const cin=ft.toCpx(rRe,rIm), cout=ft.cpx(); 
+        ft.inv(cout,cin); 
+        
+        for(let y=0;y<n;y++){
+            const i=y*n+x; 
+            re[i]=cout[2*y]; 
+            im[i]=cout[2*y+1];
+        } 
+    } 
+  }
+
+  function ensureOptics(N, px_um, lam_um, NA, z0, dn, kappa, R_um){
+    // Only rebuild when any key changes
+    const Rpx = R_um/px_um;
+    const anyKeyChanged = (
+      optics.N!==N || optics.px!==px_um || optics.lam!==lam_um || optics.NA!==NA || optics.Rpx!==Rpx ||
+      optics.mode!==params.mode || optics.pcfrac!==params.pcfrac || optics.pcphi!==params.pcphi || optics.pcalpha!==params.pcalpha || optics.dfinner!==params.dfinner
+    );
+    const needNewH0 = (!optics.H0r || optics.z0!==z0 || optics.lam!==lam_um || optics.NA!==NA || optics.N!==N || optics.px!==px_um);
+
+    if (optics.N!==N) {
+      optics.ft = makeFFT(N);
+    }
+
+    if (anyKeyChanged){
+      optics.N=N; optics.px=px_um; optics.lam=lam_um; optics.NA=NA; optics.Rpx=Rpx;
+      optics.mode=params.mode; optics.pcfrac=params.pcfrac; optics.pcphi=params.pcphi; optics.pcalpha=params.pcalpha; optics.dfinner=params.dfinner;
+      optics.P=new Uint8Array(N*N);
+      optics.Mr=new Float64Array(N*N);
+      optics.Mi=new Float64Array(N*N);
+      optics.f2=new Float64Array(N*N);
+
+      // pupil and freq grid
+      const df=1/(N*px_um); const fc=NA/lam_um;
+      const mode=params.mode||'bf';
+      const pc_frac=(Number(params.pcfrac)||0)/100.0; const pc_phi=Number(params.pcphi)||0; const pc_alpha=Number(params.pcalpha)||0; const df_inner=Number(params.dfinner)||0;
+      for(let y=0;y<N;y++){
+        const ky=(y<=N/2)?y:y-N; const fy=ky*df;
+        for(let x=0;x<N;x++){
+          const kx=(x<=N/2)?x:x-N; const fx=kx*df; const idx=y*N+x; 
+          const f2=fx*fx+fy*fy; optics.f2[idx]=f2;
+          const fmag = Math.sqrt(f2);
+          const w = 2*df; // cosine taper at cutoff
+          let pass = 0; 
+          if (fmag < fc - w) pass = 1; 
+          else if (fmag > fc) pass = 0; 
+          else { const t = (fc - fmag) / w; pass = 0.5 * (1 - Math.cos(Math.PI*t)); }
+
+          // modality mask
+          let m_r = 1.0, m_i = 0.0; // bright-field baseline
+          if (mode==='pc'){
+            const inPlate = (fmag <= pc_frac * fc);
+            if (inPlate){ m_r = pc_alpha*Math.cos(pc_phi); m_i = pc_alpha*Math.sin(pc_phi); }
+          } else if (mode==='df'){
+            if (fmag < df_inner * fc){ m_r = 0.0; m_i = 0.0; }
+          }
+          optics.P[idx]=pass?1:0; optics.Mr[idx]=pass?m_r:0.0; optics.Mi[idx]=pass?m_i:0.0;
+        }
+      }
+      // sphere thickness kernel at center
+      const T = new Float64Array(N*N).fill(0);
+      const cx=N>>1, cy=N>>1; const R2=Rpx*Rpx;
+      for(let y=0;y<N;y++){
+        for(let x=0;x<N;x++){
+          const dx=x-cx, dy=y-cy; const r2=dx*dx+dy*dy;
+          if (r2<=R2){ const t_um = 2*Math.sqrt(R2 - r2) * (px_um); T[y*N+x] = t_um; }
+        }
+      }
+      let FTtRe=T.slice(0), FTtIm=new Float64Array(N*N);
+      fft2D(FTtRe, FTtIm, N, optics.ft);
+      // rotate to account for kernel centered at (cx,cy)
+      for (let y=0;y<N;y++){
+        const ky=(y<=N/2)?y:y-N; for (let x=0;x<N;x++){
+          const kx=(x<=N/2)?x:x-N; const idx=y*N+x; const ang=2*Math.PI*((kx*cx + ky*cy)/N); const cr=Math.cos(ang), ci=Math.sin(ang); const ar=FTtRe[idx], ai=FTtIm[idx];
+          FTtRe[idx]=ar*cr - ai*ci; FTtIm[idx]=ar*ci + ai*cr;
+        }
+      }
+      optics.FTtRe = FTtRe; optics.FTtIm = FTtIm;
+    }
+
+    if (needNewH0){
+      optics.z0=z0; optics.lam=lam_um; optics.NA=NA; optics.N=N; optics.px=px_um;
+      optics.H0r=new Float64Array(N*N); optics.H0i=new Float64Array(N*N);
+      for(let i=0;i<N*N;i++){ 
+        const ph0=Math.PI*lam_um*z0*optics.f2[i]; 
+        optics.H0r[i]=Math.cos(ph0); 
+        optics.H0i[i]=Math.sin(ph0); 
+      }
+    }
+    // store dn,kappa for completeness
+    optics.dn = dn; optics.kappa = kappa;
+  }
+
+  // ===== orientation mapping (use azimuth/elevation to rotate sample relative to optical axis) =====
+  function computeRotationMatrix(azDeg, elDeg){
+    // Build world->camera rotation so that the optical axis (+Z camera) matches
+    // the minimap camera view defined by azimuth/elevation.
+    const az = azDeg * Math.PI/180, el = elDeg * Math.PI/180;
+    // Camera position on unit sphere; view direction points to origin → forward = -pos
+    const cx = Math.cos(el) * Math.cos(az);
+    const cy = Math.cos(el) * Math.sin(az);
+    const cz = Math.sin(el);
+    // forward vector (camera looking towards origin)
+    let fx = -cx, fy = -cy, fz = -cz;
+    const fl = Math.hypot(fx,fy,fz) || 1; fx/=fl; fy/=fl; fz/=fl;
+    // choose an up reference; avoid degeneracy when forward ~ up
+    const upRef0 = [0,1,0];
+    const dotFU = fx*upRef0[0] + fy*upRef0[1] + fz*upRef0[2];
+    const upRef = (Math.abs(dotFU) > 0.98) ? [0,0,1] : upRef0;
+    // right = normalize(cross(forward, upRef)) to keep handedness and left/right sense
+    let rx = fy*upRef[2] - fz*upRef[1];
+    let ry = fz*upRef[0] - fx*upRef[2];
+    let rz = fx*upRef[1] - fy*upRef[0];
+    const rl = Math.hypot(rx,ry,rz) || 1; rx/=rl; ry/=rl; rz/=rl;
+    // true up = cross(right, forward)
+    const ux = ry*fz - rz*fy;
+    const uy = rz*fx - rx*fz;
+    const uz = rx*fy - ry*fx;
+    // World → camera rotation matrix with rows = basis vectors (right, up, forward)
+    return [ [rx, ry, rz], [ux, uy, uz], [fx, fy, fz] ];
+  }
+  function transformPoint(R, x,y,z){ return [ R[0][0]*x + R[0][1]*y + R[0][2]*z, R[1][0]*x + R[1][1]*y + R[1][2]*z, R[2][0]*x + R[2][1]*y + R[2][2]*z ]; }
+
+  // ===== build scatterers from cilia centerlines =====
+  var xTmp = new Float32Array(4096), zTmp = new Float32Array(4096);
+  var xTmpVel = new Float32Array(4096), zTmpVel = new Float32Array(4096);
+  function collectSpheres(opts={}){
+    // Bead sampling along centerline should be set by optical bandwidth, not bead diameter.
+    // Coherent cutoff f_c ≈ NA/λ → characteristic length λ/NA; we sample at a fraction c of that.
+    // Also cap spacing by a pixel-based criterion to avoid excessive sampling when px is small.
+    // Effective step: sStep = min(c * λ/NA, pPix * px_um) / cilRes
+    const dt = Math.max(0, Number(opts.dt) || 0);
+    const computeVel = dt > 0;
+    const invDt = computeVel ? (1 / dt) : 0;
+    const resScale = Math.max(0.01, Number(params.cilRes || 1));
+    const lam_um = Math.max(1e-9, Number(params.lambda) * 1e-3);
+    const NA = Math.max(1e-6, Number(params.NA) || 0.1);
+    const px_um = Math.max(1e-9, Number(params.px) || 0.1);
+    const cFrac = 0.55;   // fraction of λ/NA yielding smooth results
+    const pPix = 5.0; // aim for ≤5 pixels between beads (at most)
+    const sNA = cFrac * (lam_um / NA);
+    const sPix = pPix * px_um;
+    const sBase = Math.min(sNA, sPix);
+    const rot = computeCameraAxesFromQuat(sim.q);
+    const camera = [];
+    const world = [];
+    const velocity = [];
+    for(let k=0;k<sim.total;k++){
+      if (!sim.isCiliated || !sim.isCiliated[k]) continue;
+      const tFrac = (sim.tNow * sim.ciliaFreq[k] + sim.initPhase[k]) % 1.0;
+      const A0scale = sim.ampScale[k]; const L = sim.ciliaLen[k];
+      const sStep = Math.max(1e-6, sBase / resScale);
+      const Nbead = Math.max(3, Math.ceil(L / sStep));
+      if (xTmp.length < Nbead){ xTmp = new Float32Array(Nbead); zTmp = new Float32Array(Nbead); }
+      if (xTmpVel.length < Nbead){ xTmpVel = new Float32Array(Nbead); zTmpVel = new Float32Array(Nbead); }
+      centerlineFromCurvatureN(Nbead, tFrac, A0scale, L, xTmp, zTmp);
+      let tFracNext = tFrac;
+      if (computeVel){
+        const freq = Math.max(0, sim.ciliaFreq[k]);
+        tFracNext = (tFrac + (dt * freq)) % 1.0;
+        centerlineFromCurvatureN(Nbead, tFracNext, A0scale, L, xTmpVel, zTmpVel);
+      }
+      const a = sim.beatAngle[k]; const sAng = Math.sin(a), cAng = Math.cos(a);
+      const bx = sim.cx[k], by = sim.cy[k], bz = sim.cz[k];
+      for(let i=0;i<Nbead;i++){
+        const xL = xTmp[i], zL = zTmp[i];
+        const xw = xL * cAng + bx;
+        const yw = -xL * sAng + by;
+        const zw = zL + bz;
+        let vx = 0, vy = 0, vz = 0;
+        if (computeVel){
+          const xLn = xTmpVel[i], zLn = zTmpVel[i];
+          const xwn = xLn * cAng + bx;
+          const ywn = -xLn * sAng + by;
+          const zwn = zLn + bz;
+          vx = (xwn - xw) * invDt;
+          vy = (ywn - yw) * invDt;
+          vz = (zwn - zw) * invDt;
+        }
+        world.push(xw, yw, zw);
+        velocity.push(vx, vy, vz);
+        const p = transformPoint(rot, xw, yw, zw);
+        camera.push({x:p[0], y:p[1], z:p[2]});
+      }
+    }
+    if (tracer.active){
+      const p = transformPoint(rot, tracer.pos.x, tracer.pos.y, tracer.pos.z);
+      camera.push({x:p[0], y:p[1], z:p[2], tracer:true});
+    }
+    return {
+      camera,
+      world: Float64Array.from(world),
+      velocity: Float64Array.from(velocity)
+    };
+  }
+
+  function ensureTracerMesh(){
+    if (!sim.scene) return;
+    if (!tracer.mesh){
+      const geom = new THREE.SphereGeometry(1, 24, 24);
+      const mat = new THREE.MeshStandardMaterial({ color:0xffcc66, emissive:0x332200, roughness:0.35, metalness:0.08 });
+      tracer.mesh = new THREE.Mesh(geom, mat);
+      tracer.mesh.visible = false;
+      sim.scene.add(tracer.mesh);
+    } else if (tracer.mesh.parent !== sim.scene){
+      sim.scene.add(tracer.mesh);
+    }
+    const r = Math.max(0.05, Number(params.tracerRadius) || 0.6);
+    tracer.mesh.scale.set(r, r, r);
+  }
+
+  function updateTracerVisual(){
+    if (!sim.scene) return;
+    ensureTracerMesh();
+    if (!tracer.mesh) return;
+    tracer.mesh.visible = tracer.active;
+    if (!tracer.active) return;
+    tracer.mesh.position.set(tracer.pos.x, tracer.pos.y, tracer.pos.z - sim.czCenterZ);
+    tracer.mesh.updateMatrixWorld();
+  }
+
+  function solveWorldFromCamera(xCam, yCam, worldZ){
+    const rot = computeCameraAxesFromQuat(sim.q);
+    const r = rot[0], u = rot[1];
+    const b1 = xCam - r[2]*worldZ;
+    const b2 = yCam - u[2]*worldZ;
+    const det = r[0]*u[1] - r[1]*u[0];
+    if (Math.abs(det) < 1e-8){
+      return { x:0, y:0, z:worldZ };
+    }
+    const x = (b1*u[1] - r[1]*b2) / det;
+    const y = (r[0]*b2 - b1*u[0]) / det;
+    return { x, y, z:worldZ };
+  }
+
+  function placeTracerAtCamera(xCam, yCam){
+    const wall = sim.czCenterZ || 0;
+    const height = Math.max(0.05, Number(params.tracerHeight) || 0.5);
+    const world = solveWorldFromCamera(xCam, yCam, wall + height);
+    tracer.pos.set(world.x, world.y, world.z);
+    tracer.vel.set(0,0,0);
+    tracer.active = true;
+    updateTracerVisual();
+    renderBF();
+    updateMinimapLines();
+  }
+
+  function handleTracerPointer(ev){
+    const canvas = bf.renderer && bf.renderer.domElement;
+    if (!canvas) return;
+    const isTouch = ev.pointerType === 'touch';
+    const isPrimary = (typeof ev.button === 'undefined') || ev.button === 0;
+    let shouldPlace = false;
+    if (isTouch){
+      const now = performance.now();
+      shouldPlace = (now - tracer.lastTouch) < 350;
+      tracer.lastTouch = now;
+    } else if (tracer.armKey && isPrimary){
+      shouldPlace = true;
+    }
+    if (!shouldPlace) return;
+    const rect = canvas.getBoundingClientRect();
+    const u = (ev.clientX - rect.left) / rect.width;
+    const v = (ev.clientY - rect.top) / rect.height;
+    if (u < 0 || u > 1 || v < 0 || v > 1) return;
+    const N = Math.max(1, params.imgN|0);
+    const cx = N / 2;
+    const cy = N / 2;
+    const panX = params.panX || 0;
+    const panY = params.panY || 0;
+    const px_um = Number(params.px) || 0.1;
+    const xi = u * N;
+    const yi = v * N;
+    const xCam = (xi - panX - cx) * px_um;
+    const yCam = (yi - panY - cy) * px_um;
+    placeTracerAtCamera(xCam, yCam);
+    ev.preventDefault();
+  }
+
+  function advectTracer(dt, beadData){
+    if (!tracer.active) return;
+    if (!beadData || !beadData.world || beadData.world.length === 0) {
+      tracer.vel.set(0,0,0);
+      return;
+    }
+    const worldArr = beadData.world;
+    const velArr = beadData.velocity || new Float64Array(worldArr.length);
+    const beadCount = Math.floor(worldArr.length / 3);
+    if (beadCount === 0) return;
+    const mu = Math.max(1e-6, Number(params.fluidVisc) * 1e-3);
+    const eps = Math.max(1e-9, Number(params.regEps) * 1e-6);
+    const a = Math.max(1e-9, Number(params.cilRadius) * 1e-6);
+    const coeff = 6 * Math.PI * mu * a;
+    const X = new Float64Array(beadCount * 3);
+    const F = new Float64Array(beadCount * 3);
+    const wall = sim.czCenterZ || 0;
+    for (let i=0;i<beadCount;i++){
+      const b = i*3;
+      const wx = worldArr[b];
+      const wy = worldArr[b+1];
+      const wz = worldArr[b+2];
+      const height = Math.max(1e-6, wz - wall);
+      X[b+0] = height * 1e-6;
+      X[b+1] = wx * 1e-6;
+      X[b+2] = wy * 1e-6;
+      const vx = (velArr[b] || 0) * 1e-6;
+      const vy = (velArr[b+1] || 0) * 1e-6;
+      const vz = (velArr[b+2] || 0) * 1e-6;
+      F[b+0] = coeff * vz;
+      F[b+1] = coeff * vx;
+      F[b+2] = coeff * vy;
+    }
+    const tracerHeight = Math.max(1e-6, tracer.pos.z - wall);
+    const Xq = new Float64Array([
+      tracerHeight * 1e-6,
+      tracer.pos.x * 1e-6,
+      tracer.pos.y * 1e-6
+    ]);
+    const vel = stokesletWithWall(Xq, X, F, eps);
+    const scale = 1e6 / mu;
+    tracer.vel.set(vel[1]*scale, vel[2]*scale, vel[0]*scale);
+    tracer.pos.x += tracer.vel.x * dt;
+    tracer.pos.y += tracer.vel.y * dt;
+    tracer.pos.z = wall + Math.max(1e-6, tracerHeight + tracer.vel.z * dt);
+    updateTracerVisual();
+  }
+
+  // ===== BF render (coherent BF) =====
+  function renderBF(beadCache){
+    const t0 = performance.now();
+    const N = snapPow2(params.imgN|0); params.imgN = N; setVal('imgNv', N);
+    const px_um = Number(params.px); setVal('pxv', px_um);
+    const lam_um = Number(params.lambda) * 1e-3; setVal('lambdav', params.lambda);
+    const NA = Number(params.NA); setVal('NAv', NA);
+    const z0 = Number(params.z0); setVal('z0v', z0);
+    const dn = Number(params.dn); setVal('dnv', dn);
+    const kappa = Number(params.kappa); setVal('kappav', kappa);
+    const cohI = Number(params.cohI); setVal('cohIv', cohI);
+    const bar_um = Math.max(1, Math.min(100, Math.round(Number(params.barum)))); params.barum = bar_um; setVal('barumv', bar_um);
+    const R_um = Number(params.cilRadius); setVal('cilRadiusv', R_um); setVal('cilResv', params.cilRes);
+
+    ensureOptics(N, px_um, lam_um, NA, z0, dn, kappa, R_um);
+
+    // Collect scatterer positions in image pixel coords, z in μm (optical axis)
+    const data = beadCache || collectSpheres();
+    const beads = data.camera;
+    const beadCount = beads.length;
+    // Map to pixel coords (center = N/2)
+    const cx = N>>1, cy = N>>1;
+    // Precompute un-panned pixel coords to determine auto-centering default
+    const xi0 = new Float64Array(beadCount);
+    const yi0 = new Float64Array(beadCount);
+    const zi = new Float64Array(beadCount);
+    for(let i=0;i<beadCount;i++){
+      xi0[i] = beads[i].x / px_um + cx;
+      yi0[i] = beads[i].y / px_um + cy;
+      zi[i] = beads[i].z; // already μm from geometric units assumption
+    }
+
+    // Auto-center once at boot to make bundle appear centered for initial az,el
+    if (!sim.panInited && beadCount>0){
+      let mx=0, my=0; for(let i=0;i<beadCount;i++){ mx += xi0[i]; my += yi0[i]; }
+      mx /= beadCount; my /= beadCount;
+      params.panX = Math.round(cx - mx);
+      params.panY = Math.round(cy - my);
+      sim.panInited = true;
+    }
+    // Apply 2D pan (in pixels)
+    const xi = new Float64Array(beadCount);
+    const yi = new Float64Array(beadCount);
+    for(let i=0;i<beadCount;i++){
+      xi[i] = xi0[i] + (params.panX||0);
+      yi[i] = yi0[i] + (params.panY||0);
+    }
+
+    const FRe=new Float64Array(N*N), FIm=new Float64Array(N*N);
+    // DC baseline (FFT of all-ones)
+    FRe[0]=N*N;
+
+    const FTtRe = optics.FTtRe, FTtIm=optics.FTtIm; const P=optics.P, f2=optics.f2;
+    for (let y=0; y<N; y++){
+      const ky = (y <= N/2) ? y : y - N;
+      for (let x=0; x<N; x++){
+        const kx = (x <= N/2) ? x : x - N; const idx = y*N + x;
+        if (P[idx]===0) continue;
+        let Sr=0, Si=0;
+        for (let j=0;j<xi.length;j++){
+          const ang = -2 * Math.PI * ((kx*xi[j] + ky*yi[j]) / N);
+          const sh_r = Math.cos(ang), sh_i = Math.sin(ang);
+          const ph = Math.PI * lam_um * zi[j] * f2[idx];
+          const hz_r = Math.cos(ph),   hz_i = Math.sin(ph);
+          const tr = sh_r*hz_r - sh_i*hz_i; // combine
+          const ti = sh_r*hz_i + sh_i*hz_r;
+          const A_r = FTtRe[idx]*tr - FTtIm[idx]*ti;
+          const A_i = FTtRe[idx]*ti + FTtIm[idx]*tr;
+          // weak-object coefficient β = (-α/2) + i k0 Δn
+          const k0 = 2*Math.PI / lam_um; const alpha = 4*Math.PI * kappa / lam_um;
+          const beta_r = -0.5 * alpha; const beta_i = k0 * dn;
+          Sr += beta_r*A_r - beta_i*A_i;
+          Si += beta_r*A_i + beta_i*A_r;
+        }
+        FRe[idx] += Sr; FIm[idx] += Si;
+      }
+    }
+
+    // Apply common defocus and modality (brightfield → Mr=1 inside pupil)
+    const H0r=optics.H0r, H0i=optics.H0i, Mr=optics.Mr, Mi=optics.Mi;
+    for(let i=0;i<FRe.length;i++){
+      if (P[i]===0){ FRe[i]=0; FIm[i]=0; continue; }
+      const h_r = H0r[i]*Mr[i] - H0i[i]*Mi[i];
+      const h_i = H0r[i]*Mi[i] + H0i[i]*Mr[i];
+      const ar=FRe[i], ai=FIm[i];
+      FRe[i]=ar*h_r - ai*h_i; FIm[i]=ar*h_i + ai*h_r;
+    }
+
+    const uRe=FRe.slice(0), uIm=FIm.slice(0);
+    
+    // Find max magnitude for scaling
+    let maxF=0, minF=Infinity;
+    for(let i=0;i<FRe.length;i++) {
+        const mag = Math.sqrt(FRe[i]*FRe[i] + FIm[i]*FIm[i]);
+        if (Number.isFinite(mag)) {
+            if (mag > maxF) maxF = mag;
+            if (mag < minF) minF = mag;
+        }
+    }
+
+    // Pre-scale to avoid numerical precision issues
+    const preScale = maxF > 0 ? 1.0 / maxF : 1.0;  // Normalize largest component to ~1, handle zero case
+    for(let i=0; i<uRe.length; i++) {
+        uRe[i] *= preScale;
+        uIm[i] *= preScale;
+    }
+    
+    ifft2D(uRe,uIm,N,optics.ft);
+    
+    // Compensate for pre-scaling
+    for(let i=0; i<uRe.length; i++) {
+        uRe[i] /= preScale;
+        uIm[i] /= preScale;
+    }
+    
+    // Debug: Check raw IFFT output
+    {
+        let maxV=0, minV=Infinity;
+        let hasNonZero = false;
+        for(let i=0;i<uRe.length;i++) {
+            if (uRe[i] !== 0 || uIm[i] !== 0) hasNonZero = true;
+            const mag = Math.sqrt(uRe[i]*uRe[i] + uIm[i]*uIm[i]);
+            if (Number.isFinite(mag)) {
+                if (mag > maxV) maxV = mag;
+                if (mag < minV) minV = mag;
+            }
+        }
+      }
+    const norm=Math.sqrt(cohI);
+    const I = new Float32Array(N*N);
+    for(let i=0;i<uRe.length;i++){
+      let re = uRe[i]*norm;
+      let im = uIm[i]*norm;
+      if (!Number.isFinite(re)) re = 0;
+      if (!Number.isFinite(im)) im = 0;
+      let v = re*re + im*im;
+      if (!Number.isFinite(v)) v = 0;
+      I[i] = v;
+    }
+
+    // Normalize to display range
+    let maxI=0; for(let i=0;i<I.length;i++){ const v=I[i]; if (Number.isFinite(v) && v>maxI) maxI = v; }
+    if (!(maxI>0)) { // fallback to DC brightness to avoid black frame
+      for (let i=0;i<I.length;i++) I[i] = 1;
+      maxI = 1;
+    }
+    const scale = 255;
+    const rgba = new Uint8Array(4*N*N);
+    for(let i=0;i<I.length;i++){ const v=Math.min(255, Math.max(0, Math.round(I[i]*scale))); const j=i<<2; rgba[j]=v; rgba[j+1]=v; rgba[j+2]=v; rgba[j+3]=255; }
+
+    // Present texture (reuse DataTexture)
+    if (!bf.tex || bf.texSize !== N){ bf.tex = new THREE.DataTexture(new Uint8Array(4*N*N), N, N, THREE.RGBAFormat); bf.tex.needsUpdate=true; bf.texSize=N; bf.quad.material.map=bf.tex; bf.quad.material.needsUpdate=true; }
+    bf.tex.image.data.set(rgba); bf.tex.needsUpdate=true; bf.renderer.render(bf.scene, bf.cam);
+    // store for snapshot save
+    bf.savePixels = new Uint8ClampedArray(rgba); // copy
+    bf.saveSize = N;
+
+    const t1 = performance.now();
+    const ciliaBeads = data.world ? Math.round(data.world.length / 3) : Math.max(0, beadCount - (tracer.active ? 1 : 0));
+    const tracerCount = tracer.active ? 1 : 0;
+    const statsEl = document.getElementById('stats'); if (statsEl) statsEl.textContent = `N=${N}  px=${px_um.toFixed(3)} μm  λ=${(lam_um*1e3).toFixed(0)} nm  NA=${NA.toFixed(2)}  z0=${z0.toFixed(2)} μm  pan=(${params.panX|0},${params.panY|0}) px\nspots=${sim.total}, cilia=${sim.totalCiliated}, beads=${ciliaBeads}, tracer=${tracerCount}: render ${(t1-t0).toFixed(1)} ms`;
+
+    updateScaleBarWidth();
+  }
+
+  // ===== animation =====
+  var lastT = performance.now(); var acc = 0;
+
+  function loop(now){
+    requestAnimationFrame(loop);
+    var dt = (now - lastT) / 1000; lastT = now; acc += dt;
+    if (sim.isPlaying){
+      if (acc >= 0.016){
+        acc = 0;
+        const dtSim = 0.02;
+        sim.tNow += dtSim;
+        if (sim.tNow > 10) sim.tNow -= 10;
+        const beadData = collectSpheres({ dt: dtSim });
+        if (tracer.active){
+          advectTracer(dtSim, beadData);
+          if (beadData && Array.isArray(beadData.camera)){
+            const rot = computeCameraAxesFromQuat(sim.q);
+            const p = transformPoint(rot, tracer.pos.x, tracer.pos.y, tracer.pos.z);
+            const idx = beadData.camera.length - 1;
+            if (idx >= 0 && beadData.camera[idx] && beadData.camera[idx].tracer){
+              beadData.camera[idx].x = p[0];
+              beadData.camera[idx].y = p[1];
+              beadData.camera[idx].z = p[2];
+            } else {
+              beadData.camera.push({ x:p[0], y:p[1], z:p[2], tracer:true });
+            }
+          }
+        }
+        renderBF(beadData);
+        updateMinimapLines();
+        updateTracerVisual();
+      }
+    }
+    if (bf.renderer) bf.renderer.render(bf.scene, bf.cam);
+    if (sim.renderer) {
+      sim.renderer.render(sim.scene, sim.camera); renderAxisGizmo();
+    }
+    if (!sim.isPlaying) updateTracerVisual();
+  }
+
+  function updateMinimapLines(){
+    var n = sim.total, nC = sim.nLineSeg, i, j;
+    var xLine = new Float32Array(nC), zLine = new Float32Array(nC);
+    for(let k=0;k<n;k++){
+      var visible = !sim.isCiliated || sim.isCiliated[k];
+      var line = sim.lines[k]; if (!line) continue; line.visible = visible; if (!visible) continue;
+      var tFrac = (sim.tNow * sim.ciliaFreq[k] + sim.initPhase[k]) % 1.0;
+      var A0scale = sim.ampScale[k]; var L = sim.ciliaLen[k];
+      centerlineFromCurvatureN(nC, tFrac, A0scale, L, xLine, zLine);
+      var pos = line.geometry.attributes.position.array;
+      var a = sim.beatAngle[k]; var s = Math.sin(a), c = Math.cos(a);
+      for(i=0;i<nC;i++){
+        var j3 = i*3; var xp0 = xLine[i], zp0 = zLine[i];
+        var xc = xp0 * c + sim.cx[k];
+        var yc = -xp0 * s + sim.cy[k];
+        // For the minimap, recentre along Z by subtracting the bundle's mean cz
+        var zc = zp0 + sim.cz[k] - sim.czCenterZ;
+        pos[j3+0] = xc; pos[j3+1] = yc; pos[j3+2] = zc;
+      }
+      line.geometry.attributes.position.needsUpdate = true;
+    }
+  }
+
+  function replot(){
+    generateGrid();
+    reseedRandomFields();
+    buildLines();
+    updateAxes();
+    renderBF();
+    updateMinimapLines();
+    updateTracerVisual();
+  }
+
+  function onParamChange(key){
+    var gridKeys = { nX:1,nY:1,density:1,coverage:1,patchlength:1,crystalline:1,patchorder:1 };
+    if (gridKeys[key]) { replot(); return; }
+    if (key==='waveAmp' || key==='waveAngle' || key==='waveNoise') {
+      sim.initPhase = getWave(params.waveAmp, params.waveAngle, params.waveNoise, sim.cx, sim.cy, sim.xSize, sim.ySize);
+    }
+    if (key==='ampMean' || key==='ampStd' || key==='lengthMean' || key==='lengthStd' || key==='cbfMean' || key==='cbfStd' || key==='angleMean' || key==='angleStd') {
+      reseedRandomFields();
+      if (key==='lengthMean') updateAxes();
+    }
+    if (key==='azimuth' || key==='elevation') { updateCameraFromParams(); }
+    if (key==='tracerRadius') { ensureTracerMesh(); updateTracerVisual(); }
+    if (key==='tracerHeight') {
+      tracer.pos.z = sim.czCenterZ + Number(params.tracerHeight || 0);
+      tracer.vel.set(0,0,0);
+      if (tracer.active) updateTracerVisual();
+    }
+    renderBF();
+    updateMinimapLines();
+  }
+
+  function adjustDefocus(delta){
+    const slider = document.getElementById('z0');
+    if (!slider) return;
+    const step = Math.abs(parseFloat(slider.step)) || 0.01;
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    let next = Number(params.z0) + Number(delta || 0);
+    if (Number.isFinite(min)) next = Math.max(min, next);
+    if (Number.isFinite(max)) next = Math.min(max, next);
+    next = Math.round(next / step) * step;
+    next = Number(next.toFixed(4));
+    if (Math.abs(next - Number(params.z0)) < 1e-9) return;
+    params.z0 = next;
+    slider.value = String(next);
+    setVal('z0v', next);
+    onParamChange('z0');
+  }
+
+  function bindSlider(id, key){
+    var el = document.getElementById(id); if (!el) return;
+    el.oninput = function(){
+      var v = (id==='waveAngle') ? (parseFloat(el.value)*Math.PI/180) : parseFloat(el.value);
+      if (id==='imgN') v = snapPow2(v|0); params[key] = v;
+      setVal(id+'v', (id==='waveAngle') ? Math.round(parseFloat(el.value)) : v); 
+      onParamChange(key); 
+    };
+  }
+
+  function attachUI(){
+    var ids = [
+      ['nX','nX'], ['nY','nY'], ['density','density'],
+      ['k0','k0'], ['aK','aK'], ['ampMean','ampMean'], ['ampStd','ampStd'],
+      ['lengthMean','lengthMean'], ['lengthStd','lengthStd'],
+      ['cbfMean','cbfMean'], ['cbfStd','cbfStd'],
+      ['coverage','coverage'], ['patchlength','patchlength'], ['crystalline','crystalline'], ['patchorder','patchorder'],
+      ['waveAmp','waveAmp'], ['waveAngle','waveAngle'], ['waveNoise','waveNoise'],
+      ['angleMean','angleMean'], ['angleStd','angleStd'],
+      ['azimuth','azimuth'], ['elevation','elevation'],
+      // BF + optics
+      ['imgN','imgN'], ['px','px'], ['lambda','lambda'], ['NA','NA'], ['z0','z0'], ['cilRes','cilRes'], ['cilRadius','cilRadius'], ['dn','dn'], ['kappa','kappa'], ['cohI','cohI'], ['barum','barum'],
+      // PC/DF params
+      ['pcfrac','pcfrac'], ['pcphi','pcphi'], ['pcalpha','pcalpha'], ['dfinner','dfinner'],
+      ['fluidVisc','fluidVisc'], ['tracerRadius','tracerRadius'], ['tracerHeight','tracerHeight'], ['regEps','regEps']
+    ];
+    for (var i=0;i<ids.length;i++) bindSlider(ids[i][0], ids[i][1]);
+
+    var modeEl = document.getElementById('mode');
+    if (modeEl){ modeEl.onchange = function(){ params.mode = modeEl.value; updateModeVisibility(); renderBF(); }; }
+
+    // D‑pad controls for BF panning (pixel units). Hold Shift for x5 step.
+    function panStep(ev){ return (ev && ev.shiftKey) ? 50 : 10; }
+    var btnUp=document.getElementById('panUp');
+    var btnDown=document.getElementById('panDown');
+    var btnLeft=document.getElementById('panLeft');
+    var btnRight=document.getElementById('panRight');
+    var btnCenter=document.getElementById('panCenter');
+    if (btnUp) btnUp.addEventListener('click', ev=>{ params.panY -= panStep(ev); renderBF(); });
+    if (btnDown) btnDown.addEventListener('click', ev=>{ params.panY += panStep(ev); renderBF(); });
+    if (btnLeft) btnLeft.addEventListener('click', ev=>{ params.panX += panStep(ev); renderBF(); });
+    if (btnRight) btnRight.addEventListener('click', ev=>{ params.panX -= panStep(ev); renderBF(); });
+    if (btnCenter) btnCenter.addEventListener('click', ()=>{ sim.panInited=false; renderBF(); });
+
+    const navNote = document.getElementById('ciliaNavNote');
+    if (navNote) {
+      const closeBtn = navNote.querySelector('[data-close]');
+      closeBtn && closeBtn.addEventListener('click', () => navNote.remove());
+    }
+
+    // Keyboard Arrow support for panning (Shift = x5) and Space to toggle play/pause
+    document.addEventListener('keydown', (e)=>{
+      const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+      const typing = tag==='input' || tag==='textarea' || (e.target && e.target.isContentEditable);
+      if (typing) return;
+      const step = e.shiftKey ? 50 : 10;
+      if (e.key === 'ArrowUp'){ params.panY -= step; renderBF(); e.preventDefault(); }
+      else if (e.key === 'ArrowDown'){ params.panY += step; renderBF(); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft'){ params.panX += step; renderBF(); e.preventDefault(); }
+      else if (e.key === 'ArrowRight'){ params.panX -= step; renderBF(); e.preventDefault(); }
+      else if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar'){
+        if (e.repeat) return; // avoid rapid toggling when held
+        var btn = document.getElementById('playPause');
+        if (btn){ e.preventDefault(); btn.click(); }
+      }
+    });
+
+    window.addEventListener('keydown', (e)=>{
+      if ((e.key === 't' || e.key === 'T') && !e.repeat) tracer.armKey = true;
+    });
+    window.addEventListener('keyup', (e)=>{
+      if (e.key === 't' || e.key === 'T') tracer.armKey = false;
+    });
+    window.addEventListener('blur', ()=>{ tracer.armKey = false; });
+
+    document.getElementById('playPause').onclick = function(){
+      sim.isPlaying = !sim.isPlaying;
+      document.getElementById('playPause').textContent = sim.isPlaying ? 'Pause' : 'Play';
+    };
+    // Snapshot (PNG)
+    (function(){
+      var saveBtn = document.getElementById('save');
+      if (!saveBtn) return;
+      function fmtNum(x, p){
+        var n = Number(x);
+        if (!isFinite(n)) return String(x);
+        var places = (typeof p==='number') ? p : (Math.abs(n) >= 10 ? 2 : 2);
+        return n.toFixed(places);
+      }
+      function buildFilename(){
+        // lattice and patching
+        var s1 = `nX${params.nX}nY${params.nY}d${fmtNum(params.density)}CR${fmtNum(params.coverage)}PL${fmtNum(params.patchlength)}CO${fmtNum(params.crystalline)}PO${fmtNum(params.patchorder)}`;
+        // size
+        var s2 = `_Lm${fmtNum(params.lengthMean)}std${fmtNum(params.lengthStd)}R${fmtNum(params.cilRadius)}`;
+        // kinematics
+        var s3 = `_k0${fmtNum(params.k0)}a0${fmtNum(params.aK)}Am${fmtNum(params.ampMean)}std${fmtNum(params.ampStd)}`;
+        // frequency
+        var s4 = `_CBFm${fmtNum(params.cbfMean)}std${fmtNum(params.cbfStd)}`;
+        // wave
+        var wDeg = Math.round((Number(params.waveAngle)||0) * 180/Math.PI);
+        var s5 = `_wAmp${fmtNum(params.waveAmp)}wAng${wDeg}wN${fmtNum(params.waveNoise)}`;
+        // orientation
+        var s6 = `_BAm${fmtNum(params.angleMean)}std${fmtNum(params.angleStd)}`;
+        // amplitude control list
+        var cps = (profile && Array.isArray(profile.cps)) ? profile.cps.slice().sort((a,b)=>a.s-b.s) : [];
+        var actl = '_Actl' + (cps.length? cps.map(c=>`(s${fmtNum(c.s)},a${fmtNum(c.v)})`).join('') : '(s0.00,a0.20)(s1.00,a1.00)');
+        return s1 + s2 + s3 + s4 + s5 + s6 + actl + '.png';
+      }
+      function doSave(){
+        // Prefer last computed RGBA buffer to avoid WebGL readbacks
+        var N = bf.saveSize|0; var px = bf.savePixels;
+        if (!N || !px || px.length !== 4*N*N){ return; }
+        var c = document.createElement('canvas');
+        c.width = N; c.height = N;
+        var ctx = c.getContext('2d', { alpha:false });
+        // WebGL/texture data uses bottom-left origin; Canvas ImageData expects top-left origin.
+        // Flip rows vertically so saved PNG matches on-screen orientation.
+        var rowBytes = 4*N;
+        var flipped = new Uint8ClampedArray(4*N*N);
+        for (var y=0; y<N; y++){
+          var srcStart = (N-1-y) * rowBytes;
+          var dstStart = y * rowBytes;
+          flipped.set(px.subarray(srcStart, srcStart + rowBytes), dstStart);
+        }
+        var img = new ImageData(flipped, N, N);
+        ctx.putImageData(img, 0, 0);
+        var a = document.createElement('a');
+        a.download = buildFilename();
+        a.href = c.toDataURL('image/png');
+        a.click();
+      }
+      saveBtn.addEventListener('click', doSave);
+    })();
+    // panel collapse/expand toggle
+    var toggleBtn = document.getElementById('togglePanel');
+    if (toggleBtn){
+      toggleBtn.onclick = function(){
+        var app = document.querySelector('.app');
+        if (!app) return;
+        app.classList.toggle('collapsed');
+        var collapsed = app.classList.contains('collapsed');
+        // update icon (show >> when collapsed)
+        toggleBtn.textContent = collapsed ? '>>' : '<<';
+        // ensure canvases resize to fill new layout
+        setTimeout(resizeBF, 50);
+        if (sim.renderer) { sim.renderer.setSize((document.getElementById('threeMini').clientWidth||240), (document.getElementById('threeMini').clientHeight||180)); }
+        var kappaBox = document.getElementById('kappaEditor');
+        if (kappaBox && typeof kappaBox._updateKappaLayout === 'function') {
+          requestAnimationFrame(() => kappaBox._updateKappaLayout());
+        }
+      };
+    }
+    document.getElementById('presetSingle').onclick = function(){
+      params.nX=1; params.nY=1; params.ampStd=0; params.cbfMean=1; params.cbfStd=0; params.lengthMean=10; params.lengthStd=0; params.waveAmp=0; params.waveNoise=0; params.waveAngle=0; params.coverage=1; params.angleMean=0; params.angleStd=0;
+      syncPanel(); replot();
+    };
+    document.getElementById('presetSymp').onclick = function(){
+      params.nX=20; params.nY=1; params.density=1; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=Math.PI; params.coverage=1; params.angleMean=0; params.angleStd=0;
+      syncPanel(); replot();
+    };
+    document.getElementById('presetAnti').onclick = function(){
+      params.nX=20; params.nY=1; params.density=1; params.lengthStd=0; params.waveAmp=1; params.waveNoise=0; params.waveAngle=0; params.coverage=1; params.angleMean=0; params.angleStd=0;
+      syncPanel(); replot();
+    };
+    document.getElementById('presetBundle').onclick = function(){
+      params.nX=12; params.nY=8; params.density=1; params.ampMean=5.0; params.ampStd=0.1; params.cbfMean=12; params.cbfStd=0.01; params.lengthMean=10; params.lengthStd=1; params.waveAmp=0.3; params.waveNoise=0.01; params.waveAngle=-1.5; params.coverage=0.9; params.patchlength=0.8; params.crystalline=1; params.patchorder=0.5; params.angleMean=0; params.angleStd=0.3;
+      syncPanel(); replot();
+    };
+  }
+
+  function mod(a, n) {
+    return ((a % n) + n) % n;
+  }
+
+  // ===== boot =====
+  function boot(){
+    attachUI();
+    initMini();
+    initBF();
+    setupOverlayLayout();
+    setupKappaEditor();
+    generateGrid();
+    reseedRandomFields();
+    buildLines();
+    updateAxes();
+    renderBF();
+    updateMinimapLines();
+    syncPanel();
+    requestAnimationFrame(loop);
+  }
+  boot();
+
+  // ===== minimal self-test checks =====
+  (function selfTests(){
+    var ids = ['imgN','px','lambda','NA','z0','cilRes','cilRadius','nX','nY'];
+    for (var i=0;i<ids.length;i++){ console.assert(document.getElementById(ids[i]), 'Missing element id="'+ids[i]+'"'); }
+  })();
+  </script>
+</body>
+</html>
