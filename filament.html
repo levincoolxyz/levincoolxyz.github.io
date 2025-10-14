@@ -4,99 +4,424 @@
   <meta charset="UTF-8">
   <title>Filament Trace Web App</title>
   <style>
+    :root {
+      --bg: #080b12;
+      --fg: #e5e7eb;
+      --muted: #94a3b8;
+      --acc: #60a5fa;
+      --panel: #0f172a;
+      --border: #1f2937;
+      color-scheme: dark;
+    }
+    * {
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #333;
-      color: #eee;
+      font: 14px/1.5 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
-    /* Center container with a dashed border when no image is loaded */
+    kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(148,163,184,0.35);
+      background: rgba(15,23,42,0.75);
+      font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: var(--fg);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) 1fr;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, rgba(96,165,250,.08), transparent 40%),
+                  radial-gradient(circle at bottom right, rgba(244,114,182,.06), transparent 45%),
+                  var(--bg);
+    }
+    header {
+      grid-column: 1 / -1;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8,11,18,0.75);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    header .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+    .panel {
+      background: rgba(15,23,42,0.92);
+      border-right: 1px solid var(--border);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+    .group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .group h2 {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .grid-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .flow-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .btn {
+      background: #111c32;
+      border: 1px solid rgba(148,163,184,0.2);
+      color: var(--fg);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font: inherit;
+      transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      border-color: rgba(96,165,250,0.6);
+      background: rgba(17,24,39,0.95);
+      transform: translateY(-1px);
+    }
+    .btn.secondary {
+      background: rgba(15,23,42,0.9);
+    }
+    .workspace {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      gap: 16px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
     #container {
+      position: relative;
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 10px;
-      position: relative;
-      border: 2px dashed #777;
-      min-height: 300px;
+      justify-content: center;
+      gap: 18px;
+      padding: 32px 28px 36px;
+      border-radius: 16px;
+      border: 1px dashed rgba(96,165,250,0.35);
+      background: rgba(15,23,42,0.52);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+      min-height: 420px;
+      backdrop-filter: blur(6px);
     }
-    /* When an image is loaded, hide the drop text */
+    #container.drag-over {
+      border-color: rgba(96,165,250,0.85);
+      box-shadow: 0 0 0 2px rgba(96,165,250,0.25), 0 24px 55px rgba(15,23,42,0.6);
+    }
     #dropText {
       position: absolute;
-      top: 40%;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       text-align: center;
-      width: 100%;
-      font-size: 24px;
-      color: #aaa;
+      font-size: 18px;
+      color: rgba(148,163,184,0.7);
+      letter-spacing: 0.04em;
       pointer-events: none;
     }
-    /* Canvases */
-    canvas { background: #000; display: block; }
-    #canvas2 { background: #222; margin-top: 20px; }
-    #scaleBarCanvas { background: #333; margin-top: 10px; }
-    /* Image indicator */
+    canvas {
+      width: 100%;
+      background: #020617;
+      border-radius: 12px;
+      border: 1px solid rgba(15,23,42,0.9);
+      box-shadow: 0 14px 30px rgba(2,6,23,0.45);
+      display: block;
+    }
+    canvas:focus {
+      outline: 2px solid var(--acc);
+      outline-offset: 4px;
+    }
+    #canvas2 {
+      background: #0b1220;
+    }
+    /* removed dedicated scale bar canvas */
     #imgIndicator {
-      margin-top: 10px;
-      color: #eee;
-      font-size: 16px;
-    }    
-    /* Center the play/pause button below canvas2 */
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
     #playPauseContainer {
-      text-align: center;
-      margin-top: 10px;
+      display: flex;
+      justify-content: center;
     }
-    /* Fixed-position buttons */
-    .button {
+    #btnPlayPause {
+      min-width: 160px;
+      background: linear-gradient(135deg, rgba(96,165,250,0.28), rgba(14,165,233,0.22));
+      border: 1px solid rgba(14,165,233,0.35);
+    }
+    #btnPlayPause:hover {
+      background: linear-gradient(135deg, rgba(96,165,250,0.42), rgba(14,165,233,0.35));
+    }
+    #fileInput,
+    #reloadFileInput {
+      display: none;
+    }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: rgba(148,163,184,0.85);
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(148,163,184,0.16);
+      background: rgba(15,23,42,0.72);
+    }
+    .status-bar span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-bar strong {
+      color: var(--fg);
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+    .modal-backdrop {
       position: fixed;
-      background: #555;
-      color: #eee;
-      border: none;
-      padding: 8px 12px;
-      cursor: pointer;
-      font-size: 14px;
-      z-index: 10;
+      inset: 0;
+      background: rgba(2,6,23,0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 30;
     }
-    #btnLoad { top: 10px; left: 10px; }
-    #btnNext { top: 10px; left: 150px; }
-    #btnReset { top: 10px; left: 320px; }
-    #btnUndo { top: 10px; left: 490px; }
-    #btnCalib { top: 60px; left: 10px; }
-    #btnSmooth { top: 60px; left: 150px; }
-    #btnExport { top: 60px; left: 320px; }
-    /* Navigation buttons */
-    #btnPrev { bottom: 10px; left: 10px; }
-    #btnNextImg { bottom: 10px; right: 10px; }
-    #fileInput { display: none; }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal {
+      width: min(540px, 90vw);
+      max-height: 80vh;
+      overflow-y: auto;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(96,165,250,0.35);
+      border-radius: 18px;
+      box-shadow: 0 28px 80px rgba(2,6,23,0.65);
+      padding: 24px 28px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .modal header {
+      padding: 0;
+      border: none;
+      background: transparent;
+      position: static;
+    }
+    .modal header h2 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--fg);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .modal header button {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid rgba(148,163,184,0.35);
+      color: var(--muted);
+      border-radius: 999px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+    }
+    .modal header button:hover {
+      color: var(--fg);
+      border-color: rgba(96,165,250,0.6);
+    }
+    .modal ol {
+      margin: 0;
+      padding-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      color: rgba(226,232,240,0.92);
+      font-size: 14px;
+    }
+    .modal ol li strong {
+      color: var(--acc);
+      font-weight: 600;
+    }
+    .modal footer {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .modal footer button {
+      background: var(--acc);
+      border: none;
+      color: #0b1120;
+      padding: 10px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .modal footer button:hover {
+      filter: brightness(1.1);
+    }
+    @media (max-width: 960px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+      }
+      .panel {
+        grid-row: 2;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 18px;
+      }
+      .panel .group {
+        flex: 1 1 220px;
+      }
+      .workspace {
+        grid-row: 3;
+      }
+    }
+    @media (max-width: 640px) {
+      header .row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .quick-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+      #canvas {
+        max-height: none;
+      }
+    }
   </style>
 </head>
 <body>
-  <div id="container">
-    <div id="dropText">Drag & Drop Image Files Here</div>
-    <!-- Main image canvas -->
-    <canvas id="canvas"></canvas>
-    <!-- Second canvas: saved filaments shifted so each first point appears at center -->
-    <canvas id="canvas2" height="200"></canvas>
-    <!-- Scale bar canvas -->
-    <canvas id="scaleBarCanvas" height="50"></canvas>
-    <!-- Image indicator -->
-    <div id="imgIndicator"></div>
+  <div class="app">
+    <header>
+      <div class="row">
+        <h1>Filament Tracer Utility</h1>
+        <div class="quick-actions">
+          <button id="btnLoad" class="btn">Load (L)</button>
+          <button id="btnExport" class="btn">Export (E)</button>
+          <button id="btnHelp" class="btn secondary">Help</button>
+        </div>
+      </div>
+    </header>
+    <aside class="panel">
+      <div class="group">
+        <h2>Tracing</h2>
+        <div class="grid-buttons">
+          <button id="btnNext" class="btn secondary">New Filament (N)</button>
+          <button id="btnReset" class="btn secondary">Reset Current (R)</button>
+          <button id="btnUndo" class="btn secondary">Undo Point (U)</button>
+          <button id="btnSmooth" class="btn secondary">Smoothen All (S)</button>
+        </div>
+      </div>
+      <div class="group">
+        <h2>Calibration and Navigation</h2>
+        <div class="grid-buttons">
+          <button id="btnCalib" class="btn secondary">Calibrate Scalebar (C)</button>
+          <button id="btnReload" class="btn secondary">Add Traced Results (A)</button>
+        </div>
+        <div class="flow-buttons">
+          <button id="btnPrev" class="btn secondary">Previous Frame (J)</button>
+          <button id="btnNextImg" class="btn secondary">Next Frame (K)</button>
+        </div>
+      </div>
+    </aside>
+    <main class="workspace">
+      <div id="container">
+        <div id="dropText">Drop microscopy frames or click Load (L)</div>
+        <canvas id="canvas" tabindex="0"></canvas>
+        <canvas id="canvas2" height="200"></canvas>
+        <div id="imgIndicator"></div>
+      </div>
+      <div id="playPauseContainer">
+        <button id="btnPlayPause" class="btn">Animate</button>
+      </div>
+      <div class="status-bar">
+        <span><strong>Tracing</strong> click to place points, press N to store a filament.</span>
+        <span><strong>Keyboard</strong> L / N / R / U / C / S / E / A / J / K</span>
+      </div>
+    </main>
   </div>
-  <!-- Centered play/pause button below canvas2 -->
-  <div id="playPauseContainer">
-    <button id="btnPlayPause">Animate</button>
+  <div class="modal-backdrop" id="helpModal">
+    <div class="modal">
+      <header>
+        <h2>Filament tracing guide</h2>
+        <button type="button" data-close-help>&times;</button>
+      </header>
+      <ol>
+        <li><strong>Load frames:</strong> Press <kbd>L</kbd> or click <em>Load</em>, drag multiple files to annotate sequences.</li>
+        <li><strong>Trace filaments:</strong> Left-click to add points. Use <strong>N</strong> to commit a filament and advance.</li>
+        <li><strong>Undo / Reset:</strong> <strong>U</strong> removes the last point, <strong>R</strong> clears the current trace.</li>
+        <li><strong>Calibrate scale:</strong> Press <strong>C</strong>, click two reference points, then enter the distance in μm.</li>
+        <li><strong>Smooth traces:</strong> <strong>S</strong> applies Savitzky–Golay smoothing while locking endpoints.</li>
+        <li><strong>Animate paths:</strong> Use the animate button to review saved filaments in sequence.</li>
+        <li><strong>Export / Import:</strong> <strong>E</strong> saves CSV data, <strong>A</strong> merges previous traces from CSV.</li>
+        <li><strong>Navigate frames:</strong> <strong>J</strong> / <strong>K</strong> (or buttons) move between images in a sequence.</li>
+      </ol>
+      <footer>
+        <button type="button" data-close-help>Start tracing</button>
+      </footer>
+    </div>
   </div>
-  <!-- Control Buttons -->
-  <button id="btnLoad" class="button">Load (L)</button>
-  <button id="btnNext" class="button">Next Filament (N)</button>
-  <button id="btnReset" class="button">Reset (R)</button>
-  <button id="btnUndo" class="button">Undo (U)</button>
-  <button id="btnCalib" class="button">Calib (C)</button>
-  <button id="btnSmooth" class="button">Smooth (S)</button>
-  <button id="btnExport" class="button">Export (E)</button>
-  <button id="btnPrev" class="button">&lt;</button>
-  <button id="btnNextImg" class="button">&gt;</button>
-  <button id="btnReload" class="button" style="top: 60px; left: 490px;">Add Trace (A)</button>
-  <input type="file" id="reloadFileInput" accept=".csv" style="display:none;">
+  <input type="file" id="reloadFileInput" accept=".csv">
   <input type="file" id="fileInput" accept="image/*" multiple>
   
   <script>
@@ -107,9 +432,28 @@
     const ctx = canvas.getContext('2d');
     const canvas2 = document.getElementById('canvas2');
     const ctx2 = canvas2.getContext('2d');
-    const scaleBarCanvas = document.getElementById('scaleBarCanvas');
-    const scaleCtx = scaleBarCanvas.getContext('2d');
+    // dedicated scale bar canvas removed
     const imgIndicator = document.getElementById('imgIndicator');
+    const helpModal = document.getElementById('helpModal');
+    const helpCloseButtons = document.querySelectorAll('[data-close-help]');
+    const btnHelp = document.getElementById('btnHelp');
+
+    function focusCanvas() {
+      if (!canvas || helpModal.classList.contains('open')) return;
+      requestAnimationFrame(() => {
+        canvas.focus({ preventScroll: true });
+      });
+    }
+
+    document.querySelectorAll('.btn').forEach(button => {
+      if (button === btnHelp) return;
+      button.addEventListener('click', () => {
+        requestAnimationFrame(() => {
+          button.blur();
+          focusCanvas();
+        });
+      });
+    });
     // Filament points stored as normalized [x,y]
     let currentFilament = [];
     let filamentCoords = [];
@@ -129,6 +473,35 @@
     let isPlaying = false;
     let animInterval = null;
     let animIndex = 0; // which saved filament is highlighted
+
+    function openHelp() {
+      helpModal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      if (btnHelp) {
+        btnHelp.blur();
+      }
+    }
+
+    function closeHelp() {
+      helpModal.classList.remove('open');
+      document.body.style.overflow = '';
+      focusCanvas();
+    }
+
+    if (btnHelp) {
+      btnHelp.addEventListener('click', openHelp);
+    }
+    helpCloseButtons.forEach(btn => btn.addEventListener('click', closeHelp));
+    helpModal.addEventListener('click', (e) => {
+      if (e.target === helpModal) {
+        closeHelp();
+      }
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && helpModal.classList.contains('open')) {
+        closeHelp();
+      }
+    });
     
     // When an image loads, hide drop text and update indicator.
     currentImage.onload = function() {
@@ -136,25 +509,36 @@
       resizeCanvas();
       draw();
       drawSaved();
-      drawScaleBar();
       updateIndicator();
+      focusCanvas();
     };
     
     const btnReload = document.getElementById('btnReload');
     const reloadFileInput = document.getElementById('reloadFileInput');
     
     btnReload.addEventListener('click', () => reloadFileInput.click());
-    
-    // Resize main canvas: 75% of window width, preserving aspect ratio.
+
+    // Resize main canvas responsively while keeping draw and CSS sizes in sync.
     function resizeCanvas() {
       if (!currentImage.width) return;
-      const desiredWidth = window.innerWidth * 0.75;
-      const scale = desiredWidth / currentImage.width;
-      const desiredHeight = currentImage.height * scale;
-      canvas.width = desiredWidth;
-      canvas.height = desiredHeight;
-      canvas2.width = desiredWidth;
-      scaleBarCanvas.width = desiredWidth;
+      const styles = getComputedStyle(container);
+      const horizontalPadding = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+      const availableWidth = Math.max(320, container.clientWidth - horizontalPadding);
+      const maxHeight = Math.max(240, window.innerHeight * 0.65);
+      let scaledWidth = availableWidth;
+      let scaledHeight = currentImage.height * (scaledWidth / currentImage.width);
+      if (scaledHeight > maxHeight) {
+        scaledHeight = maxHeight;
+        scaledWidth = currentImage.width * (scaledHeight / currentImage.height);
+      }
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      canvas.style.width = `${scaledWidth}px`;
+      canvas.style.height = `${scaledHeight}px`;
+
+      canvas2.width = scaledWidth;
+      canvas2.style.width = `${scaledWidth}px`;
+      canvas2.style.height = `${canvas2.height}px`;
     }
     
     window.addEventListener('resize', () => {
@@ -162,7 +546,6 @@
         resizeCanvas();
         draw();
         drawSaved();
-        drawScaleBar();
       }
     });
     
@@ -175,29 +558,37 @@
       }
     }
     
+    // Try to load a default example image if available
+    function tryLoadDefaultImage() {
+      if (images.length > 0 || (currentImage && currentImage.width)) return;
+      const path = 'images/example.png';
+      const img = new Image();
+      img.onload = function() {
+        // Only apply if the user hasn't loaded anything yet
+        if (images.length === 0) {
+          images = [img];
+          currentImageIndex = 0;
+          currentImage = img;
+          dropText.style.display = 'none';
+          resizeCanvas();
+          draw();
+          drawSaved();
+          updateIndicator();
+          focusCanvas();
+        }
+      };
+      img.onerror = function() { /* ignore if missing */ };
+      img.src = path;
+    }
+    
     // Show user guide on load.
     window.addEventListener('load', function() {
-      alert(`Welcome to Filament Trace GUI
-
-Instructions:
-• Left-click on the image area to add red points (points appear immediately).
-• Drag & drop image files or press L to load images.
-  • If multiple images are loaded, you will be prompted for frame-per-second (FPS).
-• Press N to save the current filament (first and last points remain fixed during smoothing) and advance to the next image.
-• Press R to reset the current annotation.
-• Press U to undo the last tracing action
-• Press C to calibrate the scale bar (click two points then enter physical length in μm).
-• Press S to smooth saved filaments using a Savitzky–Golay filter (with endpoints fixed).
-• Press E to export filament data as CSV.
-• Press J (previous) and K (next) keys to navigate images.
-• Press Animate button to highlight each traced filament.
-• Press A to add previous filament trace from CSV.
-Have fun annotating!`);
-      if (currentImage.complete) {
+      openHelp();
+      tryLoadDefaultImage();
+      if (currentImage.complete && currentImage.width) {
         resizeCanvas();
         draw();
         drawSaved();
-        drawScaleBar();
         updateIndicator();
       }
     });
@@ -206,25 +597,31 @@ Have fun annotating!`);
       const file = e.target.files[0];
       if (file) {
         reloadFilamentsFromCSV(file);
+      } else {
+        focusCanvas();
       }
     });
     
     // --- Drag & Drop and File Loading ---
     container.addEventListener('dragover', function(e) {
       e.preventDefault();
-      container.style.borderColor = '#aaa';
+      container.classList.add('drag-over');
     });
     container.addEventListener('dragleave', function(e) {
       e.preventDefault();
-      container.style.borderColor = '#777';
+      if (e.target === container) {
+        container.classList.remove('drag-over');
+      }
     });
     container.addEventListener('drop', function(e) {
       e.preventDefault();
-      container.style.borderColor = '#777';
+      container.classList.remove('drag-over');
       const dt = e.dataTransfer;
       const files = Array.from(dt.files).filter(file => file.type.startsWith("image/"));
       if (files.length > 0) {
         loadFiles(files);
+      } else {
+        focusCanvas();
       }
     });
     
@@ -233,6 +630,10 @@ Have fun annotating!`);
     btnLoad.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', function(e) {
       const files = Array.from(e.target.files);
+      if (!files.length) {
+        focusCanvas();
+        return;
+      }
       loadFiles(files);
     });
     
@@ -260,8 +661,8 @@ Have fun annotating!`);
         resizeCanvas();
         draw();
         drawSaved();
-        drawScaleBar();
         updateIndicator();
+        focusCanvas();
       });
     }
     function reloadFilamentsFromCSV(file) {
@@ -325,6 +726,7 @@ Have fun annotating!`);
         // Update stored filaments (all at full opacity)
         storedFilaments = filamentCoords.map(fil => ({ points: fil, opacity: 1 }));
         drawSaved();
+        focusCanvas();
       };
       reader.readAsText(file);
     }
@@ -357,25 +759,29 @@ Have fun annotating!`);
           resizeCanvas();
           draw();
           drawSaved();
-          drawScaleBar();
           updateIndicator();
         } else {
           currentImage.onload = function() {
             resizeCanvas();
             draw();
             drawSaved();
-            drawScaleBar();
             updateIndicator();
+            focusCanvas();
           };
         }
       }
       draw();
       drawSaved();
       updateIndicator();
+      focusCanvas();
     }
     
     const btnReset = document.getElementById('btnReset');
-    btnReset.addEventListener('click', () => { currentFilament = []; draw(); });
+    btnReset.addEventListener('click', () => {
+      currentFilament = [];
+      draw();
+      focusCanvas();
+    });
     
     const btnUndo = document.getElementById('btnUndo');
     btnUndo.addEventListener('click', undoPoint);
@@ -390,18 +796,22 @@ Have fun annotating!`);
       }
       draw();
       drawSaved();
+      focusCanvas();
     }
-    
+
     const btnCalib = document.getElementById('btnCalib');
     btnCalib.addEventListener('click', calibrate);
     function calibrate() {
       alert("Click two points on the image to set scale bar information.");
       calibrationActive = true;
       let calibPoints = [];
+      focusCanvas();
       function calibClick(e) {
         const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
         calibPoints.push([x, y]);
         if (calibPoints.length === 2) {
           canvas.removeEventListener('click', calibClick);
@@ -414,12 +824,13 @@ Have fun annotating!`);
           if (realDist > 0) {
             px2um = realDist / pixelDist;
             draw();
-            drawScaleBar();
+            drawSaved();
           } else {
             alert("Invalid input.");
           }
+          focusCanvas();
         }
-        drawScaleBar();
+        drawSaved();
       }
       canvas.addEventListener('click', calibClick);
     }
@@ -455,6 +866,7 @@ Have fun annotating!`);
       }
       draw();
       drawSaved();
+      focusCanvas();
     }
     
     // --- Reparameterize each filament to 20 points, shift so first point is [0,0], compute velocities.
@@ -585,17 +997,17 @@ Have fun annotating!`);
           resizeCanvas();
           draw();
           drawSaved();
-          drawScaleBar();
           updateIndicator();
         } else {
           currentImage.onload = function() {
             resizeCanvas();
             draw();
             drawSaved();
-            drawScaleBar();
             updateIndicator();
+            focusCanvas();
           };
         }
+        focusCanvas();
       }
     }
     function nextImage() {
@@ -606,17 +1018,17 @@ Have fun annotating!`);
           resizeCanvas();
           draw();
           drawSaved();
-          drawScaleBar();
           updateIndicator();
         } else {
           currentImage.onload = function() {
             resizeCanvas();
             draw();
             drawSaved();
-            drawScaleBar();
             updateIndicator();
+            focusCanvas();
           };
         }
+        focusCanvas();
       }
     }
     
@@ -624,22 +1036,39 @@ Have fun annotating!`);
     canvas.addEventListener('click', function(e) {
       if (calibrationActive) return;
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
       currentFilament.push([x / canvas.width, y / canvas.height]);
       draw();
+      focusCanvas();
     });
     
     // --- Key Bindings ---
     window.addEventListener('keydown', function(e) {
+      if (helpModal.classList.contains('open')) return;
+      const targetTag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
+      if (targetTag === 'input' || targetTag === 'textarea' || (e.target && e.target.isContentEditable)) {
+        return;
+      }
       switch(e.key.toLowerCase()){
         case 'l': e.preventDefault(); btnLoad.click(); break;
         case 'n': e.preventDefault(); nextFilament(); break;
-        case 'r': e.preventDefault(); currentFilament = []; draw(); break;
+        case 'r':
+          e.preventDefault();
+          currentFilament = [];
+          draw();
+          focusCanvas();
+          break;
         case 'u': e.preventDefault(); undoPoint(); break;
         case 'c': e.preventDefault(); calibrate(); break;
         case 's': e.preventDefault(); smoothFilaments(); break;
-        case 'e': e.preventDefault(); exportData(); break;
+        case 'e':
+          e.preventDefault();
+          exportData();
+          focusCanvas();
+          break;
         case 'j': e.preventDefault(); prevImage(); break;
         case 'k': e.preventDefault(); nextImage(); break;
         case 'a': e.preventDefault(); btnReload.click(); break;
@@ -690,6 +1119,34 @@ Have fun annotating!`);
           ctx.fill();
         });
       }
+      // Draw calibrated scale bar overlay in the main viewport
+      drawScaleBarOnMain();
+    }
+
+    // Draw the scale bar directly on the main tracing canvas (same viewport)
+    function drawScaleBarOnMain() {
+      if (!canvas.width || !canvas.height) return;
+      const desiredUm = 10; // physical length to display
+      const margin = 18; // px margin from edges
+      const startX = margin;
+      const startY = canvas.height - margin;
+      // Convert desired μm to pixels using calibration (μm per px)
+      let barPx = desiredUm / px2um;
+      // Clamp to available width
+      const maxBarPx = Math.max(20, canvas.width - startX * 2);
+      barPx = Math.min(barPx, maxBarPx);
+      ctx.save();
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(startX + barPx, startY);
+      ctx.stroke();
+      ctx.fillStyle = 'white';
+      ctx.font = '16px Arial';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('10 μm', startX, startY - 8);
+      ctx.restore();
     }
     
     // --- Play/Pause Animation for Saved Filaments in Canvas2 ---
@@ -737,7 +1194,13 @@ Have fun annotating!`);
         let bboxHeight = maxY - minY;
         
         // 4. Compute a uniform scale factor to fit the bounding box into canvas2.
-        let scaleFactor = Math.min(canvas2.width / bboxWidth, canvas2.height / bboxHeight);
+        let scaleFactor = Math.min(
+          bboxWidth === 0 ? Infinity : canvas2.width / bboxWidth,
+          bboxHeight === 0 ? Infinity : canvas2.height / bboxHeight
+        );
+        if (!Number.isFinite(scaleFactor) || scaleFactor === 0) {
+          scaleFactor = 1;
+        }
         
         // 5. Compute offsets to center the bounding box in canvas2.
         let offsetX = (canvas2.width - bboxWidth * scaleFactor) / 2 - (minX * scaleFactor);
@@ -758,6 +1221,30 @@ Have fun annotating!`);
             });
             ctx2.stroke();
         });
+
+        // Draw calibrated scale bar in canvas2 (10 μm)
+        if (canvas.width) {
+          const desiredUm = 10;
+          let barPxMain = desiredUm / px2um; // pixels on main canvas
+          let barPxCanvas2 = (barPxMain / canvas.width) * canvas2.width * scaleFactor;
+          const margin = 18;
+          const maxBar = Math.max(20, canvas2.width - margin * 2);
+          barPxCanvas2 = Math.min(barPxCanvas2, maxBar);
+          const startX = margin;
+          const startY = canvas2.height - margin;
+          ctx2.save();
+          ctx2.strokeStyle = 'white';
+          ctx2.lineWidth = 4;
+          ctx2.beginPath();
+          ctx2.moveTo(startX, startY);
+          ctx2.lineTo(startX + barPxCanvas2, startY);
+          ctx2.stroke();
+          ctx2.fillStyle = 'white';
+          ctx2.font = '16px Arial';
+          ctx2.textBaseline = 'bottom';
+          ctx2.fillText('10 μm', startX, startY - 8);
+          ctx2.restore();
+        }
     }
     
     function drawSaved() {
@@ -788,7 +1275,13 @@ Have fun annotating!`);
         let bboxHeight = maxY - minY;
         
         // 4. Compute scale factor to fit the bounding box into canvas2
-        let scaleFactor = Math.min(canvas2.width / bboxWidth, canvas2.height / bboxHeight);
+        let scaleFactor = Math.min(
+          bboxWidth === 0 ? Infinity : canvas2.width / bboxWidth,
+          bboxHeight === 0 ? Infinity : canvas2.height / bboxHeight
+        );
+        if (!Number.isFinite(scaleFactor) || scaleFactor === 0) {
+          scaleFactor = 1;
+        }
         
         // 5. Compute offsets to center the bounding box in canvas2
         let offsetX = (canvas2.width - bboxWidth * scaleFactor) / 2 - minX * scaleFactor;
@@ -809,23 +1302,33 @@ Have fun annotating!`);
             });
             ctx2.stroke();
         });
+
+        // Draw calibrated scale bar in canvas2 (10 μm)
+        if (canvas.width) {
+          const desiredUm = 10;
+          let barPxMain = desiredUm / px2um; // pixels on main canvas
+          let barPxCanvas2 = (barPxMain / canvas.width) * canvas2.width * scaleFactor;
+          const margin = 18;
+          const maxBar = Math.max(20, canvas2.width - margin * 2);
+          barPxCanvas2 = Math.min(barPxCanvas2, maxBar);
+          const startX = margin;
+          const startY = canvas2.height - margin;
+          ctx2.save();
+          ctx2.strokeStyle = 'white';
+          ctx2.lineWidth = 4;
+          ctx2.beginPath();
+          ctx2.moveTo(startX, startY);
+          ctx2.lineTo(startX + barPxCanvas2, startY);
+          ctx2.stroke();
+          ctx2.fillStyle = 'white';
+          ctx2.font = '16px Arial';
+          ctx2.textBaseline = 'bottom';
+          ctx2.fillText('10 μm', startX, startY - 8);
+          ctx2.restore();
+        }
     }
     
-    // Draw the scale bar on the dedicated canvas.
-    function drawScaleBar() {
-      scaleCtx.clearRect(0, 0, scaleBarCanvas.width, scaleBarCanvas.height);
-      scaleCtx.strokeStyle = 'white';
-      scaleCtx.lineWidth = 5;
-      const barLength = 10 / px2um;
-      const startX = 50, startY = scaleBarCanvas.height / 2;
-      scaleCtx.beginPath();
-      scaleCtx.moveTo(startX, startY);
-      scaleCtx.lineTo(startX + barLength, startY);
-      scaleCtx.stroke();
-      scaleCtx.fillStyle = 'white';
-      scaleCtx.font = '16px Arial';
-      scaleCtx.fillText(`Scale Bar: 10 μm`, startX, startY - 10);
-    }
+    // removed dedicated scaleBarCanvas drawing function
   </script>
 </body>
 </html>
