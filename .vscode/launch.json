@@ -36,6 +36,12 @@
             "request": "launch",
             "name": "Open Fish School Sim",
             "file": "./dipole_school_visualizer.html"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open Network Sim",
+            "file": "./brownian_small_world.html"
         }
     ],
     "compounds": []
