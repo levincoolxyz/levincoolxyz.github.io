@@ -119,19 +119,19 @@
         <label for="hydroRadius">Cutoff radius R</label>
         <input id="hydroRadius" type="range" min="0.5" max="20" step="0.1" value="5.0">
       </div>
-      <div class="buttons">
-        <button id="respawn">Respawn school</button>
-        <button id="clearBaits">Clear baits</button>
-      </div>
       <div class="toggles">
-        <div class="toggle" data-key="bait">Put bait</div>
-        <div class="toggle" data-key="goal">Shark goal</div>
-        <div class="toggle" data-key="mouse">Scary mouse</div>
-        <div class="toggle" data-key="shark">Baskin' shark</div>
-        <div class="toggle" data-key="whale">Blue whale</div>
-        <div class="toggle" data-key="evade">Auto evade</div>
+        <div class="toggle active" data-key="evade">Auto evade</div>
         <div class="toggle active" data-key="death">Enable death</div>
-        <div class="toggle" data-key="hard">Hard mode</div>
+        <div class="toggle active" data-key="mouse">Scary cursor</div>
+        <div class="toggle" data-key="bait">Put bait</div>
+        <div class="toggle" data-key="shark">Baskin' shark</div>
+        <div class="toggle" data-key="goal">Shark goal</div>
+        <div class="toggle" data-key="whale">Blue whale</div>
+        <div class="toggle" data-key="hard">Hunt mode</div>
+      </div>
+      <div class="buttons">
+        <button id="respawn">Respawn fish</button>
+        <button id="clearBaits">Clear baits</button>
       </div>
       <p class="algo-note">
         Alignement torques are averaged over Delaunay neighbors with vision cone bias, dipole flow field shape hydrodynamic interactions,
@@ -163,8 +163,10 @@
         </header>
         <ul>
           <li>Pan the camera with arrow keys or the D-pad buttons (Shift = bigger step).</li>
+          <li>Zoom in/out with the mouse wheel (middle button scroll) — zooms to cursor.</li>
           <li>Use the center dot to focus on the school centroid.</li>
           <li>Press Space or Pause/Play to halt the simulation.</li>
+          <li>Fish is scared of your (moving) cursor by default, turn off with "Scary Cursor" toggle.</li>
         </ul>
       </div>
     </div>
@@ -251,10 +253,10 @@ if (playPauseBtn){
 }
 
 const stateFlags = {
-  mouse: false,
+  mouse: true,
   shark: false,
   whale: false,
-  evade: false,
+  evade: true,
   death: true,
   hard: false,
 };
@@ -334,7 +336,8 @@ let whaleState = {pos:{x:0,y:-25},theta:Math.PI/2};
 let startTime = performance.now();
 
 // View state for panning/following centroid
-let viewState = {follow: true, centerX: 0, centerY: 0};
+// View state for panning/following centroid + zoom (worldHeight = vertical world units visible)
+let viewState = {follow: true, centerX: 0, centerY: 0, worldHeight: 40};
 function getViewCenter(){
   if(viewState.follow){ return {x: meanX(), y: meanY()}; }
   return {x: viewState.centerX, y: viewState.centerY};
@@ -872,11 +875,11 @@ function meanY(){
 function worldToScreen(x,y){
   const rect = canvas.getBoundingClientRect();
   const aspect = rect.width/rect.height;
-  const viewHalf = 20;
+  const worldHeight = viewState.worldHeight;
   const c = getViewCenter();
   const cx = c.x;
   const cy = c.y;
-  const scale = rect.height/(viewHalf*2);
+  const scale = rect.height/(worldHeight);
   return {
     x: rect.width/2 + (x - cx) * scale,
     y: rect.height/2 - (y - cy) * scale,
@@ -886,11 +889,11 @@ function worldToScreen(x,y){
 
 function screenToWorld(clientX, clientY){
   const rect = canvas.getBoundingClientRect();
-  const viewHalf = 20;
+  const worldHeight = viewState.worldHeight;
   const c = getViewCenter();
   const cx = c.x;
   const cy = c.y;
-  const scale = rect.height/(viewHalf*2);
+  const scale = rect.height/(worldHeight);
   return {
     x: cx + (clientX - rect.width/2)/scale,
     y: cy - (clientY - rect.height/2)/scale,
@@ -910,7 +913,7 @@ function draw(){
   const c = getViewCenter();
   const cx = c.x;
   const cy = c.y;
-  const scale = rect.height/(40);
+  const scale = rect.height/(viewState.worldHeight);
   ctx.translate(rect.width/2, rect.height/2);
   ctx.scale(scale, -scale);
   ctx.translate(-cx, -cy);
@@ -1068,6 +1071,39 @@ canvas.addEventListener('pointermove', e => {
   cp = world;
   pointerActive = true;
 });
+
+// Zoom with mouse wheel (middle-button scroll). Zooms toward cursor, clamps range.
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  // Zoom factor: positive deltaY -> zoom out, negative -> zoom in
+  const zoom = Math.exp(-e.deltaY * 0.001);
+  const minH = 10;   // max zoom-in (show fewer world units)
+  const maxH = 200;  // max zoom-out (show more world units)
+
+  // Use current center snapshot; if following, unlock and pin to current centroid
+  const c = getViewCenter();
+  if(viewState.follow){
+    viewState.centerX = c.x;
+    viewState.centerY = c.y;
+    viewState.follow = false;
+  }
+
+  // World position under cursor before zoom
+  const before = screenToWorld(e.offsetX, e.offsetY);
+
+  // Apply zoom as change to world-height (inverse of screen scale)
+  const prevH = viewState.worldHeight;
+  let nextH = prevH / zoom;
+  nextH = Math.max(minH, Math.min(maxH, nextH));
+  viewState.worldHeight = nextH;
+
+  // World position under cursor after zoom (with same center)
+  const after = screenToWorld(e.offsetX, e.offsetY);
+
+  // Adjust center so the cursor stays anchored on the same world point
+  viewState.centerX += (before.x - after.x);
+  viewState.centerY += (before.y - after.y);
+}, { passive: false });
 
 canvas.addEventListener('click', e => {
   const world = screenToWorld(e.offsetX, e.offsetY);
