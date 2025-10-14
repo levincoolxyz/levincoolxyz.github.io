@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Brownian Small World Simulator</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#11141a; --fg:#e8eaed; --muted:#9aa0a6; --acc:#8ab4f8;
+    --ok:#7bd88f; --warn:#fbc02d; --bad:#e57373;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  header{padding:10px 14px;border-bottom:1px solid #1d2330;background:#0e1118}
+  header h1{margin:0;font-size:16px;font-weight:600}
+  #app{display:grid;grid-template-columns:360px 1fr;gap:12px;height:calc(100% - 52px);padding:12px}
+  #panel{background:var(--panel);border:1px solid #1d2330;border-radius:12px;padding:12px;overflow:auto}
+  #panel h2{margin:6px 0 8px;font-size:15px}
+  .row{display:grid;grid-template-columns:1.2fr 0.8fr;gap:8px;align-items:center;margin:6px 0}
+  .row label{font-size:13px;color:var(--muted)}
+  .row input[type="range"]{width:100%}
+  .row output{justify-self:end;color:#cfe1ff;font-variant-numeric:tabular-nums}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button{background:#101826;border:1px solid #2a3754;color:#e8eaed;border-radius:10px;padding:8px 10px;cursor:pointer}
+  button:hover{border-color:#3b4e79}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  #view{display:grid;grid-template-rows: 1fr 180px;gap:12px}
+  #netwrap{position:relative;background:#0f131b;border:1px solid #1d2330;border-radius:12px}
+  #net{width:100%;height:100%;display:block}
+  #hud{position:absolute;left:10px;top:10px;background:#0008;color:#fff;padding:8px 10px;border-radius:10px;font-size:12px}
+  #charts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .chart{background:#0f131b;border:1px solid #1d2330;border-radius:12px;padding:8px;position:relative}
+  .chart canvas{width:100%;height:100%}
+  .chart h3{margin:0 0 6px;font-size:12px;color:var(--muted)}
+  .pill{display:inline-block;padding:2px 6px;border-radius:999px;background:#162033;color:#b7c9ff;font-size:11px;margin-left:6px}
+  .sep{margin:10px 0;border-top:1px dashed #263149}
+</style>
+</head>
+<body>
+<header>
+  <h1>Spatial Preferential Attachment + Small-World (Minimal Simulator)</h1>
+</header>
+<div id="app">
+  <aside id="panel">
+    <h2>Model parameters</h2>
+    <div class="row"><label>Edges per new node <span class="pill">m(t)</span></label>
+      <div class="grid2">
+        <input id="m0" type="range" min="1" max="8" step="1" value="2"/>
+        <output id="m0o">2</output>
+      </div>
+    </div>
+    <div class="row"><label>Densification exponent <span class="pill">δ (m ∝ t^δ)</span></label>
+      <div class="grid2">
+        <input id="delta" type="range" min="0" max="1" step="0.05" value="0"/>
+        <output id="deltao">0.00</output>
+      </div>
+    </div>
+    <div class="row"><label>PA exponent <span class="pill">α</span></label>
+      <div class="grid2">
+        <input id="alpha" type="range" min="0" max="2" step="0.05" value="1"/>
+        <output id="alphao">1.00</output>
+      </div>
+    </div>
+    <div class="row"><label>Initial attractiveness <span class="pill">k₀</span></label>
+      <div class="grid2">
+        <input id="k0" type="range" min="0" max="5" step="0.1" value="1"/>
+        <output id="k0o">1.0</output>
+      </div>
+    </div>
+    <div class="row"><label>Distance penalty <span class="pill">μ</span></label>
+      <div class="grid2">
+        <input id="mu" type="range" min="0" max="2" step="0.05" value="0.6"/>
+        <output id="muo">0.60</output>
+      </div>
+    </div>
+    <div class="row"><label>Triadic closure weight <span class="pill">τ</span></label>
+      <div class="grid2">
+        <input id="tau" type="range" min="0" max="3" step="0.1" value="0.5"/>
+        <output id="tauo">0.5</output>
+      </div>
+    </div>
+    <div class="row"><label>Aging rate <span class="pill">λ<sub>age</sub></span></label>
+      <div class="grid2">
+        <input id="age" type="range" min="0" max="0.1" step="0.005" value="0.01"/>
+        <output id="ageo">0.010</output>
+      </div>
+    </div>
+    <div class="row"><label>Fitness σ (lognormal)</label>
+      <div class="grid2">
+        <input id="fit" type="range" min="0" max="1.2" step="0.05" value="0.3"/>
+        <output id="fito">0.30</output>
+      </div>
+    </div>
+    <div class="row"><label>Edge decay per step <span class="pill">d</span></label>
+      <div class="grid2">
+        <input id="decay" type="range" min="0" max="0.05" step="0.0025" value="0"/>
+        <output id="decayo">0.000</output>
+      </div>
+    </div>
+    <div class="row"><label>Copying / redirection mode</label>
+      <div class="grid2">
+        <input id="redir" type="checkbox"/>
+        <span style="justify-self:end;color:var(--muted)">use local discovery</span>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+    <h2>Simulation control</h2>
+    <div class="row"><label>Initial nodes N₀</label>
+      <div class="grid2">
+        <input id="n0" type="range" min="5" max="100" step="5" value="20"/>
+        <output id="n0o">20</output>
+      </div>
+    </div>
+    <div class="row"><label>Total nodes target</label>
+      <div class="grid2">
+        <input id="ntarget" type="range" min="200" max="5000" step="100" value="1500"/>
+        <output id="ntargeto">1500</output>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button id="reset">Reset</button>
+      <button id="step100">Add 100</button>
+      <button id="toggle">Run</button>
+    </div>
+    <p style="color:var(--muted);margin-top:6px">
+      Tip: increase δ and lower μ across eras to emulate densification & long-range reach; raise α to amplify hubs.
+      Toggle “copying” to see PA emerge from local search.
+    </p>
+  </aside>
+
+  <main id="view">
+    <div id="netwrap">
+      <canvas id="net"></canvas>
+      <div id="hud"></div>
+    </div>
+    <section id="charts">
+      <div class="chart"><h3>Degree distribution (log-binned)</h3><canvas id="deg"></canvas></div>
+      <div class="chart"><h3>Clustering & avg path (approx)</h3><canvas id="clu"></canvas></div>
+      <div class="chart"><h3>Link length histogram</h3><canvas id="len"></canvas></div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  // ---------- Utilities ----------
+  const randn = (()=>{ // Box-Muller
+    let spare=null; return ()=>{ if(spare!==null){const v=spare; spare=null; return v}
+      let u=0,v=0,s=0; do{u=Math.random()*2-1; v=Math.random()*2-1; s=u*u+v*v;}while(!s||s>=1);
+      const m=Math.sqrt(-2*Math.log(s)/s); spare=v*m; return u*m; }})();
+  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  function lognormal(mu=0,sigma=0.3){return Math.exp(mu + sigma*randn())}
+  function dist(a,b){const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy)}
+  function lerp(a,b,t){return a+(b-a)*t}
+
+  // ---------- Model state ----------
+  let nodes=[], edges=[]; // nodes: {id,x,y,k,eta,born}
+  let adj=[], deg=[];     // adjacency sets and degree array
+  let running=false, anim=null;
+
+  // ---------- Parameters (bound to UI) ----------
+  const P={ m0:2, delta:0.0, alpha:1.0, k0:1.0, mu:0.6, tau:0.5, age:0.01, fit:0.3, decay:0.0, redir:false,
+            N0:20, Ntarget:1500 };
+  const el=id=>document.getElementById(id);
+  const bind=(id,fmt=(x)=>x)=>{
+    const r=el(id), o=el(id+"o");
+    const set=()=>{
+      let v=r.type==='checkbox'?r.checked:parseFloat(r.value);
+      // store
+      if(id==="n0") P.N0=v;
+      else if(id==="ntarget") P.Ntarget=v;
+      else P[id]=v;
+      // pretty output
+      if(o){
+        let out=v;
+        if(typeof v==='number'){
+          if(id==='delta') out=v.toFixed(2);
+          else if(id==='age'||id==='mu') out=v.toFixed(3);
+          else if(id==='alpha'||id==='fit'||id==='k0') out=v.toFixed(2);
+          else out = Number.isInteger(v)? v : v.toFixed(2);
+        }
+        o.textContent = out;
+      }
+    };
+    r.addEventListener('input',set); set();
+  };
+  ["m0","delta","alpha","k0","mu","tau","age","fit","decay","n0","ntarget"].forEach(bind);
+  el('redir').addEventListener('change',()=>{P.redir=el('redir').checked});
+
+  // ---------- Initialization ----------
+  function reset(){
+    nodes=[]; edges=[]; adj=[]; deg=[];
+    const N0 = P.N0;
+    for(let i=0;i<N0;i++){
+      const x=0.5+0.12*randn(), y=0.5+0.12*randn();
+      nodes.push({id:i,x:clamp(x,0,1),y:clamp(y,0,1),k:0,eta:lognormal(0,P.fit),born:0});
+      adj.push(new Set()); deg.push(0);
+    }
+    // seed edges (ring + a few chords)
+    for(let i=0;i<N0;i++){
+      const j=(i+1)%N0; addEdge(i,j);
+      if(N0>6){ const j2=(i+Math.floor(N0/6))%N0; addEdge(i,j2); }
+    }
+    draw(); updateHUD();
+  }
+
+  function addEdge(u,v){
+    if(u===v) return false;
+    if(adj[u].has(v)) return false;
+    adj[u].add(v); adj[v].add(u);
+    edges.push([u,v]);
+    deg[u]++; deg[v]++; nodes[u].k++; nodes[v].k++;
+    return true;
+  }
+
+  function addNode(){
+    const id = nodes.length;
+    // place near a random existing node (spatial clustering) with slow spreading
+    const anchor = nodes[Math.floor(Math.random()*nodes.length)];
+    const spread = lerp(0.05,0.2, Math.min(1, id/ P.Ntarget));
+    let x = anchor.x + spread*randn(); let y = anchor.y + spread*randn();
+    x=clamp(x,0,1); y=clamp(y,0,1);
+    nodes.push({id,x,y,k:0,eta:lognormal(0,P.fit),born:id});
+    adj.push(new Set()); deg.push(0);
+
+    // edges to add this step
+    const m = Math.max(1, Math.round(P.m0 * Math.pow(Math.max(1,id), P.delta)));
+    let tries=0;
+    while(adj[id].size < m && tries < 20*m){
+      tries++;
+      let target = P.redir ? pickByRedirection() : pickByKernel(id);
+      if(target===id || target==null) continue;
+      addEdge(id,target);
+    }
+
+    // decay existing edges (optional)
+    if(P.decay>0 && edges.length>0){
+      const keep=[];
+      for(const [u,v] of edges){
+        if(Math.random()<P.decay){
+          if(adj[u].has(v)){ adj[u].delete(v); adj[v].delete(u); deg[u]--; deg[v]--; nodes[u].k--; nodes[v].k--; }
+        }else keep.push([u,v]);
+      }
+      edges=keep;
+    }
+  }
+
+  function pickByKernel(newId){
+    const newNode = nodes[newId];
+    let sum=0; const weights=new Float64Array(newId);
+
+    // choose an anchor r for triadic closure baseline
+    const rIdx = Math.floor(Math.random()*newId);
+    const A_r = adj[rIdx];
+
+    for(let i=0;i<newId;i++){
+      // distance factor
+      const d = dist(newNode, nodes[i]); // in [0,~1.5]
+      const wDist = Math.exp(-P.mu * d * 8); // scale so μ ~ 0..2 has bite
+      // degree bias
+      const wDeg = Math.pow(nodes[i].k + P.k0, P.alpha);
+      // triadic closure: shared neighbors between i and r
+      let tri=0;
+      if(P.tau>0){
+        const A_i = adj[i];
+        const small = (A_i.size < A_r.size) ? A_i : A_r;
+        const big   = (small===A_i) ? A_r : A_i;
+        for(const x of small){ if(big.has(x)) tri++; }
+      }
+      const wTri = 1 + P.tau * tri;
+      const wAge = Math.exp(-P.age * (newId - nodes[i].born));
+      const wFit = nodes[i].eta;
+      const w = wDist * wDeg * wTri * wAge * wFit;
+      weights[i]=w; sum+=w;
+    }
+    if(sum===0) return Math.floor(Math.random()*newId);
+    // sample categorical
+    let r = Math.random()*sum;
+    for(let i=0;i<newId;i++){ r-=weights[i]; if(r<=0) return i; }
+    return newId-1;
+  }
+
+  function pickByRedirection(){
+    // Krapivsky-Redner redirection: pick u; with prob q attach to u, else to neighbor of u
+    const q=0.3; const u = Math.floor(Math.random()*nodes.length);
+    if(Math.random()<q || adj[u].size===0) return u;
+    const idx = Math.floor(Math.random()*adj[u].size);
+    let j=0; for(const v of adj[u]){ if(j++===idx) return v; }
+    return u;
+  }
+
+  // ---------- Rendering ----------
+  const netCanvas = el('net'), degCanvas=el('deg'), cluCanvas=el('clu'), lenCanvas=el('len');
+  function fitCanv(c){
+    const r=c.getBoundingClientRect();
+    const W=Math.max(1,Math.floor(r.width*devicePixelRatio));
+    const H=Math.max(1,Math.floor(r.height*devicePixelRatio));
+    if(c.width!==W||c.height!==H){ c.width=W; c.height=H; }
+    return c.getContext('2d');
+  }
+
+  function draw(){
+    const ctx = fitCanv(netCanvas); ctx.save(); ctx.scale(devicePixelRatio,devicePixelRatio);
+    const {width:w,height:h} = netCanvas.getBoundingClientRect();
+    ctx.clearRect(0,0,w,h);
+
+    // draw edges (sample to keep fast)
+    ctx.strokeStyle = '#22304d'; ctx.lineWidth=0.6;
+    const showE = Math.min(edges.length, 6000);
+    const step = Math.max(1, Math.floor(edges.length/showE));
+    ctx.beginPath();
+    for(let i=0;i<edges.length;i+=step){
+      const [u,v]=edges[i]; const a=nodes[u], b=nodes[v];
+      ctx.moveTo(a.x*w, a.y*h); ctx.lineTo(b.x*w, b.y*h);
+    }
+    ctx.stroke();
+
+    // nodes
+    ctx.fillStyle = '#8ab4f8';
+    const N = nodes.length; const r = (N<800)?2.5:(N<2000?2:1.5);
+    for(const nd of nodes){ ctx.beginPath(); ctx.arc(nd.x*w, nd.y*h, r, 0, Math.PI*2); ctx.fill(); }
+    ctx.restore();
+
+    drawDegree(); drawClustering(); drawLengths();
+  }
+
+  function drawDegree(){
+    const ctx = fitCanv(degCanvas); const {width:w,height:h} = degCanvas.getBoundingClientRect();
+    ctx.save(); ctx.scale(devicePixelRatio,devicePixelRatio); ctx.clearRect(0,0,w,h);
+    const kmax = Math.max(1, ...deg);
+    const bins=24; const hist=new Array(bins).fill(0);
+    for(const k of deg){
+      const x = Math.log10(k+1)/Math.log10(kmax+1);
+      const b = Math.min(bins-1, Math.floor(x*bins));
+      hist[b]++;
+    }
+    const maxc = Math.max(1,...hist);
+    ctx.strokeStyle='#2a3754'; ctx.strokeRect(0.5,0.5,w-1,h-1);
+    const pad=12; const bw = (w-2*pad)/bins;
+    for(let i=0;i<bins;i++){
+      const v=hist[i]/maxc; const bh = v*(h-2*pad);
+      ctx.fillStyle='#6ea8fe'; ctx.fillRect(pad+i*bw, h-pad-bh, bw-2, bh);
+    }
+    ctx.fillStyle='#9aa0a6'; ctx.font='12px system-ui';
+    ctx.fillText('low k', pad, h-2); ctx.fillText('high k', w-46, h-2);
+    ctx.restore();
+  }
+
+  function averageClustering(){
+    let sum=0, n=nodes.length;
+    for(let i=0;i<n;i++){
+      const Ai=adj[i]; const ki=Ai.size; if(ki<2) continue; let tri=0;
+      const arr = Array.from(Ai);
+      for(let a=0;a<arr.length;a++){
+        const u=arr[a]; const Au=adj[u];
+        for(let b=a+1;b<arr.length;b++){ const v=arr[b]; if(Au.has(v)) tri++; }
+      }
+      const ci = (2*tri)/(ki*(ki-1)); sum+=ci;
+    }
+    return sum/n;
+  }
+  function avgPathLength(sample=100){
+    const n=nodes.length; if(n===0) return 0;
+    const picks=Math.min(sample,n); let acc=0, cnt=0;
+    for(let s=0;s<picks;s++){
+      const src = Math.floor(Math.random()*n);
+      const distArr = new Int32Array(n); distArr.fill(-1);
+      const q=[src]; distArr[src]=0;
+      while(q.length){
+        const u=q.shift();
+        for(const v of adj[u]){ if(distArr[v]===-1){ distArr[v]=distArr[u]+1; q.push(v);} }
+      }
+      for(let i=0;i<n;i++){ if(i!==src && distArr[i]>0){ acc+=distArr[i]; cnt++; } }
+    }
+    return cnt? acc/cnt : 0;
+  }
+  function drawClustering(){
+    const ctx=fitCanv(cluCanvas); const {width:w,height:h}=cluCanvas.getBoundingClientRect();
+    ctx.save(); ctx.scale(devicePixelRatio,devicePixelRatio); ctx.clearRect(0,0,w,h);
+    const C = averageClustering(); const L = avgPathLength(80);
+    const bars=[{name:'C (cluster)',val:C},{name:'1/L (shorter better)',val: (L>0? 1/L : 0)}];
+    const maxv = Math.max(...bars.map(b=>b.val), 1e-6);
+    const pad=12; const bw=(w-2*pad)/bars.length; let x=pad;
+    for(const b of bars){
+      const v=b.val/maxv; const bh=v*(h-2*pad);
+      ctx.fillStyle='#7bd88f'; ctx.fillRect(x, h-pad-bh, bw-8, bh);
+      ctx.fillStyle='#9aa0a6'; ctx.font='12px system-ui'; ctx.fillText(b.name, x, 14);
+      x+=bw;
+    }
+    ctx.restore();
+  }
+  function drawLengths(){
+    const ctx=fitCanv(lenCanvas); const {width:w,height:h}=lenCanvas.getBoundingClientRect();
+    ctx.save(); ctx.scale(devicePixelRatio,devicePixelRatio); ctx.clearRect(0,0,w,h);
+    const sample = edges.length>4000? 4000: edges.length;
+    const step=Math.max(1, Math.floor(edges.length/sample));
+    const arr=[]; for(let i=0;i<edges.length;i+=step){ const [u,v]=edges[i]; arr.push(dist(nodes[u],nodes[v])); }
+    if(arr.length===0){ ctx.restore(); return; }
+    const bins=24; const min=0, max=1.5;
+    const hist=new Array(bins).fill(0);
+    for(const x of arr){
+      const b=Math.max(0, Math.min(bins-1, Math.floor((x-min)/(max-min)*bins))); hist[b]++;
+    }
+    const maxc=Math.max(1,...hist); const pad=12; const bw=(w-2*pad)/bins;
+    for(let i=0;i<bins;i++){
+      const v=hist[i]/maxc; const bh=v*(h-2*pad);
+      ctx.fillStyle='#f0b37e'; ctx.fillRect(pad+i*bw, h-pad-bh, bw-2, bh);
+    }
+    ctx.fillStyle='#9aa0a6'; ctx.font='12px system-ui'; ctx.fillText('short', pad, h-2); ctx.fillText('long', w-40, h-2);
+    ctx.restore();
+  }
+
+  function updateHUD(){
+    const hud=el('hud');
+    const N=nodes.length, E=edges.length;
+    hud.innerHTML = `N: ${N} &nbsp; E: ${E} &nbsp; avg k: ${(E*2/Math.max(1,N)).toFixed(2)}<br>`
+                  + `Clustering: ${averageClustering().toFixed(3)} &nbsp; Avg path≈ ${avgPathLength(60).toFixed(2)}`;
+  }
+
+  // ---------- Loop ----------
+  function step(n=1){ for(let i=0;i<n;i++){ addNode(); } draw(); updateHUD(); }
+  function run(){ if(running) return; running=true;
+    const loop=()=>{ if(!running) return; step(1); anim=requestAnimationFrame(loop); };
+    anim=requestAnimationFrame(loop);
+  }
+  function pause(){ running=false; if(anim) cancelAnimationFrame(anim); anim=null; }
+
+  // ---------- Wire UI ----------
+  el('reset').addEventListener('click',()=>{ pause(); reset(); el('toggle').textContent='Run'; });
+  el('step100').addEventListener('click',()=>{ pause(); step(100); el('toggle').textContent='Run'; });
+  el('toggle').addEventListener('click',()=>{ running? (pause(), el('toggle').textContent='Run') : (run(), el('toggle').textContent='Pause'); });
+
+  // ---------- Start ----------
+  reset();
+})();
+</script>
+</body>
+</html>
