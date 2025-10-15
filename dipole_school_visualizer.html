@@ -505,6 +505,23 @@ function computeStep(){
   }
 
   const wNoise = new Array(n).fill(0).map(() => In*Math.sqrt(dt)*gaussian());
+  // Predator-induced panic noise (like MATLAB): amplify turning noise near predators
+  // Factor per fish: 1 + 2*In * sigmoid(H - d), where d is distance to predator
+  if(stateFlags.shark){
+    const head = getSharkHeadPos();
+    for(let i=0;i<n;i++){
+      const d = Math.hypot(head.x - fishes[i].x, head.y - fishes[i].y);
+      const sig = 1/(1 + Math.exp(-(params.sharkH - d)));
+      wNoise[i] *= (1 + 2*In*sig);
+    }
+  }
+  if(stateFlags.whale){
+    for(let i=0;i<n;i++){
+      const d = Math.hypot(whaleState.pos.x - fishes[i].x, whaleState.pos.y - fishes[i].y);
+      const sig = 1/(1 + Math.exp(-(params.whaleH - d)));
+      wNoise[i] *= (1 + 2*In*sig);
+    }
+  }
   const Ux = new Array(n).fill(0);
   const Uy = new Array(n).fill(0);
   const wHydro = new Array(n).fill(0);

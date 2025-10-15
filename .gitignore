@@ -16,6 +16,9 @@ local.properties
 .settings/
 .loadpath
 
+# ignore matlab debug files
+.m
+
 # External tool builders
 .externalToolBuilders/
 .bundle/
