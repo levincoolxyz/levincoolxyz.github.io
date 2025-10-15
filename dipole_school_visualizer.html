@@ -947,11 +947,100 @@ function draw(){
   ctx.translate(-cx, -cy);
 
   ctx.lineWidth = 1/scale;
+  // World-anchored subtle backdrop to convey motion when following centroid
+  drawBackdrop();
   drawBaits();
   if(stateFlags.shark) drawShark();
   if(stateFlags.whale) drawWhale();
   drawFishes();
   ctx.restore();
+}
+
+// Deterministic 2D hash → 32-bit unsigned int
+function hash32(ix, iy, salt){
+  // Mix coordinates with a salt and avalanche
+  let h = Math.imul(ix|0, 0x9e3779b1) ^ Math.imul((iy|0) + (salt|0), 0x85ebca6b);
+  h ^= h >>> 16; h = Math.imul(h, 0x7feb352d); h ^= h >>> 15; h = Math.imul(h, 0x846ca68b); h ^= h >>> 16;
+  return h >>> 0;
+}
+
+// Get two repeatable [0,1) floats per cell
+function rand2(ix, iy, salt){
+  const a = hash32(ix, iy, 0x1234abcd ^ salt);
+  const b = hash32(ix, iy, 0xdeadbeef ^ salt);
+  return [a/4294967296, b/4294967296];
+}
+function rand1(ix, iy, salt){
+  return hash32(ix, iy, salt) / 4294967296;
+}
+
+function drawBackdrop(){
+  const rect = canvas.getBoundingClientRect();
+  const aspect = rect.width/rect.height;
+  const worldH = viewState.worldHeight;
+  const worldW = worldH * aspect;
+  const c = getViewCenter();
+  const cx = c.x, cy = c.y;
+  const minX = cx - worldW/2;
+  const maxX = cx + worldW/2;
+  const minY = cy - worldH/2;
+  const maxY = cy + worldH/2;
+
+  // Layered: subtle dots + very sparse wavy lines
+  const dotLayers = [
+    { tile: 6,  baseRadius: 0.05, baseAlpha: 0.5, salt: 11,  baseColor: [80,190,220] },
+    { tile: 18, baseRadius: 0.07, baseAlpha: 0.2, salt: 27,  baseColor: [60,230,180] },
+  ];
+
+  for(const layer of dotLayers){
+    const T = layer.tile;
+    const ix0 = Math.floor(minX / T) - 1;
+    const ix1 = Math.floor(maxX / T) + 1;
+    const iy0 = Math.floor(minY / T) - 1;
+    const iy1 = Math.floor(maxY / T) + 1;
+    for(let iy = iy0; iy <= iy1; iy++){
+      for(let ix = ix0; ix <= ix1; ix++){
+        // Dot A (always): position and style variations
+        const [u1,v1] = rand2(ix, iy, layer.salt ^ 0x1111);
+        const x1 = ix*T + u1*T;
+        const y1 = iy*T + v1*T;
+        const rJ = rand1(ix, iy, layer.salt ^ 0x2222); // size jitter [0,1)
+        const aJ = rand1(ix, iy, layer.salt ^ 0x3333); // alpha jitter
+        const cJ = rand1(ix, iy, layer.salt ^ 0x4444); // color jitter
+        const radius1 = layer.baseRadius * (0.8 + rJ);
+        const alpha1 = layer.baseAlpha * (0.8 + 0.4*aJ);
+        const [br,bg,bb] = layer.baseColor;
+        const hueShift = (cJ - 0.5) * 16; // small color temperature shift
+        const cr = Math.max(0, Math.min(255, Math.round(br + hueShift*2)));
+        const cg = Math.max(0, Math.min(255, Math.round(bg + hueShift*2)));
+        const cb = Math.max(0, Math.min(255, Math.round(bb + hueShift*2)));
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},${alpha1})`;
+        ctx.beginPath();
+        ctx.arc(x1, y1, radius1, 0, Math.PI*2);
+        ctx.fill();
+
+        // Sparse Dot B: occasional second accent for irregularity
+        if(((hash32(ix, iy, layer.salt ^ 0x51f2) | 0) & 7) === 0){
+          const [u2,v2] = rand2(ix+13, iy-7, layer.salt ^ 0xa5a5);
+          const x2 = ix*T + u2*T;
+          const y2 = iy*T + v2*T;
+          const rK = rand1(ix+5, iy-3, layer.salt ^ 0x5555);
+          const aK = rand1(ix-2, iy+9, layer.salt ^ 0x7777);
+          const cK = rand1(ix+7, iy+11, layer.salt ^ 0x9999);
+          const radius2 = layer.baseRadius * 0.6 * (0.8 + 0.6*rK);
+          const alpha2 = layer.baseAlpha * 0.7 * (0.75 + 0.5*aK);
+          const hueShift2 = (cK - 0.5) * 20;
+          const cr2 = Math.max(0, Math.min(255, Math.round(br + hueShift2*0.6)));
+          const cg2 = Math.max(0, Math.min(255, Math.round(bg + hueShift2)));
+          const cb2 = Math.max(0, Math.min(255, Math.round(bb + hueShift2*1.2)));
+          ctx.fillStyle = `rgba(${cr2},${cg2},${cb2},${alpha2})`;
+          ctx.beginPath();
+          ctx.arc(x2, y2, radius2, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+  }
 }
 
 function drawBaits(){
