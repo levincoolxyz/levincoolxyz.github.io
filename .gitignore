@@ -16,6 +16,9 @@ local.properties
 .settings/
 .loadpath
 
+# to allow vibe debugging comparison to matlab codes
+.m
+
 # External tool builders
 .externalToolBuilders/
 .bundle/
