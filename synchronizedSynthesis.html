@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Synchronized Synthesis</title>
+    <!-- Inlined from web/styles.css -->
+    <style>
+:root {
+  color-scheme: light dark;
+  --bg: #121212;
+  --fg: #f0f0f0;
+  --accent: #ff6f61;
+  --panel: rgba(255, 255, 255, 0.08);
+  --panel-border: rgba(255, 255, 255, 0.2);
+  font-family: 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 10% 20%, rgba(45, 52, 54, 0.9), rgba(18, 18, 18, 0.95));
+  color: var(--fg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header,
+footer {
+  padding: 1rem 2rem;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+footer {
+  border-bottom: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: auto;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.tagline {
+  margin: 0.5rem 0 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+#app {
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-auto-rows: minmax(100px, auto);
+  gap: 1.5rem;
+}
+
+.controls,
+.audio-controls,
+.keyboard,
+.visuals {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  padding: 1.2rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
+.keyboard {
+  grid-column: 2 / -1;
+}
+
+.controls {
+  grid-column: 1 / -1;
+}
+
+.control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+  align-items: center;
+}
+
+.control-row label,
+.audio-controls label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+button {
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, rgba(255, 111, 97, 0.9), rgba(255, 204, 128, 0.9));
+  color: #1b1b1b;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(255, 111, 97, 0.45);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+.visuals {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 1rem;
+  align-items: stretch;
+  justify-items: stretch;
+}
+
+.visuals canvas {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, .475);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 80vh;
+}
+
+#audio-controls {
+  grid-column: span 1 / -1;
+}
+
+.adsr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.preset-row {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-start;
+}
+
+/* Make slider groups shrink more gracefully on narrow widths */
+.control-row label,
+.audio-controls label {
+  flex: 1 1 110px;
+  min-width: 100px;
+}
+.control-row input[type="range"],
+.audio-controls input[type="range"] {
+  width: 100%;
+  min-width: 60px;
+}
+
+.keyboard-row { position: relative; height: 200px; margin-bottom: 0.75rem; overflow: hidden; }
+.white-keys { display: flex; height: 100%; gap: 2px; }
+.black-keys { position: absolute; top: 0; left: 0; right: 0; height: 60%; pointer-events: none; z-index: 2; transform: translateX(2%);} 
+
+.key { position: relative; text-align: center; font-weight: 600; cursor: pointer; user-select: none; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 6px; line-height: 1; }
+.white-key { height: 100%; border-radius: 6px; border: 1px solid rgba(0,0,0,0.2); background: linear-gradient(#fafafa, #dddddd); color: #111; }
+.white-key:hover { transform: translateY(-1px); }
+.white-key:active, .white-key.active { transform: translateY(2px); background: linear-gradient(#ffe0d6, #ffcab5); }
+
+.black-key { position: absolute; top: 0; height: 100%; pointer-events: auto; border-radius: 4px; border: 1px solid rgba(0,0,0,0.7); background: linear-gradient(#000, #222); color: #fff; }
+.black-key:hover { transform: translateY(-1px); }
+.black-key:active, .black-key.active { transform: translateY(2px); background: linear-gradient(#333, #555); }
+
+.keyboard-help {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.9rem;
+}
+
+.octave-label {
+  margin: 0.25rem 0 0.5rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.octave-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0 0.5rem;
+}
+.octave-controls button {
+  padding: 0.35rem 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .controls,
+  .visuals,
+  .audio-controls,
+  .keyboard {
+    grid-column: 1 / -1;
+  }
+  .visuals {
+    grid-template-columns: 1fr;
+  }
+  .controls { padding: 0.8rem; }
+  .audio-controls { padding: 0.8rem; }
+  .adsr-grid { gap: 0.5rem; }
+  .control-row { gap: 0.5rem; margin-bottom: 0.5rem; }
+  .keyboard-row { height: 120px; }
+}
+
+@media (max-width: 420px) {
+  .keyboard-row { height: 96px; }
+}
+
+/* Wave canvas spans full row under the two visuals */
+#wave-canvas { grid-column: 1 / -1;}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Synchronized Synthesis</h1>
+      <p class="tagline">Interactive rotor coordination synthesizer in the browser</p>
+    </header>
+    <main id="app">
+      <section class="controls" aria-label="Rotor controls">
+        <div class="control-row">
+          <button type="button" id="pause-toggle" /> Pause</button>
+          <button type="button" id="mute-toggle" /> Mute</button>
+          <button type="button" id="bc-toggle" aria-pressed="true">Periodic BC</button>
+          <button id="reset-btn" type="button">Traveling wave</button>
+          <button id="noise-btn" type="button">Randomize</button>
+        </div>
+        <div class="control-row">
+          <label>Speed <input type="range" id="speed" min="0.05" max="10" step="0.05" value="5" /></label>
+          <label>Ellipticity <input type="range" id="ellipticity" min="0" max="1" step="0.01" value="0" /></label>
+          <label>Harmonic <input type="range" id="harmonic" min="0" max="5" step="0.1" value="2" /></label>
+          <label>Jitter <input type="range" id="jitter" min="0" max="1" step="0.01" value="0.1" /></label>
+        </div>
+        <div class="control-row">
+          <label>Tilt <input type="range" id="tilt" min="0" max="1.047" step="0.01" value="0" /></label>
+          <label>Coverage <input type="range" id="coverage" min="0.5" max="1" step="0.01" value="1" /></label>
+          <label>Patchiness <input type="range" id="patchiness" min="0" max="1" step="0.01" value="0.6" /></label>
+          <label>Dispersion <input type="range" id="dispersion" min="0" max="5" step="0.1" value="1" /></label>
+          <label>Range <input type="range" id="height" min="0.25" max="1.5" step="0.01" value="1" /></label>
+        </div>
+        <div class="control-row">
+          <label>Effective Angle <input type="range" id="effective-angle" min="-3.1416" max="3.1416" step="0.01" value="-1" /></label>
+          <label>CW % <input type="range" id="cw-percent" min="0" max="100" step="1" value="0" /></label>
+          <label>nX <input type="range" id="nx" min="8" max="40" step="1" value="20" /></label>
+          <label>nY <input type="range" id="ny" min="8" max="50" step="1" value="30" /></label>
+        </div>
+      </section>
+      <section class="visuals" aria-label="Rotor visualizations">
+        <canvas id="rotor-canvas" width="420" height="420" aria-label="Single rotor"></canvas>
+        <canvas id="phase-canvas" width="420" height="420" aria-label="Rotor field"></canvas>
+        <canvas id="wave-canvas" width="900" height="40" aria-label="Waveform"></canvas>
+      </section>
+      <section class="audio-controls" aria-label="Audio settings">
+        <label><input type="checkbox" id="sustain-toggle" checked /> Infinite sustain</label>
+        <label><input type="checkbox" id="stereo-toggle" /> Stereo sweep</label>
+        <div class="adsr-grid">
+          <div>
+            <label>Attack <input type="range" id="attack" min="0.01" max="2" step="0.01" value="0.05" /></label>
+          </div>
+          <div>
+            <label>Decay <input type="range" id="decay" min="0.01" max="2" step="0.01" value="0.05" /></label>
+          </div>
+          <div>
+            <label>Sustain <input type="range" id="sustain" min="0.001" max="2" step="0.01" value="0.05" /></label>
+          </div>
+          <div>
+            <label>Release <input type="range" id="release" min="0.05" max="5" step="0.05" value="0.4" /></label>
+          </div>
+          <div>
+            <label>Peak <input type="range" id="peak" min="0.2" max="1.5" step="0.05" value="1" /></label>
+          </div>
+          <div>
+            <label>Level <input type="range" id="level" min="0.05" max="1" step="0.05" value="0.25" /></label>
+          </div>
+        </div>
+        <div class="preset-row">
+          <button type="button" data-preset="key">🎹</button>
+          <button type="button" data-preset="pad">▣</button>
+          <button type="button" data-preset="hit">🥁</button>
+        </div>
+      </section>
+      <section class="keyboard" aria-label="Piano keyboard">
+        <div class="keyboard-row" id="keyboard-row"></div>
+        <div class="octave-controls">
+          <button type="button" id="octave-down" aria-label="Octave Down">Octave -</button>
+          <p class="octave-label" id="octave-label">Octave# 2</p>
+          <button type="button" id="octave-up" aria-label="Octave Up">Octave +</button>
+        </div>
+        <p class="keyboard-help">Play with your physical keyboard (a w s e … ⏎) or click the keys. Use the Octave +/- buttons to shift.</p>
+      </section>
+    </main>
+    <footer>
+      <p>Vibe coding port of the MATLAB <a href="https://www.mathworks.com/matlabcentral/fileexchange/92588-synchronized-synthesis">Synchronized Synthesis Audio Plugin</a> from 2021. 
+        All mistakes are © GPT-5 :p</p>
+    </footer>
+
+    <!-- Inlined math.js -->
+    <script>
+// Utilities
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function mod2pi(angle) {
+  const tau = Math.PI * 2;
+  return ((angle % tau) + tau) % tau;
+}
+
+function rotateZArray(angles, vectors, out) {
+  const N = angles.length;
+  const result = out ?? new Float64Array(vectors.length);
+  const vx = vectors.subarray(0, N);
+  const vy = vectors.subarray(N, 2 * N);
+  const vz = vectors.subarray(2 * N, 3 * N);
+  const rx = result.subarray(0, N);
+  const ry = result.subarray(N, 2 * N);
+  const rz = result.subarray(2 * N, 3 * N);
+
+  for (let i = 0; i < N; i += 1) {
+    const a = angles[i];
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    const x = vx[i];
+    const y = vy[i];
+    rx[i] = x * c - y * s;
+    ry[i] = x * s + y * c;
+    rz[i] = vz[i];
+  }
+
+  return result;
+}
+
+function vecNorm3(x, y, z) {
+  return Math.sqrt(x * x + y * y + z * z);
+}
+
+function triangleWave(x) {
+  const k = Math.floor((x + 1) / 2);
+  const val = 1 - 2 * Math.abs(x - 2 * k);
+  return val;
+}
+
+function gaussianRandom(std = 1) {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  const mag = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  return mag * std;
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function rms(array) {
+  let sum = 0;
+  for (let i = 0; i < array.length; i += 1) {
+    sum += array[i] * array[i];
+  }
+  return Math.sqrt(sum / Math.max(1, array.length));
+}
+    </script>
+
+    <!-- Inlined stokesletWithWall.js -->
+    <script>
+function stokesletWithWall(Xq, X, F, eps){
+  const N = Math.floor((X && X.length) ? X.length / 3 : 0);
+  const nQ = Math.floor((Xq && Xq.length) ? Xq.length / 3 : 0);
+  const out = new Float64Array(3 * nQ);
+  if (N === 0 || nQ === 0) {
+    return out;
+  }
+  const Fx = F.subarray(0, N);
+  const Fy = F.subarray(N, 2 * N);
+  const Fz = F.subarray(2 * N, 3 * N);
+  const X1 = X.subarray(0, N);
+  const X2 = X.subarray(N, 2 * N);
+  const X3 = X.subarray(2 * N, 3 * N);
+  const PI = Math.PI;
+
+  function epsAt(i){
+    if (typeof eps === 'number') return eps;
+    if (!eps) return 1e-6;
+    if (Array.isArray(eps) || eps instanceof Float32Array || eps instanceof Float64Array) {
+      if (eps.length === 1) return eps[0];
+      return eps[i] != null ? eps[i] : eps[0];
+    }
+    return Number(eps) || 1e-6;
+  }
+
+  for (let qi = 0; qi < nQ; qi++){
+    const qx = Xq[qi];
+    const qy = Xq[qi + nQ];
+    const qz = Xq[qi + 2 * nQ];
+    let u = 0, v = 0, w = 0;
+
+    for (let i = 0; i < N; i++){
+      const ex = X1[i];
+      const ey = X2[i];
+      const ez = X3[i];
+      const Fx_i = Fx[i];
+      const Fy_i = Fy[i];
+      const Fz_i = Fz[i];
+      const eVal = epsAt(i);
+      const e2 = eVal * eVal;
+
+      const xs1 = qx - ex;
+      const xs2 = qy - ey;
+      const xs3 = qz - ez;
+
+      const xi1 = qx + ex; // since image point reflects x: Xi1 = -Xo1
+      const xi2 = qy - ey;
+      const xi3 = qz - ez;
+
+      const rs2 = xs1 * xs1 + xs2 * xs2 + xs3 * xs3;
+      const r2 = xi1 * xi1 + xi2 * xi2 + xi3 * xi3;
+
+      const rser = Math.sqrt(rs2 + e2);
+      const rser3 = rser * rser * rser;
+      const rer = Math.sqrt(r2 + e2);
+      const rer3 = rer * rer * rer;
+      const rer5 = rer3 * rer * rer;
+
+      const H1s = (1 / rser + e2 / rser3) / (8 * PI);
+      const H2s = 1 / (rser3 * 8 * PI);
+      const H1 = (1 / rer + e2 / rer3) / (8 * PI);
+      const H2 = 1 / (rer3 * 8 * PI);
+      const H1pr = (-1 / rer3 - 3 * e2 / rer5) / (8 * PI);
+      const H2pr = -3 / (rer5 * 8 * PI);
+      const D1 = (1 / rer3 - 3 * e2 / rer5) / (4 * PI);
+      const D2 = -3 / (rer5 * 4 * PI);
+
+      const Gx = Fx_i;
+      const Gy = -Fy_i;
+      const Gz = -Fz_i;
+      const GrotP = Gx * xi1 + Gy * xi2 + Gz * xi3;
+
+      const Fxs = Fx_i * xs1 + Fy_i * xs2 + Fz_i * xs3;
+      const FrotP = Fx_i * xi1 + Fy_i * xi2 + Fz_i * xi3;
+
+      const LCx1 = Fz_i * xi3 + Fy_i * xi2;
+      const LCx2 = -Fy_i * xi1;
+      const LCx3 = -Fz_i * xi1;
+
+      const xsCoeff = Fxs * H2s;
+      const Lcoeff = 2 * ex * (H1pr + H2);
+      const Xcoeff = 2 * ex * (Gx * H2 + xi1 * GrotP * H2pr) - FrotP * H2 - ex * ex * GrotP * D2;
+      const Fcoeff = H1s - H1;
+      const Gcoeff = 2 * ex * xi1 * H2 - ex * ex * D1;
+
+      u += Fcoeff * Fx_i + xsCoeff * xs1 + Xcoeff * xi1 + Lcoeff * LCx1 + Gcoeff * Gx + 2 * ex * GrotP * H1pr;
+      v += (H1s - H1) * Fy_i + xsCoeff * xs2 + Xcoeff * xi2 + Lcoeff * LCx2 + Gcoeff * Gy;
+      w += (H1s - H1) * Fz_i + xsCoeff * xs3 + Xcoeff * xi3 + Lcoeff * LCx3 + Gcoeff * Gz;
+    }
+
+    out[qi] = u;
+    out[qi + nQ] = v;
+    out[qi + 2 * nQ] = w;
+  }
+
+  return out;
+}
+    </script>
+
+    <!-- Inlined simulation.js (imports/exports removed) -->
+    <script>
+const TWO_PI = Math.PI * 2;
+
+class SynchronizedSynth {
+  constructor(options = {}) {
+    this.Nx = options.Nx ?? 20;
+    this.Ny = options.Ny ?? 30;
+    this.Nr = this.Nx * this.Ny;
+    this.thetaResolution = options.thetaResolution ?? 720;
+
+    this.params = {
+      a: 0.5,
+      ellipticity: 0,
+      ep: 0.5,
+      harmonic: 2,
+      modPhase: Math.PI / 2,
+      tilt: 0,
+      height: 1,
+      speed: 1,
+      jitter: 0.1,
+      coverage: 1,
+      patchiness: 0.6,
+      dispersion: 1,
+      viscosity: 1,
+    };
+    this._forcingCoefficients = new Float64Array(1);
+    this._updateForcingCoefficients();
+
+    this.periodic = true;
+    this.localPeriodic = false;
+    this.Nshell = options.Nshell ?? 5;
+    this.effectiveAngle = -1;
+    // Per-rotor spin direction (1=CCW, 0=CW)
+    this.isCCWVec = new Uint8Array(this.Nr);
+    this.cwPercent = 0;
+    this.vFlip = false;
+    this.paused = false;
+    this.noInteraction = false;
+    this.zoom = 1;
+
+    this.viscosity = this.params.viscosity;
+    this.diameter = 5e-2;
+    this.dragCoeff = 6 * Math.PI * this.viscosity * this.diameter / 2;
+    this.wallHeight = 0;
+    this.regularization = this.diameter;
+
+    this.stereoLag = 0;
+    this.stereoSweep = false;
+
+    this.coordx = new Float64Array(this.Nr);
+    this.coordy = new Float64Array(this.Nr);
+    this._buildGrid();
+
+    this.rotorPhase = new Float64Array(this.Nr);
+    this.baseAngle = new Float64Array(this.Nr);
+    this.periodJitter = new Float64Array(this.Nr);
+    this.isCiliated = new Float64Array(this.Nr);
+
+    this.basePosX = new Float64Array(this.Nr);
+    this.basePosY = new Float64Array(this.Nr);
+    this.basePosZ = new Float64Array(this.Nr);
+
+    this.posEachX = new Float64Array(this.Nr);
+    this.posEachY = new Float64Array(this.Nr);
+    this.posEachZ = new Float64Array(this.Nr);
+
+    this.velEachX = new Float64Array(this.Nr);
+    this.velEachY = new Float64Array(this.Nr);
+    this.velEachZ = new Float64Array(this.Nr);
+
+    this.velNewX = new Float64Array(this.Nr);
+    this.velNewY = new Float64Array(this.Nr);
+    this.velNewZ = new Float64Array(this.Nr);
+
+    this.forceX = new Float64Array(this.Nr);
+    this.forceY = new Float64Array(this.Nr);
+    this.forceZ = new Float64Array(this.Nr);
+
+    this.tmpPosX = new Float64Array(this.Nr);
+    this.tmpPosY = new Float64Array(this.Nr);
+    this.tmpPosZ = new Float64Array(this.Nr);
+
+    this.queryBuffer = new Float64Array(3 * this.Nr);
+    this.sourceBuffer = new Float64Array(3 * this.Nr);
+    this.forceBuffer = new Float64Array(3 * this.Nr);
+
+    this.theta = new Float64Array(this.thetaResolution);
+    for (let i = 0; i < this.thetaResolution; i += 1) {
+      this.theta[i] = (i / this.thetaResolution) * TWO_PI;
+    }
+
+    this.singleRotorPath = new Float32Array(this.thetaResolution * 2);
+    this.singleRotorVelocity = new Float32Array(this.thetaResolution * 2);
+    this._singleRotorRawX = new Float64Array(this.thetaResolution);
+    this._singleRotorRawY = new Float64Array(this.thetaResolution);
+    this._singleRotorRawZ = new Float64Array(this.thetaResolution);
+    this._singleRotorRawVx = new Float64Array(this.thetaResolution);
+    this._singleRotorRawVy = new Float64Array(this.thetaResolution);
+
+    this.waveformPreview = new Float32Array(1024);
+
+    // Polar histogram support (match MATLAB Np/10 bins)
+    this._histBinCount = Math.max(8, Math.floor(this.thetaResolution / 10));
+    if (this._histBinCount < 3) {
+      this._histBinCount = 3;
+    }
+    const histStep = TWO_PI / Math.max(1, this._histBinCount - 1);
+    this._histAngles = new Float64Array(this._histBinCount);
+    for (let i = 0; i < this._histBinCount; i += 1) {
+      this._histAngles[i] = histStep * i;
+    }
+    this._histWeights = new Float64Array(this._histBinCount);
+    this._histCenterRawX = new Float64Array(this._histBinCount);
+    this._histCenterRawY = new Float64Array(this._histBinCount);
+    this._histLeftRawX = new Float64Array(this._histBinCount);
+    this._histLeftRawY = new Float64Array(this._histBinCount);
+    this._histRightRawX = new Float64Array(this._histBinCount);
+    this._histRightRawY = new Float64Array(this._histBinCount);
+    this._histCenter = new Float32Array(this._histBinCount * 2);
+    this._histLeft = new Float32Array(this._histBinCount * 2);
+    this._histRight = new Float32Array(this._histBinCount * 2);
+
+    this.kv = [1 / 6, -1 / 15];
+
+    // Brownian tracer particles (disk-shaped). Npar kept modest to control cost.
+    this.Npar = options.Npar ?? 50;
+    this.pparX = new Float64Array(this.Npar);
+    this.pparY = new Float64Array(this.Npar);
+    this.pparZ = new Float64Array(this.Npar);
+    this.vparX = new Float64Array(this.Npar);
+    this.vparY = new Float64Array(this.Npar);
+    this.vparZ = new Float64Array(this.Npar);
+    this.parQuery = new Float64Array(3 * this.Npar);
+
+    this._refreshAngleDistribution();
+    this._refreshPresence();
+    this._buildNeighborTable();
+    this._initPhasesFromKv();
+    this.setCwPercent(0);
+    this.refreshDerivedFields();
+
+    this._initParticles();
+  }
+
+  _buildNeighborTable() {
+    // Build periodic neighbor lists like MATLAB periodicNeighbors(Ny,Nx,Nshell)
+    const Nx = this.Nx;
+    const Ny = this.Ny;
+    const Nshell = Math.max(0, this.Nshell | 0);
+    const table = new Array(this.Nr);
+    for (let j = 0; j < Ny; j += 1) {
+      for (let i = 0; i < Nx; i += 1) {
+        const idx = j * Nx + i;
+        const neighbors = [];
+        for (let dy = -Nshell; dy <= Nshell; dy += 1) {
+          for (let dx = -Nshell; dx <= Nshell; dx += 1) {
+            const ii = (i + dx + Nx) % Nx;
+            const jj = (j + dy + Ny) % Ny;
+            neighbors.push(jj * Nx + ii);
+          }
+        }
+        table[idx] = neighbors;
+      }
+    }
+    this.neighborTable = table;
+  }
+
+  _buildGrid() {
+    const coordx = new Array(this.Nx);
+    const coordy = new Array(this.Ny);
+    for (let i = 0; i < this.Nx; i += 1) {
+      coordx[i] = -this.Nx / 2 + (i + 0.5);
+    }
+    for (let j = 0; j < this.Ny; j += 1) {
+      coordy[j] = -this.Ny / 2 + (j + 0.5);
+    }
+    let idx = 0;
+    for (let j = 0; j < this.Ny; j += 1) {
+      for (let i = 0; i < this.Nx; i += 1) {
+        this.coordx[idx] = coordx[i];
+        this.coordy[idx] = coordy[j];
+        idx += 1;
+      }
+    }
+    this.maxCoordX = Math.max(...coordx);
+    this.maxCoordY = Math.max(...coordy);
+  }
+
+  _refreshAngleDistribution() {
+    const angStd = this.params.jitter * TWO_PI;
+    for (let i = 0; i < this.Nr; i += 1) {
+      this.baseAngle[i] = this.effectiveAngle + (Math.random() - 0.5) * angStd;
+      this.periodJitter[i] = Math.random() * this.params.jitter;
+    }
+  }
+
+  setEffectiveAngle(angle) {
+    this.effectiveAngle = angle;
+    this._refreshAngleDistribution();
+    this.refreshDerivedFields();
+  }
+
+  _presenceAt(x, y) {
+    const { coverage, patchiness, dispersion } = this.params;
+    const patch = Math.max(0.05, patchiness);
+    const disp = dispersion;
+    const cx = triangleWave((x + gaussianRandom(disp)) / (this.maxCoordX || 1) / patch);
+    const cy = triangleWave((y + gaussianRandom(disp)) / (this.maxCoordY || 1) / patch);
+    const shape = Math.min(cx, cy);
+    return shape >= (1 - 2 * coverage) ? 1 : 0;
+  }
+
+  _refreshPresence() {
+    for (let i = 0; i < this.Nr; i += 1) {
+      this.isCiliated[i] = this._presenceAt(this.coordx[i], this.coordy[i]);
+    }
+  }
+
+  _updateForcingCoefficients() {
+    const rawHarm = Number.isFinite(this.params.harmonic) ? this.params.harmonic : 0;
+    const order = Math.max(0, Math.round(rawHarm));
+    const coeffs = new Float64Array(order + 1);
+    coeffs[order] = 1;
+    this._forcingCoefficients = coeffs;
+  }
+
+  setPaused(value) {
+    this.paused = Boolean(value);
+  }
+
+  setFlip(value) {
+    this.vFlip = Boolean(value);
+    this.refreshDerivedFields();
+  }
+
+  rotateEffective(delta = Math.PI / 4) {
+    this.effectiveAngle = mod2pi(this.effectiveAngle + delta);
+    this._refreshAngleDistribution();
+    this.refreshDerivedFields();
+  }
+
+  setZoom(multiplier) {
+    this.zoom = clamp(multiplier, 0.25, 4);
+  }
+
+  adjustZoom(step) {
+    this.zoom = clamp(this.zoom * step, 0.25, 4);
+  }
+
+  setStereoSweep(value) {
+    this.stereoSweep = Boolean(value);
+  }
+
+  setParameter(name, value) {
+    if (!(name in this.params)) return;
+    this.params[name] = value;
+    let needsRefresh = true;
+    switch (name) {
+      case 'jitter':
+        this._refreshAngleDistribution();
+        break;
+      case 'coverage':
+      case 'patchiness':
+      case 'dispersion':
+        this._refreshPresence();
+        break;
+      case 'harmonic':
+        this._updateForcingCoefficients();
+        break;
+      case 'viscosity':
+        this.viscosity = value;
+        this.dragCoeff = 6 * Math.PI * this.viscosity * this.diameter / 2;
+        needsRefresh = false;
+        break;
+      case 'speed':
+        needsRefresh = false;
+        break;
+      default:
+        break;
+    }
+    if (needsRefresh) {
+      this.refreshDerivedFields();
+    }
+  }
+
+  resetTravelingWave() {
+    // Random traveling wave direction and magnitude ~ U(1, 1.25)
+    const randAng = Math.random() * TWO_PI;
+    const mag = 1 + Math.random() * 0.5;
+    const kx = Math.cos(randAng) * mag;
+    const ky = Math.sin(randAng) * mag;
+    this.kv = [kx, ky];
+    this._initPhasesFromKv();
+    console.log('[Sim] resetTravelingWave kv=', this.kv);
+    this.refreshDerivedFields();
+  }
+
+  _initPhasesFromKv() {
+    const kx = this.kv[0];
+    const ky = this.kv[1];
+    for (let i = 0; i < this.Nr; i += 1) {
+      const phase = (kx * TWO_PI * this.coordx[i]) + (ky * TWO_PI * this.coordy[i]);
+      this.rotorPhase[i] = mod2pi(phase);
+    }
+  }
+
+  _initParticles() {
+    // Initialize tracers near the center with slight spread, z around current height
+    const zx = this.maxCoordX * 0.33;
+    const zy = this.maxCoordY * 0.33;
+    for (let i = 0; i < this.Npar; i += 1) {
+      this.pparX[i] = gaussianRandom(0.5) * zx * 0.5;
+      this.pparY[i] = gaussianRandom(0.5) * zy * 0.5;
+      this.pparZ[i] = Math.max(1, this.params.height + gaussianRandom(0.05));
+    }
+  }
+
+  randomizePhases() {
+    for (let i = 0; i < this.Nr; i += 1) {
+      this.rotorPhase[i] = Math.random() * TWO_PI;
+    }
+    this.refreshDerivedFields();
+  }
+
+  updateBasePositions() {
+    const jitter = this.params.jitter / 2;
+    for (let i = 0; i < this.Nr; i += 1) {
+      this.basePosX[i] = this.coordx[i] + (Math.random() - 0.5) * jitter;
+      this.basePosY[i] = this.coordy[i] + (Math.random() - 0.5) * jitter;
+      this.basePosZ[i] = 0;
+    }
+  }
+
+  updateKinematics() {
+    const { a, ep, modPhase, tilt, height } = this.params;
+    const b = (1 - this.params.ellipticity) * a;
+    const fc = this._forcingCoefficients;
+    const fcCount = fc.length;
+    const cosTilt = Math.cos(tilt);
+    const sinTilt = Math.sin(tilt);
+    const heightSinTilt = height * sinTilt;
+    const heightCosTilt = height * cosTilt;
+    const globalFlip = this.vFlip;
+
+    for (let i = 0; i < this.Nr; i += 1) {
+      const t = this.rotorPhase[i];
+      let harmonicSum = 0;
+      for (let k = 0; k < fcCount; k += 1) {
+        const coeff = fc[k];
+        if (coeff === 0) continue;
+        harmonicSum += coeff * Math.sin(k * t + modPhase);
+      }
+      let dirFlag = this.isCCWVec[i] === 1;
+      if (globalFlip) dirFlag = !dirFlag;
+      const baseMod = 1 - ep * harmonicSum;
+      const vmod = (dirFlag ? -1 : 1) * baseMod;
+
+      const cosT = Math.cos(t);
+      const sinT = Math.sin(t);
+
+      const posLocalX = a * cosT * cosTilt + heightSinTilt;
+      const posLocalY = b * sinT;
+      const posLocalZ = heightCosTilt - a * cosT * sinTilt;
+
+      const tanX = -a * sinT * cosTilt;
+      const tanY = b * cosT;
+      const tanZ = a * sinT * sinTilt;
+
+      const velLocalX = tanX * vmod;
+      const velLocalY = tanY * vmod;
+      const velLocalZ = tanZ * vmod;
+
+      const angle = this.baseAngle[i];
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+
+      this.posEachX[i] = posLocalX * c - posLocalY * s;
+      this.posEachY[i] = posLocalX * s + posLocalY * c;
+      this.posEachZ[i] = posLocalZ;
+
+      this.velEachX[i] = velLocalX * c - velLocalY * s;
+      this.velEachY[i] = velLocalX * s + velLocalY * c;
+      this.velEachZ[i] = velLocalZ;
+
+      // if (i < 3) {
+      //   console.log('[Sim] updateKinematics sample', { idx: i, phase: t, harmonicSum, vmod, dirFlag });
+      // }
+    }
+  }
+
+  computeInteractions(dt) {
+    const N = this.Nr;
+    // Precompute absolute rotor positions and forces for this step
+    const posX = new Float64Array(N);
+    const posY = new Float64Array(N);
+    const posZ = new Float64Array(N);
+    for (let i = 0; i < N; i += 1) {
+      posX[i] = this.basePosX[i] + this.posEachX[i];
+      posY[i] = this.basePosY[i] + this.posEachY[i];
+      posZ[i] = this.basePosZ[i] + this.posEachZ[i];
+      const fx = this.dragCoeff * this.velEachX[i] * this.isCiliated[i] * (1 + this.periodJitter[i]);
+      const fy = this.dragCoeff * this.velEachY[i] * this.isCiliated[i] * (1 + this.periodJitter[i]);
+      const fz = this.dragCoeff * this.velEachZ[i] * this.isCiliated[i] * (1 + this.periodJitter[i]);
+      this.forceX[i] = fx;
+      this.forceY[i] = fy;
+      this.forceZ[i] = fz;
+      // Maintain full buffers for non-periodic paths and particle advection
+      this.sourceBuffer[i] = posZ[i] - this.wallHeight;
+      this.sourceBuffer[i + N] = posX[i];
+      this.sourceBuffer[i + 2 * N] = posY[i];
+      this.forceBuffer[i] = fz;
+      this.forceBuffer[i + N] = fx;
+      this.forceBuffer[i + 2 * N] = fy;
+    }
+
+    if (this.noInteraction) {
+      // console.log('[Sim] computeInteractions: noInteraction');
+      for (let i = 0; i < N; i += 1) {
+        const mag = vecNorm3(this.velEachX[i], this.velEachY[i], this.velEachZ[i]);
+        this.rotorPhase[i] = mod2pi(this.rotorPhase[i] + (this.vFlip ? -1 : 1) * mag * dt);
+      }
+      return;
+    }
+
+    if (this.periodic && this.localPeriodic) {
+      // console.log('[Sim] computeInteractions: periodic with local neighbor mode', { Nshell: this.Nshell });
+      for (let i = 0; i < N; i += 1) {
+        const px = posX[i];
+        const py = posY[i];
+        const pz = posZ[i];
+        const nbs = this.neighborTable[i];
+        const nN = nbs.length;
+        const Xq = new Float64Array(3);
+        Xq[0] = pz - this.wallHeight;
+        Xq[1] = px;
+        Xq[2] = py;
+        const X = new Float64Array(3 * nN);
+        const F = new Float64Array(3 * nN);
+        const xSize = this.Nx + 1;
+        const ySize = this.Ny + 1;
+        for (let k = 0; k < nN; k += 1) {
+          const j = nbs[k];
+          // Wrap neighbor positions to be centered around (px,py)
+          const wz = posZ[j] - this.wallHeight;
+          const wx = this._wrapToCenter(posX[j], px, xSize);
+          const wy = this._wrapToCenter(posY[j], py, ySize);
+          X[k] = wz;               // z block
+          X[k + nN] = wx;          // x block
+          X[k + 2 * nN] = wy;      // y block
+          F[k] = this.forceZ[j];   // Fz block
+          F[k + nN] = this.forceX[j];
+          F[k + 2 * nN] = this.forceY[j];
+        }
+        const resp = stokesletWithWall(Xq, X, F, this.regularization);
+        this.velNewZ[i] = resp[0];
+        this.velNewX[i] = resp[1];
+        this.velNewY[i] = resp[2];
+      }
+    } else if (this.periodic && !this.localPeriodic) {
+      // console.log('[Sim] computeInteractions: periodic with all images');
+      const N = this.Nr;
+      for (let i = 0; i < N; i += 1) {
+        const qx = posX[i];
+        const qy = posY[i];
+        const qz = posZ[i] - this.wallHeight;
+        const Xq = new Float64Array([qz, qx, qy]);
+        const X = new Float64Array(3 * N);
+        const F = new Float64Array(3 * N);
+        const xSize = this.Nx + 1;
+        const ySize = this.Ny + 1;
+        for (let j = 0; j < N; j += 1) {
+          const wz = posZ[j]; // posZ - wallHeight
+          const wx = this._wrapToCenter(posX[j], qx, xSize);
+          const wy = this._wrapToCenter(posY[j], qy, ySize);
+          X[j] = wz;
+          X[j + N] = wx;
+          X[j + 2 * N] = wy;
+          F[j] = this.forceZ[j];
+          F[j + N] = this.forceX[j];
+          F[j + 2 * N] = this.forceY[j];
+        }
+        const resp = stokesletWithWall(Xq, X, F, this.regularization);
+        this.velNewZ[i] = resp[0];
+        this.velNewX[i] = resp[1];
+        this.velNewY[i] = resp[2];
+      }
+    } else {
+      // console.log('[Sim] computeInteractions without periodic images');
+      const qb = new Float64Array(3 * N);
+      for (let i = 0; i < N; i += 1) {
+        qb[i] = posZ[i] - this.wallHeight;
+        qb[i + N] = posX[i];
+        qb[i + 2 * N] = posY[i];
+      }
+      const resp = stokesletWithWall(qb,this.sourceBuffer,this.forceBuffer,this.regularization);
+      for (let i = 0; i < N; i += 1) {
+        this.velNewZ[i] = resp[i];
+        this.velNewX[i] = resp[i + N];
+        this.velNewY[i] = resp[i + 2 * N];
+      }
+    }
+    // console.log('rms of state forces', rms(this.forceX), rms(this.forceY), rms(this.forceZ));
+    // console.log('rms of new velocity', rms(this.velNewX), rms(this.velNewY), rms(this.velNewZ));
+
+    const phaseChanged = new Float64Array(3);
+    for (let i = 0; i < N; i += 1) {
+      const vx = this.velEachX[i];
+      const vy = this.velEachY[i];
+      const vz = this.velEachZ[i];
+      const mag = vecNorm3(vx, vy, vz) || 1e-6;
+      const tx = vx / mag;
+      const ty = vy / mag;
+      const tz = vz / mag;
+      const proj = this.velNewX[i] * tx + this.velNewY[i] * ty + this.velNewZ[i] * tz;
+      const nx = this.posEachX[i] + proj * tx * dt;
+      const ny = this.posEachY[i] + proj * ty * dt;
+      const nz = this.posEachZ[i] + proj * tz * dt;
+      const oldMag = vecNorm3(this.posEachX[i], this.posEachY[i], this.posEachZ[i]) || 1e-6;
+      const newMag = vecNorm3(nx, ny, nz) || 1e-6;
+      let tmp = (this.posEachX[i] * nx + this.posEachY[i] * ny + this.posEachZ[i] * nz) / (oldMag * newMag);
+      // console.log(tmp);
+      tmp = clamp(tmp, -1, 1);
+      const phaseNew = Math.acos(tmp);
+      const dirSign = (this.vFlip ? -1 : 1) * (this.isCCWVec[i] ? 1 : -1);
+      this.rotorPhase[i] = mod2pi(this.rotorPhase[i] + dirSign * phaseNew);
+      phaseChanged[i] = phaseNew;
+    }
+    // console.log('phase rms = ',rms(phaseChanged));
+  }
+
+  step() {
+    const dt = this.params.speed;
+    if (this.paused) return;
+    if (this.stereoSweep) {
+      this.stereoLag = mod2pi(this.stereoLag + dt * 0.1);
+    }
+    // console.log('[Sim] step size = ', dt);
+    this.updateBasePositions();
+    this.updateKinematics();
+    this.computeInteractions(dt);
+    this.updateParticles(dt);
+    this.refreshDerivedFields();
+  }
+
+  updateSingleRotorGeometry() {
+    const { a, ep, modPhase, tilt, height } = this.params;
+    const b = (1 - this.params.ellipticity) * a;
+    const fc = this._forcingCoefficients;
+    const fcCount = fc.length;
+    const cosEff = Math.cos(this.effectiveAngle);
+    const sinEff = Math.sin(this.effectiveAngle);
+    const rawX = this._singleRotorRawX;
+    const rawY = this._singleRotorRawY;
+    const rawZ = this._singleRotorRawZ;
+    const rawVx = this._singleRotorRawVx;
+    const rawVy = this._singleRotorRawVy;
+    const cosTilt = Math.cos(tilt);
+    const sinTilt = Math.sin(tilt);
+    const heightSinTilt = height * sinTilt;
+    const heightCosTilt = height * cosTilt;
+    const dirFlag = this.vFlip ? false : true;
+
+    let sumX = 0;
+    let sumY = 0;
+    let sumZ = 0;
+
+    for (let i = 0; i < this.thetaResolution; i += 1) {
+      const t = this.theta[i];
+      let harmonicSum = 0;
+      for (let k = 0; k < fcCount; k += 1) {
+        const coeff = fc[k];
+        if (coeff === 0) continue;
+        harmonicSum += coeff * Math.sin(k * t + modPhase);
+      }
+      const baseMod = 1 - ep * harmonicSum;
+      const vmod = (dirFlag ? -1 : 1) * baseMod;
+      const cosT = Math.cos(t);
+      const sinT = Math.sin(t);
+
+      const x = a * cosT * cosTilt + heightSinTilt;
+      const y = b * sinT;
+      const z = heightCosTilt - a * cosT * sinTilt;
+
+      rawX[i] = x;
+      rawY[i] = y;
+      rawZ[i] = z;
+
+      const vx = -a * sinT * cosTilt * vmod;
+      const vy = b * cosT * vmod;
+      rawVx[i] = vx;
+      rawVy[i] = vy;
+
+      sumX += x;
+      sumY += y;
+      sumZ += z;
+    }
+
+    const invN = 1 / Math.max(1, this.thetaResolution);
+    const meanX = sumX * invN;
+    const meanY = sumY * invN;
+    const meanZ = sumZ * invN;
+
+    let maxR = 0;
+    for (let i = 0; i < this.thetaResolution; i += 1) {
+      const px = rawX[i] - meanX;
+      const py = rawY[i] - meanY;
+      const rx = px * cosEff - py * sinEff;
+      const ry = px * sinEff + py * cosEff;
+      this.singleRotorPath[i * 2] = rx;
+      this.singleRotorPath[i * 2 + 1] = ry;
+
+      const vxRot = rawVx[i] * cosEff - rawVy[i] * sinEff;
+      const vyRot = rawVx[i] * sinEff + rawVy[i] * cosEff;
+      this.singleRotorVelocity[i * 2] = vxRot;
+      this.singleRotorVelocity[i * 2 + 1] = vyRot;
+
+      const radius = Math.hypot(rx, ry);
+      if (radius > maxR) maxR = radius;
+    }
+
+    this.singleRotorOffsetZ = height - meanZ;
+    this.singleRotorRadius = maxR || 1;
+  }
+
+  updateWaveformPreview() {
+    this.waveformPreview = this.generateWaveform(512);
+  }
+
+  updatePolarHistogramContours() {
+    const bins = this._histBinCount;
+    const sampleBins = bins - 1;
+    const weights = this._histWeights;
+    weights.fill(0);
+    if (sampleBins <= 0) {
+      this._histCenter.fill(0);
+      this._histLeft.fill(0);
+      this._histRight.fill(0);
+      return;
+    }
+
+    const phases = this.rotorPhase;
+    const N = this.Nr;
+    for (let i = 0; i < N; i += 1) {
+      const angle = mod2pi(phases[i]);
+      let idx = Math.floor((angle / TWO_PI) * sampleBins);
+      if (idx >= sampleBins) idx = sampleBins - 1;
+      if (idx < 0) idx = 0;
+      weights[idx] += 1;
+    }
+    const scale = N > 0 ? 5 / N : 0;
+    for (let i = 0; i < sampleBins; i += 1) {
+      weights[i] *= scale;
+    }
+    weights[sampleBins] = weights[0];
+
+    const baseA = this.params.a;
+    const baseB = (1 - this.params.ellipticity) * baseA;
+    const { tilt, height } = this.params;
+    const cosEff = Math.cos(this.effectiveAngle);
+    const sinEff = Math.sin(this.effectiveAngle);
+    const rawCx = this._histCenterRawX;
+    const rawCy = this._histCenterRawY;
+    const rawLx = this._histLeftRawX;
+    const rawLy = this._histLeftRawY;
+    const rawRx = this._histRightRawX;
+    const rawRy = this._histRightRawY;
+
+    let sumCx = 0;
+    let sumCy = 0;
+    let sumLx = 0;
+    let sumLy = 0;
+    let sumRx = 0;
+    let sumRy = 0;
+
+    const angleOffset = 0.1 * baseB;
+    for (let i = 0; i < bins; i += 1) {
+      const shrink = Math.max(0, 1 - weights[i]);
+      const aScale = baseA * shrink;
+      const bScale = baseB * shrink;
+      const angle = this._histAngles[i];
+      const cosT = Math.cos(angle);
+      const sinT = Math.sin(angle);
+
+      const cx = aScale * cosT * Math.cos(tilt) + height * Math.sin(tilt);
+      const cy = bScale * sinT;
+      rawCx[i] = cx;
+      rawCy[i] = cy;
+      sumCx += cx;
+      sumCy += cy;
+
+      const angleL = angle - angleOffset;
+      const cosL = Math.cos(angleL);
+      const sinL = Math.sin(angleL);
+      const lx = aScale * cosL * Math.cos(tilt) + height * Math.sin(tilt);
+      const ly = bScale * sinL;
+      rawLx[i] = lx;
+      rawLy[i] = ly;
+      sumLx += lx;
+      sumLy += ly;
+
+      const angleR = angle + angleOffset;
+      const cosR = Math.cos(angleR);
+      const sinR = Math.sin(angleR);
+      const rx = aScale * cosR * Math.cos(tilt) + height * Math.sin(tilt);
+      const ry = bScale * sinR;
+      rawRx[i] = rx;
+      rawRy[i] = ry;
+      sumRx += rx;
+      sumRy += ry;
+    }
+
+    const invBins = 1 / Math.max(1, bins);
+    const meanCx = sumCx * invBins;
+    const meanCy = sumCy * invBins;
+    const meanLx = sumLx * invBins;
+    const meanLy = sumLy * invBins;
+    const meanRx = sumRx * invBins;
+    const meanRy = sumRy * invBins;
+
+    const outCenter = this._histCenter;
+    const outLeft = this._histLeft;
+    const outRight = this._histRight;
+    for (let i = 0; i < bins; i += 1) {
+      const cpx = rawCx[i] - meanCx;
+      const cpy = rawCy[i] - meanCy;
+      outCenter[i * 2] = cpx * cosEff - cpy * sinEff;
+      outCenter[i * 2 + 1] = cpx * sinEff + cpy * cosEff;
+
+      const lpx = rawLx[i] - meanLx;
+      const lpy = rawLy[i] - meanLy;
+      outLeft[i * 2] = lpx * cosEff - lpy * sinEff;
+      outLeft[i * 2 + 1] = lpx * sinEff + lpy * cosEff;
+
+      const rpx = rawRx[i] - meanRx;
+      const rpy = rawRy[i] - meanRy;
+      outRight[i * 2] = rpx * cosEff - rpy * sinEff;
+      outRight[i * 2 + 1] = rpx * sinEff + rpy * cosEff;
+    }
+  }
+
+  getPolarContours() {
+    return {
+      center: this._histCenter,
+      left: this._histLeft,
+      right: this._histRight,
+    };
+  }
+
+  generateWaveform(samples = 1024, offset = 0) {
+    const N = this.Nr;
+    const out = new Float32Array(samples);
+    if (N === 0) return out;
+    for (let i = 0; i < samples; i += 1) {
+      const pos = (i / Math.max(1, samples - 1)) * (N - 1);
+      const idx = Math.floor(pos);
+      const frac = pos - idx;
+      const next = Math.min(N - 1, idx + 1);
+      const v0 = Math.cos(this.rotorPhase[idx] + offset) * this.isCiliated[idx];
+      const v1 = Math.cos(this.rotorPhase[next] + offset) * this.isCiliated[next];
+      out[i] = lerp(v0, v1, frac);
+    }
+    const norm = rms(out);
+    const scale = norm > 0 ? 0.2 / norm : 0;
+    for (let i = 0; i < samples; i += 1) {
+      out[i] *= scale;
+    }
+    return out;
+  }
+
+  getPhaseField() {
+    return {
+      x: this.basePosX,
+      y: this.basePosY,
+      phase: this.rotorPhase,
+      mask: this.isCiliated,
+    };
+  }
+
+  getParticles() {
+    return {
+      x: this.pparX,
+      y: this.pparY,
+      z: this.pparZ,
+    };
+  }
+
+  getPhases() {
+    return this.rotorPhase;
+  }
+
+  setCwPercent(percent = 0) {
+    const p = clamp(percent, 0, 100);
+    this.cwPercent = p;
+    const nCW = Math.round((this.Nr * p) / 100);
+    // Assign random CW rotors; remainder CCW
+    for (let i = 0; i < this.Nr; i += 1) this.isCCWVec[i] = 1;
+    if (nCW > 0) {
+      const idx = new Uint32Array(this.Nr);
+      for (let i = 0; i < this.Nr; i += 1) idx[i] = i;
+      for (let i = this.Nr - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+      }
+      for (let k = 0; k < nCW; k += 1) this.isCCWVec[idx[k]] = 0;
+    }
+  }
+
+  setGridSize(nx, ny) {
+    const Nx = Math.max(1, nx | 0);
+    const Ny = Math.max(1, ny | 0);
+    if (Nx === this.Nx && Ny === this.Ny) return;
+    this.Nx = Nx;
+    this.Ny = Ny;
+    this.Nr = Nx * Ny;
+    // Rebuild grid-dependent arrays
+    this.coordx = new Float64Array(this.Nr);
+    this.coordy = new Float64Array(this.Nr);
+    this._buildGrid();
+    this.rotorPhase = new Float64Array(this.Nr);
+    this.baseAngle = new Float64Array(this.Nr);
+    this.periodJitter = new Float64Array(this.Nr);
+    this.isCiliated = new Float64Array(this.Nr);
+    this.basePosX = new Float64Array(this.Nr);
+    this.basePosY = new Float64Array(this.Nr);
+    this.basePosZ = new Float64Array(this.Nr);
+    this.posEachX = new Float64Array(this.Nr);
+    this.posEachY = new Float64Array(this.Nr);
+    this.posEachZ = new Float64Array(this.Nr);
+    this.velEachX = new Float64Array(this.Nr);
+    this.velEachY = new Float64Array(this.Nr);
+    this.velEachZ = new Float64Array(this.Nr);
+    this.velNewX = new Float64Array(this.Nr);
+    this.velNewY = new Float64Array(this.Nr);
+    this.velNewZ = new Float64Array(this.Nr);
+    this.forceX = new Float64Array(this.Nr);
+    this.forceY = new Float64Array(this.Nr);
+    this.forceZ = new Float64Array(this.Nr);
+    this.tmpPosX = new Float64Array(this.Nr);
+    this.tmpPosY = new Float64Array(this.Nr);
+    this.tmpPosZ = new Float64Array(this.Nr);
+    this.queryBuffer = new Float64Array(3 * this.Nr);
+    this.sourceBuffer = new Float64Array(3 * this.Nr);
+    this.forceBuffer = new Float64Array(3 * this.Nr);
+    this.isCCWVec = new Uint8Array(this.Nr);
+    this._refreshAngleDistribution();
+    this._refreshPresence();
+    this._buildNeighborTable();
+    this._initPhasesFromKv();
+    this.refreshDerivedFields();
+  }
+
+  updateParticles(dt) {
+    // Use the already prepared sourceBuffer/forceBuffer from computeInteractions
+    const N = this.Nr;
+    if (N === 0 || this.Npar === 0) return;
+
+    if (this.periodic) {
+      // Periodic BC: for each particle, wrap sources around particle center (like MATLAB)
+      for (let i = 0; i < this.Npar; i += 1) {
+        const qx = this.pparX[i];
+        const qy = this.pparY[i];
+        const qz = this.pparZ[i] - this.wallHeight;
+        const Xq = new Float64Array([qz, qx, qy]);
+        const X = new Float64Array(3 * N);
+        const F = new Float64Array(3 * N);
+        const xSize = this.Nx + 1;
+        const ySize = this.Ny + 1;
+        for (let j = 0; j < N; j += 1) {
+          const wz = this.sourceBuffer[j]; // posZ - wallHeight
+          const wx = this._wrapToCenter(this.sourceBuffer[j + N], qx, xSize);
+          const wy = this._wrapToCenter(this.sourceBuffer[j + 2 * N], qy, ySize);
+          X[j] = wz;
+          X[j + N] = wx;
+          X[j + 2 * N] = wy;
+          F[j] = this.forceBuffer[j];
+          F[j + N] = this.forceBuffer[j + N];
+          F[j + 2 * N] = this.forceBuffer[j + 2 * N];
+        }
+        const resp = stokesletWithWall(Xq, X, F, this.regularization);
+        this.vparZ[i] = resp[0];
+        this.vparX[i] = resp[1];
+        this.vparY[i] = resp[2];
+      }
+    } else {
+      // Free BC: compute directly via prebuilt source/force buffers
+      for (let i = 0; i < this.Npar; i += 1) {
+        const qx = this.pparX[i];
+        const qy = this.pparY[i];
+        const qz = this.pparZ[i] - this.wallHeight;
+        this.parQuery[i] = qz;
+        this.parQuery[i + this.Npar] = qx;
+        this.parQuery[i + 2 * this.Npar] = qy;
+      }
+      const resp = stokesletWithWall(this.parQuery, this.sourceBuffer, this.forceBuffer, this.regularization);
+      for (let i = 0; i < this.Npar; i += 1) {
+        this.vparZ[i] = resp[i];
+        this.vparX[i] = resp[i + this.Npar];
+        this.vparY[i] = resp[i + 2 * this.Npar];
+      }
+    }
+
+    // Advect with a small brownian term
+    const sigma = 0.02; // random walk intensity
+    const halfX = this.maxCoordX;
+    const halfY = this.maxCoordY;
+    for (let i = 0; i < this.Npar; i += 1) {
+      this.pparX[i] += (this.vparX[i] + gaussianRandom(sigma)) * dt;
+      this.pparY[i] += (this.vparY[i] + gaussianRandom(sigma)) * dt;
+      this.pparZ[i] += (this.vparZ[i] + gaussianRandom(sigma * 0.2)) * dt;
+
+      // Wrap X/Y to domain centered at 0
+      let x = this.pparX[i];
+      let y = this.pparY[i];
+      const sizeX = (halfX || 1) * 2;
+      const sizeY = (halfY || 1) * 2;
+      x = ((x + halfX) % sizeX + sizeX) % sizeX - halfX;
+      y = ((y + halfY) % sizeY + sizeY) % sizeY - halfY;
+      this.pparX[i] = x;
+      this.pparY[i] = y;
+
+      // Prevent going too close to wall
+      this.pparZ[i] = Math.max(1, this.pparZ[i]);
+    }
+  }
+
+  refreshDerivedFields() {
+    this.updateSingleRotorGeometry();
+    this.updateWaveformPreview();
+    this.updatePolarHistogramContours();
+  }
+
+  _wrapToCenter(r, r0, size) {
+    // MATLAB: makeCenter = @(r,r0,size) mod(r-r0-size/2,size)+r0-size/2;
+    return ((r - r0 - size / 2) % size + size) % size + r0 - size / 2;
+  }
+}
+    </script>
+
+    <!-- Inlined audio.js (export removed) -->
+    <script>
+class SynthAudio {
+  constructor(simulation) {
+    this.simulation = simulation;
+    this.context = null;
+    this.masterGain = null;
+    this.adsr = {
+      attack: 0.05,
+      decay: 0.05,
+      sustain: 0.05,
+      release: 0.4,
+      peak: 1,
+      level: 0.25,
+    };
+    this.infSustain = true;
+    this.muted = false;
+    this.activeVoices = new Map();
+  }
+
+  ensureContext() {
+    if (!this.context) {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const gain = ctx.createGain();
+      gain.gain.value = this.muted ? 0 : 0.7;
+      gain.connect(ctx.destination);
+      this.context = ctx;
+      this.masterGain = gain;
+    }
+    if (this.context.state === 'suspended') {
+      this.context.resume();
+    }
+    return this.context;
+  }
+
+  setMute(value) {
+    this.muted = Boolean(value);
+    if (this.masterGain) {
+      this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.7, this.context.currentTime);
+    }
+  }
+
+  setInfiniteSustain(value) {
+    this.infSustain = Boolean(value);
+  }
+
+  updateAdsr(partial) {
+    this.adsr = { ...this.adsr, ...partial };
+  }
+
+  applyPreset(name) {
+    const presets = {
+      key: { attack: 0.05, decay: 0.05, sustain: 0.05, release: 0.4, peak: 1, level: 0.25 },
+      // Pad preset mirroring MATLAB intention: long attack/decay, tiny sustain time,
+      // rely on holding the key for ongoing sustain level.
+      pad: { attack: 1, decay: 2, sustain: 0.001, release: 3, peak: 0.8, level: 0.12 },
+      hit: { attack: 0.01, decay: 0.1, sustain: 0.145, release: 0.9, peak: 1, level: 0.08 },
+    };
+    if (presets[name]) {
+      this.updateAdsr(presets[name]);
+    }
+  }
+
+  stopAll() {
+    for (const voice of this.activeVoices.values()) {
+      try {
+        voice.source.stop();
+      } catch (err) {
+        // ignore
+      }
+    }
+    this.activeVoices.clear();
+  }
+
+  // Panic: immediately stop all sounds and clear scheduling
+  panic() {
+    try {
+      this.stopAll();
+    } catch (_) {}
+  }
+
+  playKey(keyId, frequency) {
+    if (this.muted) return;
+    const existing = this.activeVoices.get(keyId);
+    if (existing) {
+      try {
+        existing.source.stop();
+      } catch (err) {
+        // ignore
+      }
+      this.activeVoices.delete(keyId);
+    }
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const waveformSamples = Math.max(256, Math.round(ctx.sampleRate / 5000 * this.simulation.Nr * (440 / frequency)));
+    const left = this.simulation.generateWaveform(waveformSamples, 0);
+    const right = this.simulation.generateWaveform(waveformSamples, this.simulation.stereoLag);
+
+    const buffer = ctx.createBuffer(2, waveformSamples, ctx.sampleRate);
+    buffer.copyToChannel(left, 0);
+    buffer.copyToChannel(right, 1);
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    // Loop only in infinite-sustain mode (MATLAB "⇪").
+    source.loop = this.infSustain === true;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+
+    const { attack, decay, sustain, release, peak, level } = this.adsr;
+
+    // Connect graph first
+    source.connect(gain);
+    gain.connect(this.masterGain);
+
+    // Attack/decay envelope
+    gain.gain.linearRampToValueAtTime(peak, now + attack);
+    gain.gain.linearRampToValueAtTime(level, now + attack + decay);
+
+    // Start before scheduling any stop to avoid InvalidStateError
+    source.start(now);
+
+    if (!this.infSustain) {
+      // Non-infinite sustain mode: schedule sustain hold for "sustain" seconds,
+      // then release down to zero and stop.
+      const sustainEnd = now + attack + decay + sustain;
+      gain.gain.setValueAtTime(level, sustainEnd);
+      gain.gain.linearRampToValueAtTime(0, sustainEnd + release);
+      try { source.stop(sustainEnd + release + 0.05); } catch (_) {}
+    }
+
+    // Cleanup bookkeeping when the source ends
+    source.onended = () => {
+      try { source.disconnect(); } catch (_) {}
+      try { gain.disconnect(); } catch (_) {}
+      const v = this.activeVoices.get(keyId);
+      if (v && v.source === source) this.activeVoices.delete(keyId);
+    };
+
+    this.activeVoices.set(keyId, { source, gain, startedAt: now });
+  }
+
+  releaseKey(keyId) {
+    const voice = this.activeVoices.get(keyId);
+    if (!voice) return;
+    // In MATLAB, release only does work in infinite-sustain mode;
+    // otherwise notes include their own release automatically.
+    if (!this.infSustain) return;
+    const { gain, source } = voice;
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const { release } = this.adsr;
+    const currentValue = gain.gain.value;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(currentValue, now);
+    gain.gain.linearRampToValueAtTime(0, now + release);
+    try { source.stop(now + release + 0.05); } catch (_) {}
+    this.activeVoices.delete(keyId);
+  }
+}
+    </script>
+
+    <!-- Inlined app.js (imports removed) -->
+    <script>
+const simulation = new SynchronizedSynth();
+const audio = new SynthAudio(simulation);
+
+const rotorCanvas = document.getElementById('rotor-canvas');
+const rotorCtx = rotorCanvas.getContext('2d');
+const phaseCanvas = document.getElementById('phase-canvas');
+const phaseCtx = phaseCanvas.getContext('2d');
+const waveCanvas = document.getElementById('wave-canvas');
+const waveCtx = waveCanvas.getContext('2d');
+
+// Make visual canvases responsive to container width (phase fills horizontally)
+const dpr = window.devicePixelRatio || 1;
+function resizeCanvas(canvas, { square = false, cssHeightPx = null } = {}) {
+  // Width based on rendered size
+  const displayWidth = Math.max(1, canvas.clientWidth);
+  let displayHeight;
+  if (square) {
+    displayHeight = displayWidth;
+    canvas.style.height = `${displayWidth}px`;
+  } else if (cssHeightPx != null) {
+    displayHeight = cssHeightPx;
+    canvas.style.height = `${cssHeightPx}px`;
+  } else {
+    displayHeight = canvas.clientHeight || displayWidth;
+  }
+  const width = Math.floor(displayWidth * dpr);
+  const height = Math.floor(displayHeight * dpr);
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function resizeVisuals() {
+  resizeCanvas(rotorCanvas, { square: true });
+  resizeCanvas(phaseCanvas, { square: true });
+  resizeCanvas(waveCanvas, { square: false, cssHeightPx: 40 });
+}
+window.addEventListener('resize', resizeVisuals);
+// Observe container size changes for robust resizing
+const visualsEl = document.querySelector('.visuals');
+if (window.ResizeObserver && visualsEl) {
+  const ro = new ResizeObserver(() => resizeVisuals());
+  ro.observe(visualsEl);
+}
+// Initial sizing
+resizeVisuals();
+
+const octaveLabel = document.getElementById('octave-label');
+const octaveDownBtn = document.getElementById('octave-down');
+const octaveUpBtn = document.getElementById('octave-up');
+let octaveMultiplier = 1;
+
+function updateOctaveLabel() {
+  const m = Math.log2(octaveMultiplier);
+  octaveLabel.textContent = 'Octave# ' + String(2 + m);
+}
+updateOctaveLabel();
+
+const controlIds = {
+  speed: 'speed',
+  ellipticity: 'ellipticity',
+  harmonic: 'harmonic',
+  jitter: 'jitter',
+  tilt: 'tilt',
+  coverage: 'coverage',
+  patchiness: 'patchiness',
+  dispersion: 'dispersion',
+  height: 'height',
+};
+
+Object.entries(controlIds).forEach(([name, id]) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    simulation.setParameter(name, parseFloat(el.value));
+    if (name === 'speed') return;
+    simulation.refreshDerivedFields();
+  });
+});
+
+// Pause is now a button (not a checkbox). Toggle internal paused state.
+document.getElementById('pause-toggle').addEventListener('click', () => {
+  simulation.setPaused(!simulation.paused);
+});
+
+// Periodic boundary toggle button
+const bcBtn = document.getElementById('bc-toggle');
+function updateBcButton() {
+  bcBtn.textContent = simulation.periodic ? 'Periodic BC' : 'Free BC';
+  bcBtn.setAttribute('aria-pressed', simulation.periodic ? 'true' : 'false');
+}
+bcBtn.addEventListener('click', () => {
+  simulation.periodic = !simulation.periodic;
+  updateBcButton();
+});
+updateBcButton();
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  simulation.resetTravelingWave();
+});
+
+document.getElementById('noise-btn').addEventListener('click', () => {
+  simulation.randomizePhases();
+});
+
+// New sliders replacing checkboxes
+const effAngleEl = document.getElementById('effective-angle');
+effAngleEl.addEventListener('input', () => {
+  simulation.setEffectiveAngle(parseFloat(effAngleEl.value));
+});
+
+const cwPctEl = document.getElementById('cw-percent');
+cwPctEl.addEventListener('input', () => {
+  simulation.setCwPercent(parseFloat(cwPctEl.value));
+});
+
+const nxEl = document.getElementById('nx');
+const nyEl = document.getElementById('ny');
+function applyGridChange() {
+  const nx = parseInt(nxEl.value, 10);
+  const ny = parseInt(nyEl.value, 10);
+  simulation.setGridSize(nx, ny);
+  // Reapply CW% to new grid allocation
+  simulation.setCwPercent(parseFloat(cwPctEl.value));
+}
+nxEl.addEventListener('input', applyGridChange);
+nyEl.addEventListener('input', applyGridChange);
+
+// Mute is now a button (not a checkbox). Toggle mute state; clicking when muted un-mutes.
+document.getElementById('mute-toggle').addEventListener('click', () => {
+  audio.setMute(!audio.muted);
+  if (audio.muted) {
+    // As a safeguard, also stop any lingering sounds.
+    audio.panic();
+  }
+});
+
+document.getElementById('sustain-toggle').addEventListener('change', (event) => {
+  audio.setInfiniteSustain(event.target.checked);
+});
+
+document.getElementById('stereo-toggle').addEventListener('change', (event) => {
+  simulation.setStereoSweep(event.target.checked);
+});
+
+const adsrIds = ['attack', 'decay', 'sustain', 'release', 'peak', 'level'];
+
+function syncAdsrSliders() {
+  adsrIds.forEach((id) => {
+    const el = document.getElementById(id);
+    el.value = audio.adsr[id];
+  });
+}
+
+adsrIds.forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    audio.updateAdsr({ [id]: parseFloat(el.value) });
+  });
+});
+
+Array.from(document.querySelectorAll('.preset-row button')).forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const preset = btn.dataset.preset;
+    audio.applyPreset(preset);
+    syncAdsrSliders();
+  });
+});
+
+const keyFaces = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';', '\\', ']', '⏎'];
+const keyCodes = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';', '\\', ']', 'Enter'];
+
+const keyboardRow = document.getElementById('keyboard-row');
+keyboardRow.innerHTML = '';
+const whiteLayer = document.createElement('div');
+whiteLayer.className = 'white-keys';
+const blackLayer = document.createElement('div');
+blackLayer.className = 'black-keys';
+keyboardRow.appendChild(whiteLayer);
+keyboardRow.appendChild(blackLayer);
+
+const keyElements = [];
+
+const tuningOffset = 5;
+const frequencies = keyCodes.map((_, index) => 440 * Math.pow(2, (index - tuningOffset) / 12));
+
+const activeKeys = new Set();
+
+// Determine black/white by semitone pattern (0=C)
+const isBlackSemitone = (i) => {
+  const s = ((i % 12) + 12) % 12;
+  return s === 1 || s === 3 || s === 6 || s === 8 || s === 10;
+};
+
+function triggerKey(index) {
+  if (activeKeys.has(index)) return;
+  const freq = frequencies[index] * octaveMultiplier;
+  audio.playKey(index, freq);
+  keyElements[index].classList.add('active');
+  activeKeys.add(index);
+}
+
+function releaseKey(index) {
+  if (!activeKeys.has(index)) return;
+  audio.releaseKey(index);
+  keyElements[index].classList.remove('active');
+  activeKeys.delete(index);
+}
+
+// Build white keys first to compute positions
+const whiteIndices = [];
+for (let i = 0; i < keyFaces.length; i += 1) {
+  if (!isBlackSemitone(i)) whiteIndices.push(i);
+}
+
+whiteIndices.forEach((index) => {
+  const key = document.createElement('button');
+  key.type = 'button';
+  key.className = 'key white-key';
+  key.textContent = keyFaces[index];
+  key.style.width = `${100 / whiteIndices.length}%`;
+  key.dataset.index = String(index);
+  key.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    key.setPointerCapture(event.pointerId);
+    triggerKey(index);
+  });
+  key.addEventListener('pointerup', () => releaseKey(index));
+  key.addEventListener('pointerleave', () => releaseKey(index));
+  key.addEventListener('pointercancel', () => releaseKey(index));
+  whiteLayer.appendChild(key);
+  keyElements[index] = key;
+});
+
+// Build black keys and position them between adjacent whites
+for (let index = 0; index < keyFaces.length; index += 1) {
+  if (!isBlackSemitone(index)) continue;
+  const whitesBefore = whiteIndices.filter((w) => w < index).length;
+  const leftWhiteIdx = whitesBefore - 1;
+  const rightWhiteIdx = whitesBefore;
+  if (leftWhiteIdx < 0 || rightWhiteIdx >= whiteIndices.length) continue;
+  const frac = (leftWhiteIdx + 0.5) / whiteIndices.length;
+
+  const key = document.createElement('button');
+  key.type = 'button';
+  key.className = 'key black-key';
+  key.textContent = keyFaces[index];
+  key.style.left = `${frac * 100}%`;
+  key.style.width = `${(100 / whiteIndices.length) * 0.6}%`;
+  key.dataset.index = String(index);
+  key.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    key.setPointerCapture(event.pointerId);
+    triggerKey(index);
+  });
+  key.addEventListener('pointerup', () => releaseKey(index));
+  key.addEventListener('pointerleave', () => releaseKey(index));
+  key.addEventListener('pointercancel', () => releaseKey(index));
+  blackLayer.appendChild(key);
+  keyElements[index] = key;
+}
+
+window.addEventListener('keydown', (event) => {
+  if (event.repeat) return;
+  const idx = keyCodes.indexOf(event.key);
+  if (idx !== -1) {
+    triggerKey(idx);
+    return;
+  }
+  switch (event.key) {
+    case '+': case '=':{
+      octaveUpBtn.click();
+      break;
+    }
+    case '-': case '_': {
+      octaveDownBtn.click();
+      break;
+    }
+    case ' ': {
+      simulation.setPaused(!simulation.paused);
+      break;
+    }
+    case 'm': {
+      audio.setMute(!audio.muted);
+      if (audio.muted) audio.panic();
+      break;
+    }
+    case 'r':
+      simulation.resetTravelingWave();
+      break;
+    case 'n':
+      simulation.randomizePhases();
+      break;
+    case 'b': {
+      simulation.periodic = !simulation.periodic;
+      updateBcButton();
+      break;
+    }
+    case 'c': {
+      // Nudge effective angle by +pi/8
+      const val = parseFloat(effAngleEl.value) + Math.PI / 8;
+      effAngleEl.value = String(((val + Math.PI) % (2 * Math.PI)) - Math.PI);
+      effAngleEl.dispatchEvent(new Event('input'));
+      break;
+    }
+    case 'ArrowRight': {
+      const el = document.getElementById('speed');
+      el.value = Math.min(parseFloat(el.value) * 1.1, parseFloat(el.max));
+      simulation.setParameter('speed', parseFloat(el.value));
+      break;
+    }
+    case 'ArrowLeft': {
+      const el = document.getElementById('speed');
+      el.value = Math.max(parseFloat(el.value) * 0.9, parseFloat(el.min));
+      simulation.setParameter('speed', parseFloat(el.value));
+      break;
+    }
+    case 'ArrowUp': {
+      const el = document.getElementById('jitter');
+      el.value = Math.min(parseFloat(el.value) + parseFloat(el.step), parseFloat(el.max));
+      simulation.setParameter('jitter', parseFloat(el.value));
+      break;
+    }
+    case 'ArrowDown': {
+      const el = document.getElementById('jitter');
+      el.value = Math.max(parseFloat(el.value) - parseFloat(el.step), parseFloat(el.min));
+      simulation.setParameter('jitter', parseFloat(el.value));
+      break;
+    }
+    default:
+      break;
+  }
+});
+
+window.addEventListener('keyup', (event) => {
+  const idx = keyCodes.indexOf(event.key);
+  if (idx !== -1) {
+    releaseKey(idx);
+  }
+});
+
+function drawRotor() {
+  const { width, height } = rotorCanvas;
+  rotorCtx.clearRect(0, 0, width, height);
+  rotorCtx.save();
+  rotorCtx.translate(width / 2, height / 2);
+  const radius = Math.max(simulation.singleRotorRadius || 1, 0.05);
+  const scale = (Math.min(width, height) / 2) * 0.8 / radius;
+  rotorCtx.scale(scale, -scale);
+
+  const strokeContour = (data, color, lineWidth = 2 / scale) => {
+    if (!data || data.length < 4) return;
+    rotorCtx.strokeStyle = color;
+    rotorCtx.lineWidth = lineWidth;
+    rotorCtx.beginPath();
+    for (let i = 0; i < data.length; i += 2) {
+      const x = data[i];
+      const y = data[i + 1];
+      if (i === 0) rotorCtx.moveTo(x, y);
+      else rotorCtx.lineTo(x, y);
+    }
+    rotorCtx.closePath();
+    rotorCtx.stroke();
+  };
+
+  const contours = simulation.getPolarContours();
+  strokeContour(contours.left, '#cb4d04ff');
+  strokeContour(contours.right, '#cb4d04ff');
+  strokeContour(contours.center, '#000000');
+
+  const path = simulation.singleRotorPath;
+  rotorCtx.strokeStyle = '#ffffff';
+  rotorCtx.lineWidth = 2 / scale;
+  rotorCtx.beginPath();
+  for (let i = 0; i < path.length; i += 2) {
+    const x = path[i];
+    const y = path[i + 1];
+    if (i === 0) rotorCtx.moveTo(x, y);
+    else rotorCtx.lineTo(x, y);
+  }
+  rotorCtx.closePath();
+  rotorCtx.stroke();
+
+  // Velocity tangents along track (sampled)
+  const vel = simulation.singleRotorVelocity;
+  rotorCtx.strokeStyle = '#ff6f61';
+  const vectorScale = 2 / Math.PI;
+  const samples = path.length / 2;
+  const step = Math.max(1, Math.floor(samples / 24));
+  for (let i = 0; i < samples; i += step) {
+    const x = path[i * 2];
+    const y = path[i * 2 + 1];
+    const vx = vel[i * 2] * vectorScale;
+    const vy = vel[i * 2 + 1] * vectorScale;
+    rotorCtx.beginPath();
+    rotorCtx.moveTo(x, y);
+    rotorCtx.lineTo(x + vx, y + vy);
+    rotorCtx.stroke();
+  }
+
+  // Mean phase hand (Kuramoto order parameter)
+  const phases = simulation.getPhases();
+  let sx = 0;
+  let sy = 0;
+  for (let i = 0; i < phases.length; i += 1) {
+    sx += Math.cos(phases[i]);
+    sy += Math.sin(phases[i]);
+  }
+  const R = Math.hypot(sx, sy) / Math.max(1, phases.length);
+  const psi = Math.atan2(sy, sx);
+  const handLen = radius * 0.9 * R;
+  rotorCtx.strokeStyle = '#ffffff';
+  rotorCtx.lineWidth = 3 / scale;
+  rotorCtx.beginPath();
+  rotorCtx.moveTo(0, 0);
+  rotorCtx.lineTo(handLen * Math.cos(psi), handLen * Math.sin(psi));
+  rotorCtx.stroke();
+
+  rotorCtx.restore();
+}
+
+function drawPhase() {
+  const { width, height } = phaseCanvas;
+  phaseCtx.clearRect(0, 0, width, height);
+  const field = simulation.getPhaseField();
+  const scale = (Math.min(width, height) / (Math.max(simulation.maxCoordX, simulation.maxCoordY) * 2 + 2)) * simulation.zoom;
+  phaseCtx.save();
+  phaseCtx.translate(width / 2, height / 2);
+  const cellPx = Math.max(4, scale * 0.85);
+  for (let i = 0; i < simulation.Nr; i += 1) {
+    const x = field.x[i] * scale;
+    const y = field.y[i] * scale;
+    // Match MATLAB visuals: non-ciliated cells show as white; ciliated show cos(phase)
+    const v = field.mask[i] ? (Math.cos(field.phase[i]) + 1) * 0.5 : 0;
+    const gray = Math.round(30 + v * 200);
+    phaseCtx.fillStyle = `rgb(${gray},${gray},${gray})`;
+    const px = x - cellPx / 2;
+    const py = -y - cellPx / 2;
+    phaseCtx.fillRect(px, py, cellPx, cellPx);
+    // Do not outline cells; keep the same minimalist look as MATLAB scatter
+  }
+
+  // Brownian tracers
+  const parts = simulation.getParticles();
+  phaseCtx.fillStyle = 'rgba(204,102,255,0.9)';
+  for (let i = 0; i < parts.x.length; i += 1) {
+    const x = parts.x[i] * scale;
+    const y = parts.y[i] * scale;
+    const r = Math.max(1, Math.min(10, parts.z[i] * 2));
+    phaseCtx.beginPath();
+    phaseCtx.arc(x, -y, r, 0, Math.PI * 2);
+    phaseCtx.fill();
+  }
+  phaseCtx.restore();
+}
+
+function drawWave() {
+  const { width, height } = waveCanvas;
+  waveCtx.clearRect(0, 0, width, height);
+  const data = simulation.waveformPreview;
+  if (data.length < 2) return;
+  waveCtx.save();
+  waveCtx.translate(0, height / 2);
+  waveCtx.strokeStyle = 'rgba(255,255,255,0.8)';
+  waveCtx.beginPath();
+  for (let i = 0; i < data.length; i += 1) {
+    const x = (i / (data.length - 1)) * width;
+    const y = -data[i] * height * 0.8;
+    if (i === 0) waveCtx.moveTo(x, y);
+    else waveCtx.lineTo(x, y);
+  }
+  waveCtx.stroke();
+  waveCtx.restore();
+}
+
+function loop(now) {
+  simulation.step();
+  drawRotor();
+  drawPhase();
+  drawWave();
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+
+syncAdsrSliders();
+
+// Octave buttons: step through [0.5, 1, 2]
+octaveUpBtn.addEventListener('click', () => {
+  octaveMultiplier = Math.min(4, octaveMultiplier * 2);
+  updateOctaveLabel();
+});
+octaveDownBtn.addEventListener('click', () => {
+  octaveMultiplier = Math.max(0.25, octaveMultiplier / 2);
+  updateOctaveLabel();
+});
+
+// Initialize audio sustain state to match UI default
+audio.setInfiniteSustain(document.getElementById('sustain-toggle').checked);
+    </script>
+  </body>
+</html>
