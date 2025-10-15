@@ -204,9 +204,42 @@ function showErr(e){ ERR.style.display='block'; ERR.textContent=(e&&e.stack)?e.s
 window.addEventListener('error', ev=>showErr(ev.error||ev.message));
 window.addEventListener('unhandledrejection', ev=>showErr(ev.reason||ev));
 
-// ---------- ESM imports ----------
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-import FFT from 'https://esm.sh/fft.js@4.0.4';
+// ---------- ESM imports with CDN→local fallback ----------
+async function importWithFallback(candidates){
+  for (const url of candidates){
+    try { return await import(url); } catch(e){ console.warn('Import failed:', url, e); }
+  }
+  throw new Error('All import candidates failed: ' + candidates.join(', '));
+}
+async function loadScript(src){
+  return new Promise((resolve, reject)=>{
+    const s=document.createElement('script');
+    s.src=src; s.async=true;
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('Script load failed: '+src));
+    document.head.appendChild(s);
+  });
+}
+
+// THREE: try ESM from CDN, then local ESM snapshot, then local UMD
+let THREE;
+try {
+  THREE = await importWithFallback([
+    'https://unpkg.com/three@0.160.0/build/three.module.js',
+    '/javascripts/vendor/three/0.160.0/three.module.js',
+  ]);
+} catch (err) {
+  console.warn('Falling back to UMD THREE:', err);
+  await loadScript('/javascripts/vendor/three/0.160.0/three.min.js');
+  THREE = window.THREE;
+}
+
+// FFT: try ESM from CDN, then local bundled ESM snapshot
+const FFTMod = await importWithFallback([
+  'https://esm.sh/fft.js@4.0.4',
+  '/javascripts/vendor/fftjs/4.0.4/fft.esm.mjs',
+]);
+const FFT = FFTMod?.default ?? FFTMod?.FFT ?? FFTMod;
 
 // ---------- UI ----------
 const UI={

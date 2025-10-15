@@ -223,8 +223,42 @@
   </div>
 
   <script type="module">
-  import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-  import FFT from 'https://esm.sh/fft.js@4.0.4';
+  // CDN-first imports with local snapshot fallbacks
+  async function importWithFallback(candidates){
+    for (const url of candidates){
+      try { return await import(url); } catch(e){ console.warn('Import failed:', url, e); }
+    }
+    throw new Error('All import candidates failed: ' + candidates.join(', '));
+  }
+  async function loadScript(src){
+    return new Promise((resolve, reject)=>{
+      const s=document.createElement('script');
+      s.src=src; s.async=true;
+      s.onload=()=>resolve();
+      s.onerror=()=>reject(new Error('Script load failed: '+src));
+      document.head.appendChild(s);
+    });
+  }
+
+  // THREE: try ESM from CDN, then local ESM snapshot, then local UMD
+  let THREE;
+  try {
+    THREE = await importWithFallback([
+      'https://unpkg.com/three@0.160.0/build/three.module.js',
+      '/javascripts/vendor/three/0.160.0/three.module.js',
+    ]);
+  } catch (err) {
+    console.warn('Falling back to UMD THREE:', err);
+    await loadScript('/javascripts/vendor/three/0.160.0/three.min.js');
+    THREE = window.THREE;
+  }
+
+  // FFT: try ESM from CDN, then local bundled ESM snapshot
+  const FFTMod = await importWithFallback([
+    'https://esm.sh/fft.js@4.0.4',
+    '/javascripts/vendor/fftjs/4.0.4/fft.esm.mjs',
+  ]);
+  const FFT = FFTMod?.default ?? FFTMod?.FFT ?? FFTMod;
 
   // ===== helpers =====
   function setVal(id, v){ var el = document.getElementById(id); if (el) { el.textContent = String(Math.round(v*1000)/1000); } }
@@ -266,13 +300,17 @@
     nLineSeg:160, // high-res line for minimap
     // axis gizmo overlay
     axisScene:null, axisCam:null, axesGroup:null,
+    // optional thick points for cilia visualization
+    pointsGeom:null, pointsMesh:null,
     cam:null, placeCamera:null,
     // orientation quaternion (camera local -> world)
     q:null,
     // pan initialization flag (auto-center once at boot)
     panInited:false,
     // minimap centering along z
-    czCenterZ:0
+    czCenterZ:0,
+    // no-slip plane mesh (minimap)
+    noSlipPlane:null
   };
 
   // ===== arclength profile (\u005E\u03BA(s)) editor state =====
@@ -392,6 +430,32 @@
         cz.push(-params.lengthMean/2 + (Math.random()-0.5)*jitter);
       }
     }
+    // Enforce minimum XY spacing based on cilium radius to reduce overlap
+    (function enforceMinSpacing(){
+      var minD = Math.max(0, 2.0 * Number(params.cilRadius || 0));
+      if (!(minD > 0)) return;
+      var minD2 = minD*minD;
+      for (var pass=0; pass<2; pass++){
+        for (var p=0; p<cx.length; p++){
+          for (var q=0; q<p; q++){
+            var dx = cx[p]-cx[q];
+            var dy = cy[p]-cy[q];
+            var d2 = dx*dx + dy*dy;
+            if (d2 < 1e-12) { dx = (Math.random()-0.5)*1e-3; dy=(Math.random()-0.5)*1e-3; d2 = dx*dx+dy*dy; }
+            if (d2 < minD2){
+              var d = Math.sqrt(d2);
+              var push = (minD - d) * 0.5; // split correction
+              var nx = dx / d, ny = dy / d;
+              cx[p] += nx*push; cy[p] += ny*push;
+              cx[q] -= nx*push; cy[q] -= ny*push;
+            }
+          }
+          // clamp to domain bounds
+          cx[p] = Math.min(xSize/2, Math.max(-xSize/2, cx[p]));
+          cy[p] = Math.min(ySize/2, Math.max(-ySize/2, cy[p]));
+        }
+      }
+    })();
     sim.cx = new Float32Array(cx); sim.cy = new Float32Array(cy); sim.cz = new Float32Array(cz);
     sim.total = nX*nY; sim.xSize = xSize; sim.ySize = ySize;
     sim.isCiliated = presence(sim.cx, sim.cy, params.coverage, params.patchlength, params.crystalline, params.patchorder, nX, nY, dX, dY);
@@ -490,6 +554,8 @@
     var amb = new THREE.AmbientLight(0xffffff, 0.7); sim.scene.add(amb);
     var dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(20,20,30); sim.scene.add(dir);
 
+    updateNoSlipPlane();
+
     // axis overlay: its own scene and camera, rendered into a small viewport
     sim.axisScene = new THREE.Scene();
     sim.axisCam   = new THREE.PerspectiveCamera(40, 1, 0.1, 10);
@@ -521,6 +587,19 @@
       line.visible = !sim.isCiliated || sim.isCiliated[i];
       sim.scene.add(line); sim.lines.push(line);
     }
+    // Build/refresh thick points cloud for optional radius hint
+    if (sim.pointsMesh){
+      try { sim.scene.remove(sim.pointsMesh); } catch(_){ }
+      try { sim.pointsMesh.geometry && sim.pointsMesh.geometry.dispose(); } catch(_){ }
+      try { sim.pointsMesh.material && sim.pointsMesh.material.dispose(); } catch(_){ }
+      sim.pointsMesh=null; sim.pointsGeom=null;
+    }
+    var totalPts = Math.max(1, sim.total * sim.nLineSeg);
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(totalPts*3), 3));
+    var pm = new THREE.PointsMaterial({ color:0x99ccff, size: Math.max(2.0, 1.0 + 2.0*(Number(params.cilRadius)||0.2)), sizeAttenuation:false, transparent:true, opacity:0.9 });
+    var pts = new THREE.Points(g, pm);
+    sim.pointsGeom = g; sim.pointsMesh = pts; sim.scene.add(pts);
   }
 
   // ---- minimap axes (RGB = X,Y,Z) ----
@@ -542,6 +621,25 @@
     // Keep gizmo size consistent; world units relative to axisCam @ z=4
     const L = 1.0; // constant length for overlay gizmo
     buildAxes(L);
+  }
+
+  function updateNoSlipPlane(){
+    if (!sim.scene) return;
+    const w = Math.max(params.lengthMean, params.nX*params.dX + params.lengthMean);
+    const h = Math.max(params.lengthMean, params.nY*params.dY + params.lengthMean);
+    if (!sim.noSlipPlane){
+      const geom = new THREE.PlaneGeometry(w, h);
+      const mat = new THREE.MeshStandardMaterial({ color:0x777777, transparent:true, opacity:0.35, roughness:1.0, metalness:0.0, depthWrite:false, side:THREE.DoubleSide });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set(0,0,0); // z = 0 after centering
+      sim.noSlipPlane = mesh;
+      sim.scene.add(mesh);
+    } else {
+      const geom = new THREE.PlaneGeometry(w, h);
+      sim.noSlipPlane.geometry.dispose();
+      sim.noSlipPlane.geometry = geom;
+      sim.noSlipPlane.position.set(0,0,0);
+    }
   }
 
   // ===== orientation helpers (shared by BF + minimap) =====
@@ -1417,9 +1515,12 @@
   function updateMinimapLines(){
     var n = sim.total, nC = sim.nLineSeg, i, j;
     var xLine = new Float32Array(nC), zLine = new Float32Array(nC);
+    var pAttr = sim.pointsGeom && sim.pointsGeom.getAttribute && sim.pointsGeom.getAttribute('position');
+    var pArray = pAttr ? pAttr.array : null;
+    var pOff = 0;
     for(let k=0;k<n;k++){
       var visible = !sim.isCiliated || sim.isCiliated[k];
-      var line = sim.lines[k]; if (!line) continue; line.visible = visible; if (!visible) continue;
+      var line = sim.lines[k]; if (!line) continue; line.visible = visible;
       var tFrac = (sim.tNow * sim.ciliaFreq[k] + sim.initPhase[k]) % 1.0;
       var A0scale = sim.ampScale[k]; var L = sim.ciliaLen[k];
       centerlineFromCurvatureN(nC, tFrac, A0scale, L, xLine, zLine);
@@ -1432,15 +1533,27 @@
         // For the minimap, recentre along Z by subtracting the bundle's mean cz
         var zc = zp0 + sim.cz[k] - sim.czCenterZ;
         pos[j3+0] = xc; pos[j3+1] = yc; pos[j3+2] = zc;
+        if (pArray){
+          var pj = (pOff+i)*3;
+          if (visible){
+            pArray[pj+0]=xc; pArray[pj+1]=yc; pArray[pj+2]=zc;
+          } else {
+            // hide points for non-ciliated sites by pushing them far away
+            pArray[pj+0]=0; pArray[pj+1]=0; pArray[pj+2]=1e6;
+          }
+        }
       }
       line.geometry.attributes.position.needsUpdate = true;
+      if (pArray){ pOff += nC; }
     }
+    if (pAttr){ pAttr.needsUpdate = true; }
   }
 
   function replot(){
     generateGrid();
     reseedRandomFields();
     buildLines();
+    updateNoSlipPlane();
     updateAxes();
     renderBF();
     updateMinimapLines();
@@ -1654,6 +1767,7 @@
     generateGrid();
     reseedRandomFields();
     buildLines();
+    updateNoSlipPlane();
     updateAxes();
     renderBF();
     updateMinimapLines();
