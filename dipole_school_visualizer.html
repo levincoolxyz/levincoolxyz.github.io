@@ -33,6 +33,7 @@
     button:hover, .toggle:hover{background:#223149}
     button:disabled{opacity:.55;cursor:not-allowed}
     .toggle.active{background:var(--acc);color:#041024;border-color:#5d8df4}
+    .toggle.disabled{opacity:.55;cursor:not-allowed;filter:saturate(0.6)}
     .toggles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
     .btn-toggle{background:#10192a;color:var(--fg);border:1px solid #233047;border-radius:10px;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,border .2s ease,color .2s ease}
     .btn-toggle:hover{background:#17253b}
@@ -85,6 +86,11 @@
       <button id="togglePanel" class="btn-toggle" aria-label="Collapse controls" aria-expanded="true">&laquo;</button>
       <h1>Fish School Simulation</h1>
       <button id="playPause">Pause</button>
+      <button id="respawn">Reset</button>
+      <div class="toggle" data-key="bait" title="Toggle bait placement (click canvas to add)">Set baits</div>
+      <button id="clearBaits">Remove baits</button>
+      <div class="toggle" data-key="goal">Shark target</div>
+      <div class="toggle" data-key="whaleFollow">Whale follows cursor</div>
       <small>Potential-flow dipole swimmers with Voronoi vision control</small>
     </div>
   </header>
@@ -108,7 +114,7 @@
         <input id="hydro" type="checkbox" checked>
       </div>
       <div class="control">
-        <label for="hydroShell">Hydrodynamics for nearest Voronoi only (unchecked renders well for N ⪅ 1200)</label>
+        <label for="hydroShell">Hydrodynamics for nearest Voronoi only</label>
         <input id="hydroShell" type="checkbox" checked>
       </div>
       <div class="control">
@@ -120,19 +126,14 @@
         <input id="hydroRadius" type="range" min="0.5" max="20" step="0.1" value="5.0">
       </div>
       <div class="toggles">
-        <div class="toggle active" data-key="evade">Auto evade</div>
-        <div class="toggle active" data-key="death">Enable death</div>
         <div class="toggle active" data-key="mouse">Scary cursor</div>
-        <div class="toggle" data-key="bait">Put bait</div>
+        <div class="toggle active" data-key="death">Enable death</div>
+        <div class="toggle active" data-key="evade">Auto evade</div>
+        <div class="toggle" data-key="hard">Auto hunt</div>
         <div class="toggle" data-key="shark">Baskin' shark</div>
-        <div class="toggle" data-key="goal">Shark goal</div>
         <div class="toggle" data-key="whale">Blue whale</div>
-        <div class="toggle" data-key="hard">Hunt mode</div>
       </div>
-      <div class="buttons">
-        <button id="respawn">Respawn fish</button>
-        <button id="clearBaits">Clear baits</button>
-      </div>
+      
       <p class="algo-note">
         Alignement torques are averaged over Delaunay neighbors with vision cone bias, dipole flow field shape hydrodynamic interactions,
          Gaussian turning noise injects 'agency' per fish, evasive behavior based on vision and orthogonal turning.
@@ -287,6 +288,7 @@ const stateFlags = {
   evade: true,
   death: true,
   hard: false,
+  whaleFollow: false,
 };
 
 const armedPlacers = {bait:false, goal:false};
@@ -296,10 +298,15 @@ document.querySelectorAll('.toggle').forEach(btn => {
   toggleButtons.set(key, btn);
   if(btn.classList.contains('active')) stateFlags[key] = true;
   btn.addEventListener('click', () => {
-    if(key === 'bait' || key === 'goal'){
-      armedPlacers[key] = true;
-      btn.classList.add('active');
-      setTimeout(() => btn.classList.remove('active'), 250);
+    if(btn.classList.contains('disabled')) return;
+    if(key === 'goal'){
+      const active = btn.classList.toggle('active');
+      armedPlacers.goal = active;
+      if (!active) sharkGoal = null;
+      return;
+    } else if (key === 'bait') {
+      const active = btn.classList.toggle('active');
+      armedPlacers.bait = active;
       return;
     }
     const active = btn.classList.toggle('active');
@@ -308,8 +315,18 @@ document.querySelectorAll('.toggle').forEach(btn => {
     }else{
       stateFlags[key] = active;
     }
+    if(key === 'shark'){
+      updateGoalUiDisabled();
+    }
   });
 });
+
+function updateGoalUiDisabled(){
+  const goalBtn = toggleButtons.get('goal');
+  if(!goalBtn) return;
+  const enabled = !!stateFlags.shark;
+  goalBtn.classList.toggle('disabled', !enabled);
+}
 
 const params = {
   n: 150,
@@ -345,6 +362,7 @@ const sharkShape = {
 };
 
 const sharkHeadOffset = 1.5; // distance from shark reference point to mouth
+const whaleHeadOffset = 0.8; // distance from shark reference point to mouth
 
 const whaleShape = {
   x: [-3.9,-4,-3.75,-3.5,-1.5,0,-0.15,-0.4,0.25,0.75,1.5,1.85,2,1.85,1.5,0.75,0.25,-0.4,-0.15,0,-1.5,-3.5,-3.75,-4,-3.9].map(v => v*2),
@@ -358,6 +376,7 @@ let baits = [];
 let sharkGoal = null;
 let cp = {x:0,y:0};
 let pointerActive = false;
+let pointerInside = false;
 
 let sharkState = {pos:{x:-25,y:0},theta:0};
 let whaleState = {pos:{x:0,y:-25},theta:Math.PI/2};
@@ -415,6 +434,15 @@ function getSharkHeadPos(dir){
   };
 }
 
+function getWhaleHeadPos(dir){
+  const ex = dir?.x ?? Math.cos(whaleState.theta);
+  const ey = dir?.y ?? Math.sin(whaleState.theta);
+  return {
+    x: whaleState.pos.x + ex * whaleHeadOffset,
+    y: whaleState.pos.y + ey * whaleHeadOffset,
+  };
+}
+
 function getAngle(phi, dx, dy, dist){
   const r = dist ?? Math.hypot(dx, dy);
   if(!isFinite(r) || r === 0) return 0;
@@ -439,8 +467,8 @@ function computeStep(){
   if(!n) return;
 
   const hydroEnabled = controls.hydro.checked;
-  const hydroShellOnly = hydroEnabled && controls.hydroShell?.checked;
-  const hydroRangeOnly = hydroEnabled && controls.hydroRange?.checked;
+  const hydroShellOnly = hydroEnabled && controls.hydroShell?.checked && n >= 500;
+  const hydroRangeOnly = hydroEnabled && controls.hydroRange?.checked && n >= 500;
   const rCut = parseFloat(controls.hydroRadius?.value ?? '3');
   const cosT = fishes.map(f => Math.cos(f.theta));
   const sinT = fishes.map(f => Math.sin(f.theta));
@@ -516,8 +544,9 @@ function computeStep(){
     }
   }
   if(stateFlags.whale){
+    const head = getWhaleHeadPos();
     for(let i=0;i<n;i++){
-      const d = Math.hypot(whaleState.pos.x - fishes[i].x, whaleState.pos.y - fishes[i].y);
+      const d = Math.hypot(head.x - fishes[i].x, head.y - fishes[i].y);
       const sig = 1/(1 + Math.exp(-(params.whaleH - d)));
       wNoise[i] *= (1 + 2*In*sig);
     }
@@ -698,6 +727,7 @@ function computeStep(){
     const survivorVel = [];
     const survivorTheta = [];
     const sharkHead = stateFlags.shark ? getSharkHeadPos() : null;
+    const whaleHead = stateFlags.whale ? getWhaleHeadPos() : null;
     for(let i=0;i<fishes.length;i++){
       const fish = fishes[i];
       let dead = false;
@@ -706,7 +736,7 @@ function computeStep(){
         if(d <= params.sharkH/3) dead = true;
       }
       if(!dead && stateFlags.whale){
-        const d = Math.hypot(fish.x - whaleState.pos.x, fish.y - whaleState.pos.y);
+        const d = Math.hypot(fish.x - whaleHead.x, fish.y - whaleHead.y);
         if(d <= params.whaleH/3) dead = true;
       }
       if(!dead){
@@ -843,6 +873,21 @@ function updateShark(Ux, Uy){
 function updateWhale(Ux, Uy){
   const dt = params.dt;
   const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+  // Follow-cursor mode: when enabled and pointer is within the canvas, steer toward cursor
+  if(stateFlags.whale && stateFlags.whaleFollow && pointerInside){
+    const dx = cp.x - whaleState.pos.x;
+    const dy = cp.y - whaleState.pos.y;
+    const dist = Math.hypot(dx, dy);
+    if(dist > 1e-6){
+      let w = getAngle(whaleState.theta, dx, dy, dist);
+      w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+      whaleState.theta = wrapAngle(whaleState.theta + w*dt);
+    }
+    const e = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+    whaleState.pos.x += e.x * dt / 1.5;
+    whaleState.pos.y += e.y * dt / 1.5;
+    return;
+  }
   if(stateFlags.hard && fishes.length){
     const phiC = Math.PI/2;
     const subset = fishes.filter(fish => {
@@ -967,6 +1012,8 @@ function draw(){
   // World-anchored subtle backdrop to convey motion when following centroid
   drawBackdrop();
   drawBaits();
+  if(!stateFlags.shark) sharkGoal = null;
+  if(sharkGoal) drawSharkGoal();
   if(stateFlags.shark) drawShark();
   if(stateFlags.whale) drawWhale();
   drawFishes();
@@ -1073,6 +1120,21 @@ function drawBaits(){
   }
 }
 
+function drawSharkGoal(){
+  // Draw a bold red X at the goal location
+  const size = 0.8;
+  ctx.save();
+  ctx.strokeStyle = '#ff4444';
+  ctx.lineWidth = 3/ctx.getTransform().a;
+  ctx.beginPath();
+  ctx.moveTo(sharkGoal.x - size/2, sharkGoal.y - size/2);
+  ctx.lineTo(sharkGoal.x + size/2, sharkGoal.y + size/2);
+  ctx.moveTo(sharkGoal.x - size/2, sharkGoal.y + size/2);
+  ctx.lineTo(sharkGoal.x + size/2, sharkGoal.y - size/2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawShark(){
   const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
   const rot = (x,y) => ({x: x*esk.x - y*esk.y + sharkState.pos.x, y: x*esk.y + y*esk.x + sharkState.pos.y});
@@ -1160,29 +1222,22 @@ controls.hydroRadius?.addEventListener('input', () => {
     controls.hydroRVal.textContent = parseFloat(controls.hydroRadius.value).toFixed(1);
   }
 });
-// Disable sub-controls when hydro off
-controls.hydro?.addEventListener('change', () => {
-  const on = controls.hydro.checked;
-  [controls.hydroShell, controls.hydroRange, controls.hydroRadius].forEach(el => {
-    if(!el) return;
-    el.disabled = !on;
-  });
-});
-// Keep radius slider disabled unless range mode is on
-controls.hydroRange?.addEventListener('change', () => {
-  if(controls.hydroRadius){
-    controls.hydroRadius.disabled = !controls.hydro.checked || !controls.hydroRange.checked;
-  }
-});
+
+// UI disabling logic for hydrodynamics based on N and hydro state
+function updateHydroUiDisabled(){
+  const nVal = parseInt(controls.N?.value ?? '0', 10);
+  const hydroOn = !!controls.hydro?.checked;
+  const allowHydroModes = hydroOn && nVal >= 500;
+  if(controls.hydroShell) controls.hydroShell.disabled = !allowHydroModes;
+  if(controls.hydroRange) controls.hydroRange.disabled = !allowHydroModes;
+  if(controls.hydroRadius) controls.hydroRadius.disabled = !allowHydroModes || !controls.hydroRange?.checked;
+}
+
+// React to hydro and range toggles
+controls.hydro?.addEventListener('change', updateHydroUiDisabled);
+controls.hydroRange?.addEventListener('change', updateHydroUiDisabled);
 // Initialize disabled states on load
-(() => {
-  if(controls.hydroRadius){
-    controls.hydroRadius.disabled = !controls.hydro.checked || !controls.hydroRange.checked;
-  }
-  [controls.hydroShell, controls.hydroRange].forEach(el => {
-    if(el) el.disabled = !controls.hydro.checked;
-  });
-})();
+updateHydroUiDisabled();
 controls.respawn.addEventListener('click', () => {
   params.n = parseInt(controls.N.value, 10);
   resetSchool();
@@ -1194,17 +1249,24 @@ controls.clearBaits.addEventListener('click', () => {
 // School size slider: live update label, respawn on commit
 controls.N.addEventListener('input', () => {
   controls.NVal.textContent = String(parseInt(controls.N.value, 10));
+  updateHydroUiDisabled();
 });
 controls.N.addEventListener('change', () => {
   params.n = parseInt(controls.N.value, 10);
   resetSchool();
+  updateHydroUiDisabled();
 });
+
+// Initialize dependent UI states
+updateGoalUiDisabled();
 
 canvas.addEventListener('pointermove', e => {
   const world = screenToWorld(e.offsetX, e.offsetY);
   cp = world;
   pointerActive = true;
 });
+canvas.addEventListener('pointerenter', () => { pointerInside = true; });
+canvas.addEventListener('pointerleave', () => { pointerInside = false; });
 
 // Zoom with mouse wheel (middle-button scroll). Zooms toward cursor, clamps range.
 canvas.addEventListener('wheel', (e) => {
@@ -1243,10 +1305,8 @@ canvas.addEventListener('click', e => {
   const world = screenToWorld(e.offsetX, e.offsetY);
   if(armedPlacers.bait){
     baits.push(world);
-    armedPlacers.bait = false;
   }else if(armedPlacers.goal){
     sharkGoal = world;
-    armedPlacers.goal = false;
   }
 });
 
