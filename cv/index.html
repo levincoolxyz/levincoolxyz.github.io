@@ -11,7 +11,6 @@ title: Work Stuff - Feng Ling
 
 <div class="row">
 		<div class="container col-md-11">
-				<h2 id="h-about">About Me</h2>
 				<div id="lang-switch" style="float:right; margin-top:-28px; font-size:0.95em;">
 						<a href="#" id="lang-en">English</a> | <a href="#" id="lang-zh">中文</a>
 				</div>
@@ -217,22 +216,6 @@ title: Work Stuff - Feng Ling
     document.documentElement.classList.toggle('lang-en', lang !== 'zh');
     try { localStorage.setItem('lang', lang); } catch(e) {}
 
-    // // Update CV link and label
-    // var cvLink = document.getElementById('cv-link');
-    // var cvLabel = document.getElementById('cv-label');
-    // var cvUpdated = document.getElementById('cv-updated');
-    // if (cvLink && cvLabel && cvUpdated) {
-    //   if (lang === 'zh') {
-    //     cvLink.setAttribute('href', '/cv/凌峰简历(中文).pdf');
-    //     cvLabel.textContent = '简历';
-    //     cvUpdated.textContent = '（更新于 2025/03/20）';
-    //   } else {
-    //     cvLink.setAttribute('href', '/cv/Ling,Feng - cv.pdf');
-    //     cvLabel.textContent = 'CV';
-    //     cvUpdated.textContent = ' (updated 2025/03/20)';
-    //   }
-    // }
-
     // Update translations
     Object.keys(zh).forEach(function(id) {
       var el = document.getElementById(id);
@@ -240,12 +223,6 @@ title: Work Stuff - Feng Ling
       if (!el.dataset.en) { el.dataset.en = el.innerHTML; }
       el.innerHTML = (lang === 'zh') ? zh[id] : el.dataset.en;
     });
-
-    // // In Chinese, ensure #moreinfo is hidden/closed (CSS also hides it)
-    // if (lang === 'zh') {
-    //   var more = document.getElementById('moreinfo');
-    //   if (more) { more.classList.remove('in'); more.style.display = 'none'; }
-    // }
 
     setActiveLink(lang);
   }
