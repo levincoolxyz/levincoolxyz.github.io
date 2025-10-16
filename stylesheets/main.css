@@ -52,8 +52,8 @@ span {
 }
 
 #top h1 {
-	font-family:garamond;
-	font-size:50px;
+    font-family: 'EB Garamond', Garamond, 'Baskerville', 'Times New Roman', serif;
+    font-size:50px;
 }
 
 /* make nav sit below title on small screens and avoid overlap */

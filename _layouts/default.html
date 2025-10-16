@@ -18,8 +18,9 @@
             })();
             </script>
 
-			<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-			<link rel="stylesheet" type="text/css" media="screen" href="/stylesheets/main.css">
+				<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+				<link rel="stylesheet" type="text/css" media="screen" href="/stylesheets/main.css">
+				<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;700&display=swap" rel="stylesheet">
 
             <style>
             /* Force YaHei for entire site when Chinese is active */
@@ -29,6 +30,12 @@
                            "WenQuanYi Micro Hei", "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
               -webkit-font-smoothing: antialiased;
               -moz-osx-font-smoothing: grayscale;
+            }
+            /* Ensure header title also uses YaHei in Chinese mode */
+            html.lang-zh #top h1 {
+              font-family: "Microsoft YaHei", "微软雅黑", "Microsoft YaHei UI",
+                           "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC",
+                           "WenQuanYi Micro Hei", "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
             }
             </style>
 
@@ -64,7 +71,7 @@
 		<div class="nav">
 			<div class="row">
 				<div id="top" class="container">
-					<div class="container col-md-14"><a href="/"><h1>Feng's Got Fangs - 淩峰的个人空间</h1></a></div>
+					<div class="container col-md-14"><a href="/"><h1>Feng Ling <em>is</em> 凌峰</h1></a></div>
 				</div>
 			</div>
 			<div class="row">
@@ -101,10 +108,10 @@
                         <div class="container">
                                 <div class="row footer-contact">
                                         <div id="location" class="container col-md-6">
-                                                <h4>Helmholtz Pioneer Campus · Munich, Germany</h4>
+                                                <h4>Munich, Germany</h4>
                                         </div>
                                         <div id="email" class="container col-md-6">
-                                                <h4><a href="mailto:feng.ling@helmholtz-munich.de">Email: feng.ling [at] helmholtz-munich.de</a></h4>
+                                                <h4>feng.ling [at] helmholtz-munich.de</h4>
                                         </div>
                                 </div>
                                 <br><br>

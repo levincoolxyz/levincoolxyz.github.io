@@ -14,15 +14,17 @@ title: FENG LING
         </div>
 	<div class="row">
                 <div class="container col-md-3 col-lg-2">
-                        <div class="thumbnail profile-thumbnail">
-							<!-- https://www.facebook.com/FengGotFangs -->
-                                <a href="https://www.linkedin.com/in/levincoolxyz" id="facelogo" class="profile-link" aria-label="Facebook profile">
-                                        <img class="image-default" src="/images/astro-catch.jpg" alt="Illustration of Feng catching stars" />
-                                        <img class="image-hover" src="/fotos/IMG_9802_3.jpg" alt="Portrait of Feng Ling" />
-                                </a>
-                        </div>
-                        <h3 id="h-online">Online Presence</h3>
-                        <ul class="online-presence">
+                        <div class="profile-and-presence">
+                                <div class="thumbnail profile-thumbnail">
+                                        <!-- https://www.facebook.com/FengGotFangs -->
+                                        <a href="https://www.linkedin.com/in/levincoolxyz" id="facelogo" class="profile-link" aria-label="Facebook profile">
+                                                <img class="image-default" src="/images/astro-catch.jpg" alt="Illustration of Feng catching stars" />
+                                                <img class="image-hover" src="/fotos/IMG_9802_3.jpg" alt="Portrait of Feng Ling" />
+                                        </a>
+                                </div>
+                                <div class="presence-side">
+                                        <h3 id="h-online">Online Presence</h3>
+                                        <ul class="online-presence">
                                 <li>
                                         <a class="presence-link presence-link-google-scholar" href="https://scholar.google.com/citations?user=nTfZSioAAAAJ&amp;hl=en" target="_blank" rel="noopener">
                                                 <span class="presence-icon" aria-hidden="true"></span>
@@ -77,7 +79,9 @@ title: FENG LING
                                                 <span class="presence-text">Newgrounds</span>
                                         </a>
                                 </li> -->
-                        </ul>
+                                        </ul>
+                                </div>
+                        </div>
                 </div>
                 <div class="container col-md-9 col-lg-10">
 
@@ -184,6 +188,20 @@ html.lang-zh [data-target="#moreinfo"] { display: none !important; }
 /* Optional subtle emphasis for active language */
 #lang-switch a { text-decoration: none; }
 #lang-switch a.active { font-weight: bold; text-decoration: underline; }
+
+/* Responsive: place online presence to the side of avatar on narrow screens */
+@media (max-width: 991px) {
+  .profile-and-presence { display: flex; gap: 12px; align-items: flex-start; }
+  .profile-and-presence .profile-thumbnail { flex: 0 0 auto; max-width: 180px; width: 40%; }
+  .profile-and-presence .profile-thumbnail img { width: 100%; height: auto; }
+  .profile-and-presence .presence-side { flex: 1 1 0; min-width: 0; }
+  .profile-and-presence .presence-side h3 { margin-top: 0; }
+}
+
+/* Fall back to default stacking on md+ */
+@media (min-width: 992px) {
+  .profile-and-presence { display: block; }
+}
 </style>
 
 <script>
@@ -192,7 +210,7 @@ html.lang-zh [data-target="#moreinfo"] { display: none !important; }
   const zh = {
     'h-about': '个人信息',
     'h-online': '网络踪迹',
-    'p-intro-1': `清醒时我一般都在与生物系统自组织现象较真。目前研究主要聚焦于<a href="/cilia_bundle_visualizer.html">运动纤毛</a>。这种微米级、毛发状的细胞附器遍布各种呼吸道、生殖道甚至脑脊液腔室这类上皮细胞组织。最神奇的是，不仅每根纤毛本身由数千组的动力蛋白马达驱动，聚集起来的纤毛还能够相互协调以实现宏观层级的液体泵送功能——包括但不限于<a href="https://micromotility.com/research/" target="_blank" rel="noopener">单细胞生物和群体的运动与迁移</a>、各种<a href="https://www.nature.com/articles/456334b">幼虫</a>和<a href="https://www.cell.com/cell/fulltext/S0092-8674(00)81705-5">胚胎</a>的发育、<a href="https://www.nature.com/articles/s41567-024-02591-0">各种各样的海洋与陆上动物</a>，乃至<a href="https://www.nature.com/articles/s41467-025-57667-z">我们人类本体</a>。这类丝状结构也为人类设计各种微操手段<a href="https://www.nature.com/articles/s41586-022-04645-w">（如微流控）</a>提供了许多灵感。`,
+    'p-intro-1': `清醒时我一般都在与生物系统自组织现象较真。目前研究主要聚焦于<a href="/cilia_bundle_visualizer.html">运动纤毛</a>。这种微米级、毛发状的细胞器遍布各种呼吸道、生殖道甚至脑脊液腔室这类上皮细胞组织。最神奇的是，不仅每根纤毛本身由数千组的动力蛋白马达驱动，聚集起来的纤毛还能够相互协调以实现宏观层级的液体泵送功能——包括但不限于<a href="https://micromotility.com/research/" target="_blank" rel="noopener">单细胞生物和群体的运动与迁移</a>、各种<a href="https://www.nature.com/articles/456334b">幼虫</a>和<a href="https://www.cell.com/cell/fulltext/S0092-8674(00)81705-5">胚胎</a>的发育、<a href="https://www.nature.com/articles/s41567-024-02591-0">各种各样的海洋与陆上动物</a>，乃至<a href="https://www.nature.com/articles/s41467-025-57667-z">我们人类本体</a>。这类丝状结构也为人类设计各种微操手段<a href="https://www.nature.com/articles/s41586-022-04645-w">（如微流控）</a>提供了许多灵感。`,
     'p-intro-2': `我希望能对所谓‘因果涌现‘等生命活性物质理论提出一些有普适性的见解：<a href="/dipole_school_visualizer.html"><strong>局部相互作用</strong></a>到底在什么情况下能涌现成<strong>有效的</strong>群体规律；群体的动态演化又如何把<strong>介观和宏观物理</strong>反馈到每个个体呢？我一般从<strong>力学不稳定性、多稳态、强化学习与粗粒化建模</strong>等方向开展研究。当下我的工作已经从理论逐步拓展到成像与实验，也许有一天我可以在学术上完成自己的<a href="https://ahlouie.com/wp-content/uploads/2015/09/louiep-hierarchical-cycles-2011.pdf">“多层级循环”</a>。`,
     'p-intro-3': `科研以外，我喜欢搞<a href="/synchronizedSynthesis.html">乱七八糟的</a>和中外古典音乐，喜欢拍摄各种慢镜头（ 这是用Phantom拍的<a href="https://youtu.be/1JQX3kwhnGA">蜂鸟【油管】</a>）等其他抽象摄影（传统美图请看<a href="https://www.mbartonphotography.com/">这</a>）。我已然迷上<a href="https://www.youtube.com/@WideBoyz" target="_blank" rel="noopener">攀岩/抱石</a>。不想干“正事”时候会去欣赏<a href="https://ajblumberg.github.io/publications/" target="_blank" rel="noopener">各种拓扑</a>、<a href="https://www.cs.cmu.edu/~kmcrane/" target="_blank" rel="noopener">计算几何</a>、<a href="https://radionavlab.ae.utexas.edu/">航天科技</a>（曾几一时俺也打磨过劣质<a href="https://www.thingiverse.com/levincoolxyz/about">火箭</a>）与<a href="https://www.grown.bio/">可持续发展</a>。`,
     'p-bio': `今年年底我将入职<a href="https://physics.nankai.edu.cn/wlxyen/main.htm">南开物理</a>继续生命信息物理学研究，加入潘雷霆教授的<a href="http://panltlab.org/">生物医学光学实验室</a>。我的博后合作导师是德国慕尼黑亥姆霍兹研究所的<a href="https://www.helmholtz-munich.de/en/research/helmholtz-pioneer-campus/hpc-research/janna-nawroth-lab"> Janna Nawroth 博士</a>。我是在南加大<a href="https://sites.usc.edu/kansolab/"> Eva Kanso 教授</a>指导下完成的流体力学博士学习。我本科在德州大学奥斯汀分校主修纯数学与航天工程，曾在空间研究中心任科研助理。`,
