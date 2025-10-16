@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Synchronized Synthesis</title>
-    <!-- Inlined from web/styles.css -->
     <style>
 :root {
   color-scheme: light dark;
@@ -86,6 +85,9 @@ h1 {
   margin-bottom: 0.6rem;
   align-items: center;
 }
+
+/* Utility to push subsequent items to the right in a flex row */
+.control-row .push-right { margin-left: auto; }
 
 .control-row label,
 .audio-controls label {
@@ -225,40 +227,48 @@ input[type="range"] {
 
 /* Wave canvas spans full row under the two visuals */
 #wave-canvas { grid-column: 1 / -1;}
+
+/* Ensure audio-controls and keyboard share row as 1/3 + 2/3 on wide layouts */
+@media (min-width: 980px) {
+  #app { grid-template-columns: repeat(3, minmax(320px, 1fr)); }
+  .audio-controls { grid-column: 1 / 2; }
+  .keyboard { grid-column: 2 / 4; }
+}
     </style>
   </head>
   <body>
     <header>
       <h1>Synchronized Synthesis</h1>
-      <p class="tagline">Interactive rotor coordination synthesizer in the browser</p>
+      <p class="tagline">Ciliary carpet inspired wavetable synthesizer - an interactive phased oscillator coordination display</p>
     </header>
     <main id="app">
       <section class="controls" aria-label="Rotor controls">
         <div class="control-row">
-          <button type="button" id="pause-toggle" /> Pause</button>
-          <button type="button" id="mute-toggle" /> Mute</button>
-          <button type="button" id="bc-toggle" aria-pressed="true">Periodic BC</button>
-          <button id="reset-btn" type="button">Traveling wave</button>
-          <button id="noise-btn" type="button">Randomize</button>
+          <button type="button" id="pause-toggle" />Pause</button>
+          <button type="button" id="mute-toggle" />Mute</button>
+          <button type="button" id="randomize-btn" />Randomize</button>
+          <button type="button" id="bc-toggle" class="push-right" aria-pressed="true">Periodic BC</button>
+          <button type="button" id="reset-btn" >Set linear waves</button>
+          <button type="button" id="noise-btn" >Set random phase</button>
         </div>
         <div class="control-row">
           <label>Speed <input type="range" id="speed" min="0.05" max="10" step="0.05" value="5" /></label>
-          <label>Ellipticity <input type="range" id="ellipticity" min="0" max="1" step="0.01" value="0" /></label>
-          <label>Harmonic <input type="range" id="harmonic" min="0" max="5" step="0.1" value="2" /></label>
-          <label>Jitter <input type="range" id="jitter" min="0" max="1" step="0.01" value="0.1" /></label>
+          <label>Size in X <input type="range" id="nx" min="8" max="50" step="1" value="30" /></label>
+          <label>Size in Y <input type="range" id="ny" min="8" max="50" step="1" value="30" /></label>
+          <label>Chaos <input type="range" id="jitter" min="0" max="1" step="0.01" value="0.01" /></label>
+        </div>
+        <div class="control-row">
+          <label>Harmonic <input type="range" id="harmonic" min="0" max="4" step="0.1" value="1" /></label>
+          <label>Coverage <input type="range" id="coverage" min="0.5" max="1" step="0.01" value="1" /></label>
+          <label>Patchiness <input type="range" id="patchiness" min="0" max="1" step="0.01" value="0.6" /></label>
+          <label>Crystalline <input type="range" id="dispersion" min="0" max="5" step="0.1" value="1" /></label>
+          <label>Strength <input type="range" id="height" min="0.5" max="2" step="0.01" value="1" /></label>
         </div>
         <div class="control-row">
           <label>Tilt <input type="range" id="tilt" min="0" max="1.047" step="0.01" value="0" /></label>
-          <label>Coverage <input type="range" id="coverage" min="0.5" max="1" step="0.01" value="1" /></label>
-          <label>Patchiness <input type="range" id="patchiness" min="0" max="1" step="0.01" value="0.6" /></label>
-          <label>Dispersion <input type="range" id="dispersion" min="0" max="5" step="0.1" value="1" /></label>
-          <label>Range <input type="range" id="height" min="0.25" max="1.5" step="0.01" value="1" /></label>
-        </div>
-        <div class="control-row">
-          <label>Effective Angle <input type="range" id="effective-angle" min="-3.1416" max="3.1416" step="0.01" value="-1" /></label>
-          <label>CW % <input type="range" id="cw-percent" min="0" max="100" step="1" value="0" /></label>
-          <label>nX <input type="range" id="nx" min="8" max="40" step="1" value="20" /></label>
-          <label>nY <input type="range" id="ny" min="8" max="50" step="1" value="30" /></label>
+          <label>Ellipticity <input type="range" id="ellipticity" min="0" max="1" step="0.01" value="0" /></label>
+          <label>Angle <input type="range" id="effective-angle" min="-3.1416" max="3.1416" step="0.01" value="-1" /></label>
+          <label>% Clockwise <input type="range" id="cw-percent" min="0" max="100" step="1" value="0" /></label>
         </div>
       </section>
       <section class="visuals" aria-label="Rotor visualizations">
@@ -290,9 +300,9 @@ input[type="range"] {
           </div>
         </div>
         <div class="preset-row">
-          <button type="button" data-preset="key">🎹</button>
-          <button type="button" data-preset="pad">▣</button>
-          <button type="button" data-preset="hit">🥁</button>
+          <button type="button" data-preset="key">🎹 - Lead</button>
+          <button type="button" data-preset="pad">▣ - Pad</button>
+          <button type="button" data-preset="hit">🥁 - Drum</button>
         </div>
       </section>
       <section class="keyboard" aria-label="Piano keyboard">
@@ -306,8 +316,8 @@ input[type="range"] {
       </section>
     </main>
     <footer>
-      <p>Vibe coding port of the MATLAB <a href="https://www.mathworks.com/matlabcentral/fileexchange/92588-synchronized-synthesis">Synchronized Synthesis Audio Plugin</a> from 2021. 
-        All mistakes are © GPT-5 :p</p>
+      <p>Vibe coding port of the original <a href="https://www.mathworks.com/matlabcentral/fileexchange/92588-synchronized-synthesis">Synchronized Synthesis Audio Plugin</a>. 
+        All mistakes are © GPT-5 :P</p>
     </footer>
 
     <!-- Inlined math.js -->
@@ -485,7 +495,7 @@ const TWO_PI = Math.PI * 2;
 
 class SynchronizedSynth {
   constructor(options = {}) {
-    this.Nx = options.Nx ?? 20;
+    this.Nx = options.Nx ?? 30;
     this.Ny = options.Ny ?? 30;
     this.Nr = this.Nx * this.Ny;
     this.thetaResolution = options.thetaResolution ?? 720;
@@ -494,22 +504,22 @@ class SynchronizedSynth {
       a: 0.5,
       ellipticity: 0,
       ep: 0.5,
-      harmonic: 2,
+      harmonic: 1,
       modPhase: Math.PI / 2,
       tilt: 0,
       height: 1,
       speed: 1,
-      jitter: 0.1,
+      jitter: 0.01,
       coverage: 1,
       patchiness: 0.6,
-      dispersion: 1,
+      dispersion: 0,
       viscosity: 1,
     };
     this._forcingCoefficients = new Float64Array(1);
     this._updateForcingCoefficients();
 
     this.periodic = true;
-    this.localPeriodic = false;
+    this.localPeriodic = true;
     this.Nshell = options.Nshell ?? 5;
     this.effectiveAngle = -1;
     // Per-rotor spin direction (1=CCW, 0=CW)
@@ -1686,6 +1696,28 @@ document.getElementById('reset-btn').addEventListener('click', () => {
 
 document.getElementById('noise-btn').addEventListener('click', () => {
   simulation.randomizePhases();
+});
+
+// Randomize all top sliders uniformly within their ranges
+document.getElementById('randomize-btn').addEventListener('click', () => {
+  const sliders = document.querySelectorAll('.controls input[type="range"]');
+  sliders.forEach((el) => {
+    const min = parseFloat(el.getAttribute('min') ?? '0');
+    const max = parseFloat(el.getAttribute('max') ?? '1');
+    const stepAttr = el.getAttribute('step');
+    const step = stepAttr ? parseFloat(stepAttr) : 0;
+    let val = min + Math.random() * (max - min);
+    if (Number.isFinite(step) && step > 0) {
+      const steps = Math.round((val - min) / step);
+      val = min + steps * step;
+      // Clamp to [min, max]
+      if (val < min) val = min;
+      if (val > max) val = max;
+    }
+    el.value = String(val);
+    // Trigger any listeners bound to 'input' to propagate state
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 });
 
 // New sliders replacing checkboxes

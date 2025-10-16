@@ -1,13 +1,36 @@
 <!DOCTYPE html>
 <html>
 
-	<head>
-		<meta charset='utf-8'>
-		<link rel="shortcut icon" href="/images/barking-256x256.png">
-		<meta http-equiv="X-UA-Compatible" content="chrome=1">
-		<meta name="description" content="FENG LING personal">
-		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-		<link rel="stylesheet" type="text/css" media="screen" href="/stylesheets/main.css">
+		<head>
+			<meta charset='utf-8'>
+			<link rel="shortcut icon" href="/images/barking-256x256.png">
+			<meta http-equiv="X-UA-Compatible" content="chrome=1">
+			<meta name="description" content="FENG LING personal">
+            <script>
+            // Apply saved language class early across the whole site
+            (function(){
+              try {
+                var lang = localStorage.getItem('lang');
+                var root = document.documentElement;
+                if (lang === 'zh') { root.classList.add('lang-zh'); root.classList.remove('lang-en'); }
+                else if (lang === 'en') { root.classList.add('lang-en'); root.classList.remove('lang-zh'); }
+              } catch(e) {}
+            })();
+            </script>
+
+			<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+			<link rel="stylesheet" type="text/css" media="screen" href="/stylesheets/main.css">
+
+            <style>
+            /* Force YaHei for entire site when Chinese is active */
+            html.lang-zh body {
+              font-family: "Microsoft YaHei", "微软雅黑", "Microsoft YaHei UI",
+                           "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC",
+                           "WenQuanYi Micro Hei", "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
+              -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
+            }
+            </style>
 
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
 		<script src="https://netdna.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>

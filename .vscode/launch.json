@@ -40,6 +40,12 @@
         {
             "type": "chrome",
             "request": "launch",
+            "name": "Open Synth",
+            "file": "./synchronizedSynthesis.html"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
             "name": "Open Network Sim",
             "file": "./brownian_small_world.html"
         }
