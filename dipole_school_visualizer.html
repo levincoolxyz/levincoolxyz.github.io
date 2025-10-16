@@ -89,6 +89,8 @@
       <button id="respawn">Reset</button>
       <div class="toggle" data-key="bait" title="Toggle bait placement (click canvas to add)">Set baits</div>
       <button id="clearBaits">Remove baits</button>
+      <div class="toggle" data-key="shark">Baskin' shark</div>
+      <div class="toggle" data-key="whale">Blue whale!</div>
       <div class="toggle" data-key="goal">Shark target</div>
       <div class="toggle" data-key="whaleFollow">Whale follows cursor</div>
       <small>Potential-flow dipole swimmers with Voronoi vision control</small>
@@ -130,8 +132,6 @@
         <div class="toggle active" data-key="death">Enable death</div>
         <div class="toggle active" data-key="evade">Auto evade</div>
         <div class="toggle" data-key="hard">Auto hunt</div>
-        <div class="toggle" data-key="shark">Baskin' shark</div>
-        <div class="toggle" data-key="whale">Blue whale</div>
       </div>
       
       <p class="algo-note">
@@ -1138,7 +1138,7 @@ function drawSharkGoal(){
 function drawShark(){
   const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
   const rot = (x,y) => ({x: x*esk.x - y*esk.y + sharkState.pos.x, y: x*esk.y + y*esk.x + sharkState.pos.y});
-  ctx.fillStyle = '#5d8df4';
+  ctx.fillStyle = '#30333a';
   ctx.beginPath();
   const head = sharkShape.head;
   head.x.forEach((x,i) => {
