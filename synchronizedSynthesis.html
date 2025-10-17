@@ -244,9 +244,9 @@ input[type="range"] {
     <main id="app">
       <section class="controls" aria-label="Rotor controls">
         <div class="control-row">
-          <button type="button" id="pause-toggle" />Pause</button>
-          <button type="button" id="mute-toggle" />Mute</button>
-          <button type="button" id="randomize-btn" />Randomize</button>
+          <button type="button" id="pause-toggle">Pause</button>
+          <button type="button" id="mute-toggle">Mute</button>
+          <button type="button" id="randomize-btn">Randomize</button>
           <button type="button" id="bc-toggle" class="push-right" aria-pressed="true">Periodic BC</button>
           <button type="button" id="reset-btn" >Set linear waves</button>
           <button type="button" id="noise-btn" >Set random phase</button>
@@ -1527,8 +1527,16 @@ class SynthAudio {
     const right = this.simulation.generateWaveform(waveformSamples, this.simulation.stereoLag);
 
     const buffer = ctx.createBuffer(2, waveformSamples, ctx.sampleRate);
-    buffer.copyToChannel(left, 0);
-    buffer.copyToChannel(right, 1);
+    // Safari/iOS fallback: copyToChannel not supported on some versions
+    if (typeof buffer.copyToChannel === 'function') {
+      buffer.copyToChannel(left, 0);
+      buffer.copyToChannel(right, 1);
+    } else {
+      const ch0 = buffer.getChannelData(0);
+      const ch1 = buffer.getChannelData(1);
+      ch0.set(left);
+      ch1.set(right);
+    }
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -1595,6 +1603,41 @@ class SynthAudio {
     <script>
 const simulation = new SynchronizedSynth();
 const audio = new SynthAudio(simulation);
+
+// Best-effort iOS/Safari audio unlock on first user gesture
+function unlockAudioOnce() {
+  try {
+    const ctx = audio.ensureContext();
+    // Resume context; then play a 1-frame silent buffer to fully unlock on iOS
+    const doUnlock = () => {
+      try {
+        const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(audio.masterGain || ctx.destination);
+        try { src.start(0); } catch (_) {}
+        // Stop/disconnect soon after
+        setTimeout(() => { try { src.stop(); src.disconnect(); } catch (_) {} }, 0);
+      } catch (_) {}
+    };
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(doUnlock).catch(() => { try { doUnlock(); } catch (_) {} });
+    } else {
+      doUnlock();
+    }
+  } catch (_) {}
+
+  // Remove all unlock listeners after first invocation
+  window.removeEventListener('pointerdown', unlockAudioOnce);
+  window.removeEventListener('touchstart', unlockAudioOnce);
+  window.removeEventListener('click', unlockAudioOnce);
+  window.removeEventListener('keydown', unlockAudioOnce);
+}
+
+window.addEventListener('pointerdown', unlockAudioOnce, { once: true, passive: true, capture: true });
+window.addEventListener('touchstart', unlockAudioOnce, { once: true, passive: true });
+window.addEventListener('click', unlockAudioOnce, { once: true });
+window.addEventListener('keydown', unlockAudioOnce, { once: true });
 
 const rotorCanvas = document.getElementById('rotor-canvas');
 const rotorCtx = rotorCanvas.getContext('2d');
@@ -1784,8 +1827,8 @@ Array.from(document.querySelectorAll('.preset-row button')).forEach((btn) => {
   });
 });
 
-const keyFaces = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';', '\\', ']', '⏎'];
-const keyCodes = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';', '\\', ']', 'Enter'];
+const keyFaces = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';', '\'', ']', '⏎'];
+const keyCodes = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';', '\'', ']', 'Enter'];
 
 const keyboardRow = document.getElementById('keyboard-row');
 keyboardRow.innerHTML = '';
@@ -1830,6 +1873,8 @@ for (let i = 0; i < keyFaces.length; i += 1) {
   if (!isBlackSemitone(i)) whiteIndices.push(i);
 }
 
+const supportsPointer = 'PointerEvent' in window;
+
 whiteIndices.forEach((index) => {
   const key = document.createElement('button');
   key.type = 'button';
@@ -1837,14 +1882,24 @@ whiteIndices.forEach((index) => {
   key.textContent = keyFaces[index];
   key.style.width = `${100 / whiteIndices.length}%`;
   key.dataset.index = String(index);
-  key.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-    key.setPointerCapture(event.pointerId);
-    triggerKey(index);
-  });
-  key.addEventListener('pointerup', () => releaseKey(index));
-  key.addEventListener('pointerleave', () => releaseKey(index));
-  key.addEventListener('pointercancel', () => releaseKey(index));
+  if (supportsPointer) {
+    key.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      key.setPointerCapture(event.pointerId);
+      triggerKey(index);
+    });
+    key.addEventListener('pointerup', () => releaseKey(index));
+    key.addEventListener('pointerleave', () => releaseKey(index));
+    key.addEventListener('pointercancel', () => releaseKey(index));
+  } else {
+    // Fallback for older iOS Safari without PointerEvents
+    key.addEventListener('mousedown', (e) => { e.preventDefault(); triggerKey(index); });
+    key.addEventListener('mouseup', () => releaseKey(index));
+    key.addEventListener('mouseleave', () => releaseKey(index));
+    key.addEventListener('touchstart', (e) => { e.preventDefault(); triggerKey(index); }, { passive: false });
+    key.addEventListener('touchend', () => releaseKey(index));
+    key.addEventListener('touchcancel', () => releaseKey(index));
+  }
   whiteLayer.appendChild(key);
   keyElements[index] = key;
 });
@@ -1865,14 +1920,23 @@ for (let index = 0; index < keyFaces.length; index += 1) {
   key.style.left = `${frac * 100}%`;
   key.style.width = `${(100 / whiteIndices.length) * 0.6}%`;
   key.dataset.index = String(index);
-  key.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-    key.setPointerCapture(event.pointerId);
-    triggerKey(index);
-  });
-  key.addEventListener('pointerup', () => releaseKey(index));
-  key.addEventListener('pointerleave', () => releaseKey(index));
-  key.addEventListener('pointercancel', () => releaseKey(index));
+  if (supportsPointer) {
+    key.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      key.setPointerCapture(event.pointerId);
+      triggerKey(index);
+    });
+    key.addEventListener('pointerup', () => releaseKey(index));
+    key.addEventListener('pointerleave', () => releaseKey(index));
+    key.addEventListener('pointercancel', () => releaseKey(index));
+  } else {
+    key.addEventListener('mousedown', (e) => { e.preventDefault(); triggerKey(index); });
+    key.addEventListener('mouseup', () => releaseKey(index));
+    key.addEventListener('mouseleave', () => releaseKey(index));
+    key.addEventListener('touchstart', (e) => { e.preventDefault(); triggerKey(index); }, { passive: false });
+    key.addEventListener('touchend', () => releaseKey(index));
+    key.addEventListener('touchcancel', () => releaseKey(index));
+  }
   blackLayer.appendChild(key);
   keyElements[index] = key;
 }

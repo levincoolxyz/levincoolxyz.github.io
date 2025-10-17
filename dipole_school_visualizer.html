@@ -369,6 +369,8 @@ const whaleShape = {
   y: [0,0.9,0.67,0.2,0.75,1,1.5,2,1.5,1,0.75,0.45,0,-0.45,-0.75,-1,-1.5,-2,-1.5,-1,-0.75,-0.2,-0.67,-0.9,0].map(v => v*2),
 };
 
+let errTol = 1e-12;
+
 let fishes = [];
 let velocities = [];
 let wBuffer = [];
@@ -445,7 +447,10 @@ function getWhaleHeadPos(dir){
 
 function getAngle(phi, dx, dy, dist){
   const r = dist ?? Math.hypot(dx, dy);
-  if(!isFinite(r) || r === 0) return 0;
+  if(!isFinite(r) || r === 0) {
+    console.log('overlapped fish or something wrong!', r);
+    return 0;
+  }
   const rx = dx / r;
   const ry = dy / r;
   const ex = Math.cos(phi);
@@ -475,8 +480,8 @@ function computeStep(){
 
   const delaunay = n >= 3 ? Delaunay.from(fishes, f => f.x, f => f.y) : null;
   const delaunayNeighbors = delaunay ? Array.from({length:n}, (_,i) => Array.from(delaunay.neighbors(i))) : null;
-  const wVision = new Array(n).fill(0);
-  const minDist = new Array(n).fill(Infinity);
+  const wVision = new Float64Array(n).fill(0);
+  const minDist = new Float64Array(n).fill(Infinity);
 
   if(delaunay){
     for(let i=0;i<n;i++){
@@ -489,16 +494,16 @@ function computeStep(){
         const dx = fishes[j].x - fishes[i].x;
         const dy = fishes[j].y - fishes[i].y;
         const dist = Math.hypot(dx, dy);
-        if(dist === 0) continue;
+        // if(dist === 0) continue;
         const theta = getAngle(fishes[i].theta, dx, dy, dist);
         const phi = wrapAngle(fishes[j].theta - fishes[i].theta);
         const weight = 1 + Math.cos(theta);
-        if(weight <= 0) continue;
+        // if(weight <= 0) continue;
         sum += (Ia*Math.sin(phi) + dist*Math.sin(theta))*weight;
         denom += weight;
         if(dist < minR) minR = dist;
       }
-      wVision[i] = denom > 1e-9 ? sum / denom : 0;
+      wVision[i] = denom > errTol ? sum / denom : 0;
       minDist[i] = minR;
     }
   }
@@ -551,9 +556,9 @@ function computeStep(){
       wNoise[i] *= (1 + 2*In*sig);
     }
   }
-  const Ux = new Array(n).fill(0);
-  const Uy = new Array(n).fill(0);
-  const wHydro = new Array(n).fill(0);
+  const Ux = new Float64Array(n).fill(0);
+  const Uy = new Float64Array(n).fill(0);
+  const wHydro = new Float64Array(n).fill(0);
 
   if(hydroEnabled){
     if(hydroShellOnly && delaunayNeighbors){
@@ -566,7 +571,7 @@ function computeStep(){
           const dx = fishes[i].x - fishes[j].x;
           const dy = fishes[i].y - fishes[j].y;
           const r2 = dx*dx + dy*dy;
-          if(r2 < 1e-6) continue;
+          if(r2 < errTol) continue;
           const invr4 = 1/(r2*r2);
           const invr6 = invr4/r2;
           const c2r = dx*dx - dy*dy;
@@ -617,7 +622,7 @@ function computeStep(){
               const dx = fishes[i].x - fishes[j].x;
               const dy = fishes[i].y - fishes[j].y;
               const r2 = dx*dx + dy*dy;
-              if(r2 > r2cut || r2 < 1e-6) continue;
+              if(r2 > r2cut || r2 < errTol) continue;
               const invr4 = 1/(r2*r2);
               const invr6 = invr4/r2;
               const c2r = dx*dx - dy*dy;
@@ -645,6 +650,7 @@ function computeStep(){
       }
     } else {
       // Fallback: full O(N^2) hydrodynamics (small N)
+      // let debug = 0;
       for(let i=0;i<n;i++){
         let uR = 0, uI = 0, wSum = 0;
         for(let j=0;j<n;j++){
@@ -652,7 +658,7 @@ function computeStep(){
           const dx = fishes[i].x - fishes[j].x;
           const dy = fishes[i].y - fishes[j].y;
           const r2 = dx*dx + dy*dy;
-          if(r2 < 1e-6) continue;
+          if(r2 < errTol) continue;
           const invr4 = 1/(r2*r2);
           const invr6 = invr4/r2;
           const c2r = dx*dx - dy*dy;
@@ -675,7 +681,9 @@ function computeStep(){
         Ux[i] = uR / Math.PI * params.If * avoid;
         Uy[i] = -uI / Math.PI * params.If * avoid;
         wHydro[i] = wSum / Math.PI * params.If * avoid;
+        // debug += minDist[i];
       }
+      // console.log('Hydro debug:', debug/n);
     }
   }
 
@@ -701,7 +709,7 @@ function computeStep(){
     if(stateFlags.whale) applyWhaleEvade(wVision);
   }
 
-  const thetaDot = new Array(n);
+  const thetaDot = new Float64Array(n);
   for(let i=0;i<n;i++){
     thetaDot[i] = wVision[i] + wNoise[i] + wHydro[i];
   }
@@ -760,7 +768,7 @@ function addPredatorFlow(predState, scaleH, factor, Ux, Uy, wHydro){
     const dx = fishes[i].x - predState.pos.x;
     const dy = fishes[i].y - predState.pos.y;
     const r2 = dx*dx + dy*dy;
-    if(r2 < 1e-6) continue;
+    if(r2 < errTol) continue;
     const invr4 = 1/(r2*r2);
     const invr6 = invr4 / r2;
     const c2r = dx*dx - dy*dy;
@@ -878,7 +886,7 @@ function updateWhale(Ux, Uy){
     const dx = cp.x - whaleState.pos.x;
     const dy = cp.y - whaleState.pos.y;
     const dist = Math.hypot(dx, dy);
-    if(dist > 1e-6){
+    if(dist > errTol){
       let w = getAngle(whaleState.theta, dx, dy, dist);
       w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
       whaleState.theta = wrapAngle(whaleState.theta + w*dt);
