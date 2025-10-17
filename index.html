@@ -260,8 +260,10 @@ title: FENG LING
 
     setActiveLink(lang);
 
-    // Re-attach mobile tooltips after content swap
-    if (window.initMobileTooltips) {
+    // Re-attach tooltips after content swap
+    if (window.setupTapTooltips) {
+      try { window.setupTapTooltips(document); } catch (e) {}
+    } else if (window.initMobileTooltips) {
       try { window.initMobileTooltips(document); } catch (e) {}
     }
   }
@@ -275,8 +277,10 @@ title: FENG LING
     if (en) en.addEventListener('click', function(e){ e.preventDefault(); setLang('en'); });
     if (zhLink) zhLink.addEventListener('click', function(e){ e.preventDefault(); setLang('zh'); });
 
-    // Initial tooltip setup for any elements with title="..."
-    if (window.initMobileTooltips) {
+    // Initial tooltip setup
+    if (window.setupTapTooltips) {
+      try { window.setupTapTooltips(document); } catch (e) {}
+    } else if (window.initMobileTooltips) {
       try { window.initMobileTooltips(document); } catch (e) {}
     }
   });
@@ -284,74 +288,152 @@ title: FENG LING
 </script>
 
 <style>
-/* Mobile-friendly tooltips for elements with title="..." that we mark as .tap-tooltip */
-.tap-tooltip[title] { position: relative; cursor: help; }
-.tap-tooltip[title]:hover::after,
-.tap-tooltip[title]:focus::after {
-  content: attr(title);
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(100% + 10px);
-  background: rgba(0,0,0,0.85);
+/* Tap-friendly tooltip bubble */
+.tap-tooltip { cursor: help; }
+.tooltip-pop {
+  position: fixed;
+  background: rgba(0,0,0,0.9);
   color: #fff;
-  padding: 6px 8px;
-  border-radius: 6px;
-  font-size: 0.9em;
-  white-space: normal;
-  width: max-content;
-  max-width: min(320px, 90vw);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.92em;
+  line-height: 1.25;
+  max-width: min(320px, 92vw);
   z-index: 9999;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35);
 }
-.tap-tooltip[title]:hover::before,
-.tap-tooltip[title]:focus::before {
+.tooltip-pop::after {
   content: '';
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(100% + 4px);
-  border: 6px solid transparent;
-  border-top-color: rgba(0,0,0,0.85);
-}
-/* On touch devices, ignore hover-only display; rely on focus from tap */
-@media (hover: none) {
-  .tap-tooltip[title]:hover::after,
-  .tap-tooltip[title]:hover::before { display: none; }
+  bottom: -8px;
+  border: 8px solid transparent;
+  border-top-color: rgba(0,0,0,0.9);
 }
 </style>
 
 <script>
-// Minimal JS to make title="..." tooltips tappable: add focusability and class
+// Robust, cross-browser tap/hover tooltips sourced from data-tooltip/title
 (function(){
-  function initMobileTooltips(root){
-    root = root || document;
-    var withTitle = root.querySelectorAll('[title]');
-    for (var i = 0; i < withTitle.length; i++) {
-      var el = withTitle[i];
-      if (el.classList.contains('tap-tooltip')) continue;
-      // Skip if inside SVG or script/style
-      if (el.namespaceURI && el.namespaceURI.indexOf('svg') !== -1) continue;
-      el.classList.add('tap-tooltip');
-      // Make non-interactive elements focusable so :focus works on tap
-      var tag = el.tagName && el.tagName.toLowerCase();
-      var interactive = /^(a|button|input|textarea|select|summary)$/i.test(tag);
-      if (!interactive && !el.hasAttribute('tabindex')) {
-        el.setAttribute('tabindex', '0');
-      }
+  var bubble, currentTarget = null;
+
+  function ensureBubble(){
+    if (!bubble){
+      bubble = document.createElement('div');
+      bubble.className = 'tooltip-pop';
+      bubble.id = 'tooltip-pop';
+      bubble.setAttribute('role','tooltip');
+      bubble.style.display = 'none';
+      document.body.appendChild(bubble);
     }
+    return bubble;
   }
-  window.initMobileTooltips = initMobileTooltips;
+
+  function getTooltipText(el){
+    return el.getAttribute('data-tooltip') || el.getAttribute('title') || '';
+  }
+
+  function enhance(el){
+    if (!el) return;
+    var txt = getTooltipText(el);
+    if (!txt) return;
+    // Normalize storage to data-tooltip and remove native title to prevent duplicate bubbles
+    if (!el.hasAttribute('data-tooltip')) el.setAttribute('data-tooltip', txt);
+    if (el.hasAttribute('title')) el.removeAttribute('title');
+    el.classList.add('tap-tooltip');
+    // Make focusable if non-interactive
+    var tag = (el.tagName || '').toLowerCase();
+    var interactive = /^(a|button|input|textarea|select|summary)$/i.test(tag);
+    if (!interactive && !el.hasAttribute('tabindex')) el.setAttribute('tabindex','0');
+    el.setAttribute('aria-describedby','tooltip-pop');
+  }
+
+  function setupTapTooltips(root){
+    root = root || document;
+    var nodes = root.querySelectorAll('[title], [data-tooltip]');
+    for (var i = 0; i < nodes.length; i++) enhance(nodes[i]);
+  }
+  window.setupTapTooltips = setupTapTooltips;
+  // Back-compat alias
+  window.initMobileTooltips = setupTapTooltips;
+
+  function positionBubble(target){
+    var b = ensureBubble();
+    var rect = target.getBoundingClientRect();
+    var vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+    var margin = 10;
+
+    b.style.display = 'block';
+    b.textContent = getTooltipText(target);
+    b.style.left = '0px';
+    b.style.top = '0px';
+    // First layout to get bubble size
+    var bw = b.offsetWidth;
+    var bh = b.offsetHeight;
+
+    // Center over target; clamp to viewport
+    var cx = rect.left + rect.width/2;
+    var left = Math.max(margin, Math.min(vw - margin - bw, cx - bw/2));
+    var top = Math.max(margin, rect.top - bh - 12);
+    b.style.left = left + 'px';
+    b.style.top = top + 'px';
+  }
+
+  function hideBubble(){
+    if (!bubble) return;
+    bubble.style.display = 'none';
+    currentTarget = null;
+  }
+
+  function showFor(target){
+    if (!target) return;
+    if (currentTarget === target) { hideBubble(); return; }
+    currentTarget = target;
+    positionBubble(target);
+  }
+
+  // Delegated interactions
+  var supportsPointer = 'PointerEvent' in window;
+  if (supportsPointer){
+    document.addEventListener('pointerdown', function(e){
+      var t = e.target.closest('.tap-tooltip');
+      if (t) { e.preventDefault(); showFor(t); }
+      else { hideBubble(); }
+    }, true);
+  } else {
+    document.addEventListener('touchstart', function(e){
+      var t = e.target.closest('.tap-tooltip');
+      if (t) { e.preventDefault(); showFor(t); }
+      else { hideBubble(); }
+    }, { capture: true, passive: false });
+    document.addEventListener('mousedown', function(e){
+      var t = e.target.closest('.tap-tooltip');
+      if (t) { e.preventDefault(); showFor(t); }
+      else { hideBubble(); }
+    }, true);
+  }
+
+  // Keyboard focus/escape
+  document.addEventListener('focusin', function(e){
+    var t = e.target.closest('.tap-tooltip');
+    if (t) showFor(t);
+  });
+  document.addEventListener('focusout', function(e){
+    var t = e.target.closest('.tap-tooltip');
+    if (t && currentTarget === t) hideBubble();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') hideBubble();
+  });
+
+  // Keep bubble anchored on scroll/resize when open
+  function maybeReposition(){ if (currentTarget) positionBubble(currentTarget); }
+  window.addEventListener('scroll', maybeReposition, true);
+  window.addEventListener('resize', maybeReposition);
 
   document.addEventListener('DOMContentLoaded', function(){
-    initMobileTooltips(document);
-    // Blur focused tooltip when tapping elsewhere
-    document.addEventListener('click', function(e){
-      var active = document.activeElement;
-      if (active && active.classList && active.classList.contains('tap-tooltip') && !active.contains(e.target)) {
-        active.blur();
-      }
-    }, true);
+    setupTapTooltips(document);
   });
 })();
 </script>
