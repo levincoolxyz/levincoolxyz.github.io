@@ -2,168 +2,54 @@
 layout: default
 title: Feng's Collection
 ---
-<div class="container">
+<div class="container col-md-11">
 
-<h2>Great Sites in the clouds</h2>
+<h2 id="h-sites">Great Sites in the clouds</h2>
+
+<div id="lang-switch" style="float:right; margin-top:-28px; font-size:0.95em;">
+  <a href="#" id="lang-en">English</a> | <a href="#" id="lang-zh">中文</a>
+  </div>
 
 <p>	Jaap's puzzle page: <a href="https://www.jaapsch.net/puzzles/">https://www.jaapsch.net/puzzles/</a></p>
 <p>	Baez's math page: <a href="https://math.ucr.edu/home/baez/">https://math.ucr.edu/home/baez/</a></p>
 <p> Great resource for serious fitness folks: <a href="http://www.exrx.net/Lists/Directory.html">http://www.exrx.net/Lists/Directory.html</a></p>
-<p> ... time to sort through my ancient bookmark systems ... </p>
+<p> ... To Be Continued ... </p>
+<br>
+</div>
 
-<h2>Creators I adore/enjoy</h2>
+<div class="container col-md-11">
+<div class="creators-header">
+  <h2 id="h-creators">Creator/Channels I enjoy</h2>
+  <div id="yt-toolbar-slot"></div>
+</div>
+  <p><br></p>
 <div id="yt-creators"></div>
+</div>
 
 <script>
 // Dynamically build categorized channel list from subscriptions.csv
 (function() {
   const container = document.getElementById('yt-creators');
+  const toolbarSlot = document.getElementById('yt-toolbar-slot');
   if (!container) return;
 
   // Category order and labels
   let categoryOrder = [
-    'Musicians & Music',
-    'Makers & Craft',
-    'Science Discoveries & Nature',
-    'Science Explainers & Expositions',
-    'Technology & Engineering',
-    'Programming & AI',
-    'Robotics & Space',
-    'Film/TV & Critique',
+    'Music & Audio',
+    'Makers & To-Makes',
+    'Nature & Discoveries',
+    'Scientific Expositions',
+    'Engineering & Technology',
+    'Mathematics & Puzzles',
+    'Visual Media & Critiques',
     'Entertainers & Comedy',
-    'Political & Current Affairs',
-    'Climbing & Outdoors',
-    'Art & Design',
-    'Institutions & Lectures',
-    'Pets & Animals',
-    'Misc'
+    'Philosophies & Politics',
+    'Outdoor Sports & Climbing',
+    'Institutes & Organizations',
+    'Uncategorized & Uncategorizable'
   ];
 
-  // Keyword heuristics
-  const keymap = {
-    'Musicians & Music': [
-      'music','piano','violin','orchestra','choir','symphony','bach','gould','kiffness','flashbulb','polyphia','npr','soundtrack','klassiek','netherlands bach','maytree','noah kellman','device orchestra','vital audio','glenn gould','rio2soundtrack','avrotros','songs','singing','symphonies','orquesta','pianist','guitar','drum','viola','cello','hiphop','acapella','opera','band','song','composer','hilowitz'
-    ],
-    'Makers & Craft': [
-      'maker','mechanics','workshop','wood','restoration','clickspring','slingshot','joergsprave','matthias wandel','peter brown','studson studio','my mechanics','forge','brick technology','rescue & restore','glue','glueless','wrench','lathe','mill','cnc','welding','hot glue','resin','casting','woodturning','workbench'
-    ],
-    'Science Discoveries & Nature': [
-      'deep look','microcosmos','nautilus','schmidt ocean','nature','bbc earth','animalogic','ant lab','ornithology','museum of natural history','natural history','jellyfish','wildlife','zoo','zoology','ocean','marine','reef','botany','plants','cornell lab','evnautilus','amnh'
-    ],
-    'Science Explainers & Expositions': [
-      '3blue1brown','numberphile','mathologer','computerphile','pbs infinite series','objectivity','scienceclic','royal institution','two minute papers','periodic videos','stated clearly','stated casually','practical engineering','medlife crisis','reactions','physic','math','chemistry','biology','plusmaths','wehi','kitp','institute of physics','sabine hossenfelder','henry segerman','science magazine','ri','kavli','ias','infinite series','minuteearth','thang010146','plusmathsorg','philosophycosmology','philosophy cosmology'
-    ],
-    'Technology & Engineering': [
-      'engineering','electroboom','practical engineering','nurd-rage','nurdrage','tech ingredients','hardware','electronics','semiconductor','solder','mechanical','mechanism','mechatronics','robot','drone','dji','rf','antenna','arduino','raspberry pi','embedded','teardown','ifixit','oscilloscope','power supply','transformer','signal','amplifier','high voltage','hv'
-    ],
-    'Programming & AI': [
-      'karpathy','yannic kilcher','stable sort','code','coding','programming','python','c++','rust','js','javascript','ai','ml','machine learning','deep learning','neural','algorithm','data','compute','computing','computer science','andrej','cuda','pytorch','llm'
-    ],
-    'Robotics & Space': [
-      'boston dynamics','nasa','jpl','space','spacex','rocket','astronomy','astrophysics','orbital','mars','saturn','cassini'
-    ],
-    'Film/TV & Critique': [
-      'criterion','every frame a painting','film','movie','cinema','tv','how it should have ended','hishe','frame','monty python','wallace','gromit','graham norton','conan','craig ferguson','qi'
-    ],
-    'Entertainers & Comedy': [
-      'cyriak','5secondfilms','bad lip reading','hombre','mcsteez','internet comment etiquette','jaboody','marble runs','jelle','illusion','grand illusions','stereokroma','enterthedojoshow','dojo','happinesshorizontal','nick from fulham','criterioncollection','how it should have ended','hishe','ze frank','zefrank','tierzoo'
-    ],
-    'Political & Current Affairs': [
-      'daniel dumbrill','badempanada','ychina','guan video','观视频','阳和平','老肉','历史新视角','温铁军','politic','geopolit','news','analysis','asianometry','大问题','mediastorm影视飓风','观学院','国仁全球大学堂','china','chinese','economy','经济','政策','时事'
-    ],
-    'Climbing & Outdoors': [
-      'adam ondra','bouldering','climb','climbing','mountain','outdoors','ranch','pecos hank','corporals corner','storm','hiking','camping','out on the ranch'
-    ],
-    'Art & Design': [
-      'art','design','stereokroma','playfool','studio','photography','影像','视觉','media','animation','alpha phoenix','visual','optical'
-    ],
-    'Institutions & Lectures': [
-      'institute','university','college','society','laboratory','lab','lectures','seminar','seminars','royal institution','ias','kitp','epfl','fermilab','wehi','aps','museum','cornell lab of ornithology'
-    ],
-    'Pets & Animals': [
-      'vet ranch','cat','dog','birds','bird','pet','pets','animal'
-    ]
-  };
-
-  // Explicit mapping for ambiguous well-known channels
-  const explicit = {
-    'SmarterEveryDay': 'Science Explainers & Expositions',
-    'Smarter Every Day 2': 'Science Explainers & Expositions',
-    'Captain Disillusion': 'Entertainers & Comedy',
-    'Nick From Fulham 2.0': 'Entertainers & Comedy',
-    'Nick From Fulham': 'Entertainers & Comedy',
-    'Grand Illusions': 'Entertainers & Comedy',
-    'Two Minute Papers': 'Science Explainers & Expositions',
-    'Practical Engineering': 'Technology & Engineering',
-    'Keenan Crane': 'Programming & AI',
-    'Andrej Karpathy': 'Programming & AI',
-    'Yannic Kilcher': 'Programming & AI',
-    'Computerphile': 'Science Explainers & Expositions',
-    'Numberphile': 'Science Explainers & Expositions',
-    'Mathologer': 'Science Explainers & Expositions',
-    'Mathologer 2': 'Science Explainers & Expositions',
-    '3Blue1Brown': 'Science Explainers & Expositions',
-    'Steve Mould': 'Science Explainers & Expositions',
-    'PBS Infinite Series': 'Science Explainers & Expositions',
-    'Objectivity': 'Science Explainers & Expositions',
-    'Science Magazine': 'Science Explainers & Expositions',
-    'Royal Institution': 'Science Explainers & Expositions',
-    'The Royal Institution': 'Science Explainers & Expositions',
-    'Institute for Advanced Study': 'Institutions & Lectures',
-    'Kavli Institute for Theoretical Physics': 'Institutions & Lectures',
-    'Institute of Physics': 'Institutions & Lectures',
-    'American Physical Society': 'Institutions & Lectures',
-    'AVROTROS Klassiek': 'Musicians & Music',
-    'Netherlands Bach Society': 'Musicians & Music',
-    'NPR Music': 'Musicians & Music',
-    'Glenn Gould': 'Musicians & Music',
-    'Polyphia': 'Musicians & Music',
-    'The Kiffness': 'Musicians & Music',
-    'Noah Kellman': 'Musicians & Music',
-    'Device Orchestra': 'Musicians & Music',
-    'Peter Brown': 'Makers & Craft',
-    'Matthias Wandel': 'Makers & Craft',
-    'Clickspring': 'Makers & Craft',
-    'my mechanics': 'Makers & Craft',
-    'JoergSprave': 'Makers & Craft',
-    'JoergSprave (The Slingshot Channel)': 'Makers & Craft',
-    'Primitive Technology': 'Makers & Craft',
-    'Studson Studio': 'Makers & Craft',
-    'Brick Technology': 'Makers & Craft',
-    'OskarPuzzle': 'Makers & Craft',
-    'ElectroBOOM': 'Technology & Engineering',
-    'Tech Ingredients': 'Technology & Engineering',
-    'NurdRage': 'Technology & Engineering',
-    'RCLifeOn': 'Makers & Craft',
-    "Cody's Lab": 'Technology & Engineering',
-    'Tom Scott': 'Science Explainers & Expositions',
-    'Deep Look': 'Science Discoveries & Nature',
-    'Journey to the Microcosmos': 'Science Discoveries & Nature',
-    'Animalogic': 'Science Discoveries & Nature',
-    'Ant Lab': 'Science Discoveries & Nature',
-    'Cornell Lab of Ornithology': 'Science Discoveries & Nature',
-    'American Museum of Natural History': 'Science Discoveries & Nature',
-    'BBC Earth': 'Science Discoveries & Nature',
-    'EVNautilus': 'Science Discoveries & Nature',
-    'Schmidt Ocean': 'Science Discoveries & Nature',
-    'Boston Dynamics': 'Robotics & Space',
-    'NASA Jet Propulsion Laboratory': 'Robotics & Space',
-    'Fermilab': 'Institutions & Lectures',
-    'Every Frame a Painting': 'Film/TV & Critique',
-    'How It Should Have Ended': 'Entertainers & Comedy',
-    '5secondfilms': 'Entertainers & Comedy',
-    'Bad Lip Reading': 'Entertainers & Comedy',
-    'Jaboody Dubs': 'Entertainers & Comedy',
-    "Jelle's Marble Runs": 'Entertainers & Comedy',
-    'Monty Python': 'Film/TV & Critique',
-    'Wallace & Gromit': 'Film/TV & Critique',
-    'Internet Comment Etiquette with Erik': 'Entertainers & Comedy',
-    'Daniel Dumbrill': 'Political & Current Affairs',
-    'BadEmpanada': 'Political & Current Affairs',
-    'Asianometry': 'Political & Current Affairs',
-    'Ychina': 'Political & Current Affairs',
-    '观视频工作室 Guan Video': 'Political & Current Affairs'
-  };
+  // No heuristic or explicit fallback. Categories come from CSV only.
 
   function parseCSV(text) {
     const lines = text.split(/\r?\n/);
@@ -193,20 +79,7 @@ title: Feng's Collection
     return { rows: out, comments };
   }
 
-  function categorize(title) {
-    if (explicit[title]) return explicit[title];
-    const tl = title.toLowerCase();
-    for (const cat of categoryOrder) {
-      const keys = keymap[cat] || [];
-      if (keys.some(k => tl.includes(k))) return cat;
-    }
-    if (/[历史观视频阳和平时事政治台湾香港大陆]/.test(title)) return 'Political & Current Affairs';
-    if (/(cat|dog|pet|animal|vet)/i.test(title)) return 'Pets & Animals';
-    if (/(climb|boulder|outdoor|ranch)/i.test(title)) return 'Climbing & Outdoors';
-    if (/(university|institute|society|laboratory|lab|seminar|lecture)/i.test(title)) return 'Institutions & Lectures';
-    if (/(space|nasa|rocket|mars|astronomy)/i.test(title)) return 'Robotics & Space';
-    return 'Misc';
-  }
+  // rely on subscriptions.csv mapping
 
   function buildList(cats) {
     // toolbar
@@ -218,7 +91,7 @@ title: Feng's Collection
     collapseBtn.type = 'button'; collapseBtn.textContent = 'Collapse All';
     toolbar.appendChild(expandBtn);
     toolbar.appendChild(collapseBtn);
-    container.appendChild(toolbar);
+    if (toolbarSlot) toolbarSlot.appendChild(toolbar); else container.appendChild(toolbar);
 
     // grid wrapper
     const grid = document.createElement('div');
@@ -279,35 +152,41 @@ title: Feng's Collection
         const m = c.match(/^#\s*(\d+)\s*[=:]\s*(.+)$/);
         if (m) map[parseInt(m[1],10)] = m[2].trim();
       }
-      const keys = Object.keys(map).map(n=>parseInt(n,10)).sort((a,b)=>a-b);
-      if (keys.length) {
-        categoryOrder = keys.map(k => map[k]);
-      }
-
       // Skip header row
       if (table.length && (table[0][0]||'').toLowerCase().includes('channel')) table.shift();
 
-      const cats = Object.fromEntries(categoryOrder.map(c => [c, []]));
+      // Parse rows (robust to spaces after commas)
+      const parsedRows = [];
       const seen = new Set();
       for (const row of table) {
-        if (!row || row.length < 2) continue;
-        const url = (row[row.length- (row.length>=3?3:2)] || '').trim();
-        const title = (row[row.length- (row.length>=3?2:1)] || '').trim();
-        const catIdRaw = row.length>=3 ? (row[row.length-1]||'').trim() : '';
+        if (!row || row.length < 3) continue;
+        const url = (row[0] || '').trim();
+        const title = (row[1] || '').trim();
+        const catIdRaw = (row[2] || '').trim();
         if (!url || !title || seen.has(title)) continue;
         seen.add(title);
-        let href = url;
-        if (!/^https?:\/\//i.test(href)) href = 'http://' + href.replace(/^\/*/, '');
-        let catName;
         const catId = parseInt(catIdRaw, 10);
-        if (!isNaN(catId) && map[catId]) {
-          catName = map[catId];
-        } else if (!isNaN(catId) && categoryOrder[catId-1]) {
-          catName = categoryOrder[catId-1];
-        } else {
-          catName = categorize(title);
-        }
-        (cats[catName] = cats[catName] || []).push({title, url: href});
+        if (isNaN(catId)) continue; // require explicit category
+        parsedRows.push({ url, title, catId });
+      }
+
+      // Determine which category ids are present in data
+      const idsPresent = Array.from(new Set(parsedRows.map(r => r.catId))).sort((a,b)=>a-b);
+      // Build id->name mapping using comments if provided, else fallback label
+      const idToName = {};
+      for (const id of idsPresent) {
+        idToName[id] = map[id] || `Category ${id}`;
+      }
+      // Final category order by increasing id unless comment map specifies subset order
+      categoryOrder = idsPresent.map(id => idToName[id]);
+
+      // Bucket rows into categories
+      const cats = Object.fromEntries(categoryOrder.map(c => [c, []]));
+      for (const r of parsedRows) {
+        let href = r.url;
+        if (!/^https?:\/\//i.test(href)) href = 'http://' + href.replace(/^\/*/, '');
+        const name = idToName[r.catId] || `Category ${r.catId}`;
+        (cats[name] = cats[name] || []).push({ title: r.title, url: href });
       }
       buildList(cats);
     })
@@ -320,7 +199,71 @@ title: Feng's Collection
 })();
 </script>
 
-<h2>Other random bits</h2>
+<div class="container col-md-11">
+  <h2 id="h-otherbits">Other random bits</h2>
 
-<p>Cool doodle games: <a href="https://sites.google.com/site/populardoodlegames/"">https://sites.google.com/site/populardoodlegames/</a> </p>
-<p>In particular, Check out the <a href="https://www.google.com/logos/2018/bach/r3/bach18.html">AI 4 Bach</a> project</p>
+  <p>Cool doodle games: <a href="https://sites.google.com/site/populardoodlegames/"">https://sites.google.com/site/populardoodlegames/</a> </p>
+  <p>In particular, Check out the <a href="https://www.google.com/logos/2018/bach/r3/bach18.html">AI 4 Bach</a> project</p>
+</div>
+
+<style>
+/* Optional subtle emphasis for active language */
+#lang-switch a { text-decoration: none; }
+#lang-switch a.active { font-weight: bold; text-decoration: underline; }
+.creators-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.creators-header h2 { margin: 0; }
+.creators-header .yt-toolbar { margin: 0; }
+</style>
+
+<script>
+(function() {
+  // Chinese translations for header/tabs and H2s only
+  const zh = {
+    'header-top': '<a href="/\"><h1>凌峰</h1></a>',
+    'hometab': '<a href="/">首页</a>',
+    'cvtab': '<a href="/cv">作品</a>',
+    'moretab': '其他 <b class="caret"></b>',
+    'collectab': '秋收冬藏',
+    'filmtab': '影评（久无更新）',
+    'fototab': '摄影（久无更新）',
+    'blogtab': '博客（久无更新）',
+    'h-sites': '特别的网站',
+    'h-creators': '欣赏的频道/博主',
+    'h-otherbits': '杂七杂八'
+  };
+
+  function setActiveLink(lang) {
+    var en = document.getElementById('lang-en');
+    var zhLink = document.getElementById('lang-zh');
+    if (en && zhLink) {
+      en.classList.toggle('active', lang === 'en');
+      zhLink.classList.toggle('active', lang === 'zh');
+    }
+  }
+
+  function setLang(lang) {
+    document.documentElement.classList.toggle('lang-zh', lang === 'zh');
+    document.documentElement.classList.toggle('lang-en', lang !== 'zh');
+    try { localStorage.setItem('lang', lang); } catch(e) {}
+
+    Object.keys(zh).forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (!el.dataset.en) { el.dataset.en = el.innerHTML; }
+      el.innerHTML = (lang === 'zh') ? zh[id] : el.dataset.en;
+    });
+
+    setActiveLink(lang);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var stored = 'en';
+    try { stored = localStorage.getItem('lang') || 'en'; } catch(e) {}
+    setLang(stored);
+    var en = document.getElementById('lang-en');
+    var zhLink = document.getElementById('lang-zh');
+    if (en) en.addEventListener('click', function(e){ e.preventDefault(); setLang('en'); });
+    if (zhLink) zhLink.addEventListener('click', function(e){ e.preventDefault(); setLang('zh'); });
+  });
+})();
+</script>

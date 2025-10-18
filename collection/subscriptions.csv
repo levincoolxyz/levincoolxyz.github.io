@@ -1,338 +1,400 @@
 # Categories:
-# 1 = Musicians & Music
-# 2 = Makers & Craft
-# 3 = Science Discoveries & Nature
-# 4 = Science Explainers & Expositions
-# 5 = Technology & Engineering
-# 6 = Programming & AI
-# 7 = Robotics & Space
-# 8 = Film/TV & Critique
-# 9 = Entertainers & Comedy
-# 10 = Political & Current Affairs
-# 11 = Climbing & Outdoors
-# 12 = Art & Design
-# 13 = Institutions & Lectures
-# 14 = Pets & Animals
-# 15 = Misc
-Channel Url,Channel Title,Category Id
-https://www.youtube.com/@giestas,Giestas,15
-http://www.youtube.com/channel/UC-04mJDJUYHEyE8JPIEa0-w,Mediocre Amateur,15
-http://www.youtube.com/channel/UC-3SbfTPJsL8fJAPKiVqBLg,Deep Look,3
-http://www.youtube.com/channel/UC-TonrUZ07YT4FSjz1UOomA,HHMI's Janelia Research Campus,15
-http://www.youtube.com/channel/UC-zD2Q_ye_OhkdAYMu0ic0A,SEMF,15
-http://www.youtube.com/channel/UC06HVrkOL33D5lLnCPjr6NQ,Breaking Taps,13
-http://www.youtube.com/channel/UC0iEr07ZaxRGSWWwrqSYuXw,Nick From Fulham 2.0,9
-http://www.youtube.com/channel/UC176GAQozKKjhz62H8u9vQQ,Real Science,15
-http://www.youtube.com/channel/UC1KOOWHthbQVXH2kZue3_xA,EVNautilus,3
-http://www.youtube.com/channel/UC1LpsuAUaKoMzzJSEt5WImw,Asianometry,10
-http://www.youtube.com/channel/UC1UNB6Gy11umcbEj_hqIwhw,Little Chinese Everywhere,10
-http://www.youtube.com/channel/UC1_uAIS3r8Vu6JjXWvastJg,Mathologer,4
-http://www.youtube.com/channel/UC1m5LdKP0m64n8nY3NhK6Zg,Schmidt Ocean,3
-http://www.youtube.com/channel/UC1yNl2E66ZzKApQdRuTQ4tw,Sabine Hossenfelder,4
-http://www.youtube.com/channel/UC213K1tH6XJwHj6ZiVtLDrw,The Flashbulb,1
-http://www.youtube.com/channel/UC2HPq4j2tAbzViiGVS1deyA,Singing Wells,1
-http://www.youtube.com/channel/UC2UIXt4VQnhQ-VZM4P1bUMQ,AVROTROS Klassiek,1
-http://www.youtube.com/channel/UC2YXx2HO5Re_lwsHmaOUeQw,somalianroadcorp,15
-http://www.youtube.com/channel/UC2bkHVIDjXS7sgrgjFtzOXQ,engineerguy,4
-http://www.youtube.com/channel/UC2cRwTuSWxxEtrRnT4lrlQA,Mediastorm影视飓风,12
-http://www.youtube.com/channel/UC2kF6qdHRTM_hDYfEmzkS9w,Netherlands Bach Society,1
-http://www.youtube.com/channel/UC2pfQLCfrLWwyJlP31MmmFw,黃信惠的瘋狂教室,15
-http://www.youtube.com/channel/UC2qCnG6KoUK72iT7xPA4ILw,Zuke696,15
-http://www.youtube.com/channel/UC2vjCc0CiaxF8bHHaOPQUXw,Wolf Zipp,15
-http://www.youtube.com/channel/UC2vkAkx4vkFGYayzi6H5wQQ,Daniel Kovacs,15
-http://www.youtube.com/channel/UC3CrzXzBFVqEopj5T1jiRtA,Peter Brown,2
-http://www.youtube.com/channel/UC3GSTfB8NhcDijkSe5YpoFA,Out on the Ranch (with Dr. Lee),11
-http://www.youtube.com/channel/UC3RSo4qupcTNaEKLyahGXgw,MiiCraft MiiCraft,15
-http://www.youtube.com/channel/UC3cV-FnWDwmJAHPTO9GaP1A,SpaceBookProject,7
-http://www.youtube.com/channel/UC3mY2SKYhPjqImtBBXsR6_Q,MayTree,1
-http://www.youtube.com/channel/UC471PiF0kKzg5pb_HoT2xHA,American Physical Society,13
-http://www.youtube.com/channel/UC4EQCwfH54ieNPswtXh5K0w,my mechanics insights,2
-http://www.youtube.com/channel/UC4eYXhJI4-7wSWc8UNRwD4A,NPR Music,1
-http://www.youtube.com/channel/UC4zzTEL5tuIgGMvzjk1Ozbg,Henry Segerman,4
-http://www.youtube.com/channel/UC52kszkc08-acFOuogFl5jw,Tibees,15
-http://www.youtube.com/channel/UC5CSgrlchwozIeFlacSztHw,Catalyst Climbing,11
-http://www.youtube.com/channel/UC5DGiN7-nlPno2kjHUdcdCg,老肉雜談,10
-http://www.youtube.com/channel/UC5Lz88Rt3GT75YT2ORAmaMQ,Cornell Lab of Ornithology,3
-http://www.youtube.com/channel/UC5Y9H2KDRHZZTWZJtlH4VbA,TheCatsters,14
-http://www.youtube.com/channel/UC6107grRI4m0o2-emgoDnAA,SmarterEveryDay,4
-http://www.youtube.com/channel/UC6Bl8MTbW9M9MQoPhxbarpw,Daniel Dumbrill,10
-http://www.youtube.com/channel/UC6FGputahs3Mbxp7DtZg_aA,Rio2Soundtrack,1
-http://www.youtube.com/channel/UC6S-TJHOZnwXRhvBd8Ol_1A,Kavli Institute for Theoretical Physics,13
-http://www.youtube.com/channel/UC6ccwVtN2VCF1cnBmPPCZPQ,Ricky Doodles,4
-http://www.youtube.com/channel/UC6fkI4J4BqmoaaXWu3TuRcw,klusmanp,15
-http://www.youtube.com/channel/UC6q7I1DD2Jv5Ur9UEIavIrA,Becorns | David M Bird,14
-http://www.youtube.com/channel/UC6u6uY4VbvuNtU0BU7F9olw,Studson Studio,2
-http://www.youtube.com/channel/UC6uMyIRuxSx0B-7WTnOWb8g,mashley246,15
-http://www.youtube.com/channel/UC71Q4vDh1e650fep-VEQJbg,JanTec Engineering,4
-http://www.youtube.com/channel/UC7BhnwhEDExZFtRlO9Am-wg,Glenn Gould,1
-http://www.youtube.com/channel/UC7MEiOx466GnN9PUHff_mWg,Amao Chan,15
-http://www.youtube.com/channel/UC7RLgOo1jgFDeFWxDrRxXFw,Georgia McLendon,15
-http://www.youtube.com/channel/UC7uoovBt-854ZO4-4tosU5g,kutiman,15
-http://www.youtube.com/channel/UC7vVhkEfw4nOGp8TyDk7RcQ,Boston Dynamics,7
-http://www.youtube.com/channel/UC873OURVczg_utAk8dXx_Uw,RCLifeOn,2
-http://www.youtube.com/channel/UC8JMGFo7_UlxeWJ7zHIcc6g,dumasp,15
-http://www.youtube.com/channel/UC8R8FRt1KcPiR-rtAflXmeg,Nahre Sol,1
-http://www.youtube.com/channel/UC8VkNBOwvsTlFjoSnNSMmxw,Smarter Every Day 2,4
-http://www.youtube.com/channel/UC8aRaZ6_0weiS50pvCmo0pw,Institute for Advanced Study,13
-http://www.youtube.com/channel/UC8eNyF9eYwgr_K-Nl4gSHWw,Adam Ondra,11
-http://www.youtube.com/channel/UC8yuA2fDyMVaIsDHhoiDmWg,阳和平说事儿,10
-http://www.youtube.com/channel/UC9-y-6csu5WGm29I7JiwpnA,Computerphile,4
-http://www.youtube.com/channel/UC97YN7gYqtdk6z9jYHOn_lQ,Noah Kellman,1
-http://www.youtube.com/channel/UC98tcedR6gULv8_b70WJKyw,Frog Leap Studios,15
-http://www.youtube.com/channel/UC9D-nVmcQdCgAGUPBJZcmOA,漫士沉思录 Meditation Math,4
-http://www.youtube.com/channel/UC9I_d6WgAVVBwX-68Km6bUg,Bouldering TV,11
-http://www.youtube.com/channel/UC9Lp2hNjO-2JQv4shUIkv0Q,Craig Ferguson and the ladies,8
-http://www.youtube.com/channel/UC9Ntx-EF3LzKY1nQ5rTUP2g,cyriak,9
-http://www.youtube.com/channel/UC9_mmA5bGKaZWA7Lhd_Z6lg,SquidGod,15
-http://www.youtube.com/channel/UC9gLvca-96qDQBmjEQtOwoQ,DJI Enterprise,5
-http://www.youtube.com/channel/UC9qoB5JgECKwB4y2oYC712w,ForgeCore,2
-http://www.youtube.com/channel/UC9rHXgUE9pikzYcGrAujMXQ,Santa Fe Institute,13
-http://www.youtube.com/channel/UCA1shkhjIY_QiDdYfEYDqew,Peacockspiderman,15
-http://www.youtube.com/channel/UCAAbACtY1antXTZG04EVJKg,Totally Glueless,2
-http://www.youtube.com/channel/UCAL3JXZSzSm8AlZyD3nQdBA,Primitive Technology,2
-http://www.youtube.com/channel/UCAP57cF-FSjJKzzXg7ntPlQ,CRITERION,8
-http://www.youtube.com/channel/UCAQpSHsgUcNt6uCOjpgD8kw,Pecos Hank,11
-http://www.youtube.com/channel/UCAbAsEZ-0LccTNbl8r-3EaQ,Scott Yu-Jan,15
-http://www.youtube.com/channel/UCAtf-avZj2vWLnYtCchZp8A,Robbie Phillips,11
-http://www.youtube.com/channel/UCAycaw3D68A7mK6ChdypW0Q,温铁军,10
-http://www.youtube.com/channel/UCB-pG-YPZmRHFQBNwk0qeDA,Vital Audio,1
-http://www.youtube.com/channel/UCBAdGeil51Iw4y29Sh9Y7hA,稚晖君,15
-http://www.youtube.com/channel/UCBUbtwyzFn-_nkmqcj4XQ8Q,飞羽社,15
-http://www.youtube.com/channel/UCBa659QWEk1AI4Tg--mrJ2A,Tom Scott,4
-http://www.youtube.com/channel/UCBbnbBWJtwsf0jLGUwX5Q3g,Journey to the Microcosmos,3
-http://www.youtube.com/channel/UCBuZ6okBbRvosC0S67WI2gg,The Living Histories Series,15
-http://www.youtube.com/channel/UCC9X5bLhdMeLvPxlMb-GShw,大问题Dialectic,10
-http://www.youtube.com/channel/UCCMvR6IxZKysfUfX_6BrHzg,NoseFluter,15
-http://www.youtube.com/channel/UCCWeRTgd79JL0ilH0ZywSJA,AlphaPhoenix,12
-http://www.youtube.com/channel/UCCaOLUPbmS-04WkN7SEZytA,Under Studio,12
-http://www.youtube.com/channel/UCChNhjW49smKB3zssiUjENg,Emily Hopkins,15
-http://www.youtube.com/channel/UCCoAJ5JYKYTMubpTIsWi70w,David Hilowitz Music,1
-http://www.youtube.com/channel/UCD5MQ5syGND5WTiSPI7S3JA,Bobby Gian,15
-http://www.youtube.com/channel/UCDBrVr0ttWpoRY-_yZajp2Q,alyankovic,1
-http://www.youtube.com/channel/UCDFD8RdIL2FxNfkKkus5RSQ,ibi,15
-http://www.youtube.com/channel/UCDGdXbJQ7-cdwOLcXcCR-gQ,Jeff Kerr,15
-http://www.youtube.com/channel/UCDVpdm607KDgCv72FUA8Kwg,cassiopeiaproject,15
-http://www.youtube.com/channel/UCDe08Fs0s0YKJuk5h45csAQ,Polyphia,1
-http://www.youtube.com/channel/UCDe255jOP5vCjSSMSqrpndQ,GuanSchool观学院,10
-http://www.youtube.com/channel/UCDjGU4DP3b-eGxrsipCvoVQ,SciFri,4
-http://www.youtube.com/channel/UCDuL7JTPSW1QryB8Ep4qepQ,iSongs,1
-http://www.youtube.com/channel/UCDwMh0pu1iSXeKx7qmqjIQA,Device Orchestra,1
-http://www.youtube.com/channel/UCDwf2ONr5iTF3KIpHmViC8w,Brian Peter Tan,15
-http://www.youtube.com/channel/UCEIwxahdLz7bap-VDs9h35A,Steve Mould,4
-http://www.youtube.com/channel/UCEOXxzW2vU0P-0THehuIIeg,Captain Disillusion,9
-http://www.youtube.com/channel/UCFMGumZU2HL4ErtR5a6FQhw,Playfool,12
-http://www.youtube.com/channel/UCFtc3XdXgLFwhlDajMGK69w,NightHawkInLight,15
-http://www.youtube.com/channel/UCFy846QdKs3LbLgBpSqPcdg,The Kiffness,1
-http://www.youtube.com/channel/UCG8E64EJVj0AMZLBtYOdvTw,Mats Vermeeren,15
-http://www.youtube.com/channel/UCG9STeJ89og93z6HIev6DvA,ke,15
-http://www.youtube.com/channel/UCG9lNhVqk9luFLxBKDzuO9g,5secondfilms,9
-http://www.youtube.com/channel/UCGEnLjNRMZG1nC-VaTV1jOw,木の歯車工房　機巧部,15
-http://www.youtube.com/channel/UCGJykI0BRfFV044deqERlxQ,OskarPuzzle,2
-http://www.youtube.com/channel/UCGPrWh6uJe2YVl4eTMyPxdw,PolyPEDAL,15
-http://www.youtube.com/channel/UCGU-vWyRkdev3zRFNyKpdDQ,kk,15
-http://www.youtube.com/channel/UCGUDkpFlYHNaI6ML7PBaW5g,Dimsmary,15
-http://www.youtube.com/channel/UCGWYKICLOE8Wxy7q3eYXmPA,最佳拍档,15
-http://www.youtube.com/channel/UCGfGP45SQujt5vZVJsa3nHQ,Sympawnies by Noam Oxman,15
-http://www.youtube.com/channel/UCGi1aJf82xrHU3Et3uGLc-A,Bird Kind,3
-http://www.youtube.com/channel/UCGm3CO6LPcN-Y7HIuyE0Rew,Monty Python,8
-http://www.youtube.com/channel/UCH-XcozNYlT4mzjK1vzkqZw,,15
-http://www.youtube.com/channel/UCH74Hc_7WYVzx1GXhLEH6Eg,Mathologer 2,4
-http://www.youtube.com/channel/UCHAUlULA0quOmHvX5uGNcHA,Gal Lahat,12
-http://www.youtube.com/channel/UCHCph-_jLba_9atyCZJPLQQ,How It Should Have Ended,9
-http://www.youtube.com/channel/UCHYty7uxes_Eu2Bb2YbeJgQ,BPPB Virtual Seminars,13
-http://www.youtube.com/channel/UCHmI2RV5sjUyvO52e_kRgsA,Flower-3D,12
-http://www.youtube.com/channel/UCHsRtomD4twRf5WVHHk-cMw,TierZoo,9
-http://www.youtube.com/channel/UCHvclDvjk_dUpZW59geZBmw,Flautas Kaypora,15
-http://www.youtube.com/channel/UCIAmdxvgfnIEZnyQSiqgVgQ,Keenan Crane,6
-http://www.youtube.com/channel/UCIF4rZQg-qKcD2FRRtxWG3w,Jimmy Moon,15
-http://www.youtube.com/channel/UCIQ8Zpb_NYmKcRLkRI3wb7w,Stated Casually,4
-http://www.youtube.com/channel/UCIRjdHLsHq6xdtAHAmoueqg,Bouldering Bobat,11
-http://www.youtube.com/channel/UCIgKGGJkt1MrNmhq3vRibYA,NurdRage,5
-http://www.youtube.com/channel/UCIjUIjWig0r5DIixQr,",-"",15
-http://www.youtube.com/channel/UCIv0C5dX6JPlZAZlM6LElRg,Philosophical Overdose,15
-http://www.youtube.com/channel/UCJp1sCNEVKg2f3SKhN79eqA,TaitCarterMusic,1
-http://www.youtube.com/channel/UCJqsQ6bTEt1PVBVO2vvrRNw,Vancity VANLIFE,15
-http://www.youtube.com/channel/UCJxPlkK2ZhioL67Ukf4lPDQ,Engineering Code Workshop,5
-http://www.youtube.com/channel/UCJxThwHwLjVQk7uVVs2hKNg,SpaceX,7
-http://www.youtube.com/channel/UCK58-nV2mHSMCA0Y6RoNQtw,时间联接Time Link,15
-http://www.youtube.com/channel/UCK6ijA4bp8H7WeEFjGlhKjg,The Slow Mo Guys,5
-http://www.youtube.com/channel/UCKBqZ9GkuAXVChIVQh8XR9Q,Kaylee's Song,15
-http://www.youtube.com/channel/UCKYxwJ8WW0bZpjr4r4N2hUQ,aviationairtoair,7
-http://www.youtube.com/channel/UCKeL8ZWEU7-4qIo7LFU-list,Pat a Mat dub,15
-http://www.youtube.com/channel/UCKhZjyxjfWsUEpCXtHEl7vQ,MIT OpenCourseWare,13
-http://www.youtube.com/channel/UCKnlBkub5SDE8XKINSKav9Q,Glenjamn,15
-http://www.youtube.com/channel/UCKvH0lzw1ORTFayLszvOqNA,The Sun's Height,15
-http://www.youtube.com/channel/UCKvPKJQAHKTkwuS1Vs6o25g,Mr Curry,15
-http://www.youtube.com/channel/UCKyYxZ4Ex7W6CLFZ0OyTpug,La Fanfarria Chapia,1
-http://www.youtube.com/channel/UCL-3Hkar-OCPdSNxsJTy5mA,TwoSetViolin,1
-http://www.youtube.com/channel/UCL32vQqIAsN2lroILrV8toQ,Jillen Cariaga,15
-http://www.youtube.com/channel/UCL3xs86xZnhWzZ_Ee2z31Bg,Hamilton's Hang,15
-http://www.youtube.com/channel/UCL6bRnZyP3KkFBjJe7Jk6uQ,Swedish Medtech,5
-http://www.youtube.com/channel/UCL9n7l_7HbIYVQgyfWFnWuQ,DroneCrux,5
-http://www.youtube.com/channel/UCLCiIcnkGUiitFJwy3mTAyA,Prima Vista Quartet,1
-http://www.youtube.com/channel/UCLHqCm0G7-8CmqXf2uZC8Aw,Lior Sadeh,15
-http://www.youtube.com/channel/UCLYJbosFKcBKZsP0gZD2rdg,OfficialMelodyNoteChannel,15
-http://www.youtube.com/channel/UCLZ0crLUhCnxPWWWttVAe1g,Electric Space,7
-http://www.youtube.com/channel/UCLd1iAUU8NGJFoasIl_q3zA,Wihrk,15
-http://www.youtube.com/channel/UCLgpxm2sHbZNtg7z-RTDC-w,Higher Education HKU,13
-http://www.youtube.com/channel/UCLm9UVQewnWEFXYxZsmF2YA,Songs for Hamilcar,1
-http://www.youtube.com/channel/UCLnAT92lGsugJXJ6cwhQ88Q,Tom Portugal,15
-http://www.youtube.com/channel/UCLpSOJVp2gHrbPxzuzcCiYw,yonkeybongoMusic,1
-http://www.youtube.com/channel/UCLppb3iIsWJ_e8HjeZ67qpQ,The Backpacke,15
-http://www.youtube.com/channel/UCLqlox3XItjrq1CHUzDgihQ,ngorokor,15
-http://www.youtube.com/channel/UCLsFDNT52PVgPFQhOa3E0Yg,SuZenArts,12
-http://www.youtube.com/channel/UCLxI9c8jmsHCx0FeR_rn4BA,Paula Sophia,15
-http://www.youtube.com/channel/UCLxJMboXytEVGd9O7EE2i2Q,Maurice Moss,15
-http://www.youtube.com/channel/UCLxLQ1Lql3b2ocdfQohH9hw,Goat Rodeoo,15
-http://www.youtube.com/channel/UCLzlMsHL3Pxm9n-c0Q6YBuA,Stated Clearly,4
-http://www.youtube.com/channel/UCLzoUucvCYG7jdfF5fsPLpg,TheBrainscoop,3
-http://www.youtube.com/channel/UCMAS3d7nM9qNaqQwU8AHw1g,Batch,15
-http://www.youtube.com/channel/UCMF0XczzjB8fL6G7j8zCq2Q,Extra Credits,15
-http://www.youtube.com/channel/UCMVgGfskxDXDJNR0FCZbuhA,Total Boat,2
-http://www.youtube.com/channel/UCMXJnzKuaxdcZI7xk16r2aA,Joe Walker,15
-http://www.youtube.com/channel/UCMbTRuBwMqL-jH8fkO9OBVg,Salif Diarra,1
-http://www.youtube.com/channel/UCMd_YTpMMT2kvihyN_7Tn9w,MasterMubashir,15
-http://www.youtube.com/channel/UCMhQ2xpd90iKXW6DsfB4T0A,TensionFlix,15
-http://www.youtube.com/channel/UCMmDb_BQgyf2qSyIl8R-IQg,The Imperfect Circle,15
-http://www.youtube.com/channel/UCMrMVIBtqFW6O0-MWq26gqw,my mechanics,2
-http://www.youtube.com/channel/UCMvJmZQ7YDc5686FvLsqYlA,kaidogarushime,15
-http://www.youtube.com/channel/UCMx8H4DMLoyMYVFZ8ZDRHdw,carte Media Freihe,15
-http://www.youtube.com/channel/UCMxK0U3USiyfflG6mMGPftA,Music Seeeen,1
-http://www.youtube.com/channel/UCMyo5D1vnyl9TAQGcPtxpQw,Alexey Dorofeev,15
-http://www.youtube.com/channel/UCNAckPiDYxRWengUlRujs6Q,gerubach,1
-http://www.youtube.com/channel/UCNGf1N0bqrx7_Fvdr2sx8ew,Magnetic Games,5
-http://www.youtube.com/channel/UCNP3kujTXEBSL2rWn9WD1Gg,Christian Horton,15
-http://www.youtube.com/channel/UCNYdU9NSu1K_li0K0-2I_FA,ourgrandpasgear,2
-http://www.youtube.com/channel/UCNZpQDmbZqg9pq5SlENVQbQ,AvikunthakLamhe,15
-http://www.youtube.com/channel/UCNe_qZt6W3yrZhpF7y7QG0w,ShahNameKids,15
-http://www.youtube.com/channel/UCNnK8UtbzPG1SZHoBWnyhJw,GearGeekFramework,5
-http://www.youtube.com/channel/UCNr7orkjrOH-xoS1qM0qpVw,NamoNanocraft,2
-http://www.youtube.com/channel/UCO0s6z0To3UiNqanwRKV3Ig,Works,2
-http://www.youtube.com/channel/UCO9twnBE5cQ4ELGxl7b8y2A,Christian Campbell,15
-http://www.youtube.com/channel/UCOIoYh3TmQFJjVwes6acaCw,Keira Purplehill,15
-http://www.youtube.com/channel/UCOYdVQJx4YCV49l-wnPYp8w,DoctorMix,1
-http://www.youtube.com/channel/UCOe1X5qcrL12pDs-Oxkpc9A,Diesel Creek,2
-http://www.youtube.com/channel/UCOgw4M5zaVcWfdVSS_dzdsQ,DIY Fixman,2
-http://www.youtube.com/channel/UCOsUM9tFoDVMq4prT2DPLwA,Cartoons And Creatures,15
-http://www.youtube.com/channel/UCOy3zrweq5-ly0uCUJ66cUw,Ready to Anima,15
-http://www.youtube.com/channel/UCPE_ffFj7P13xwIQpiY-1rQ,Nick Wagers,15
-http://www.youtube.com/channel/UCPIzox8fI-rAmcm8tPFEj9w,Giren Gold,15
-http://www.youtube.com/channel/UCPJ9n-TQL0YzZlr0lGGtUDw,Ze Frank,3
-http://www.youtube.com/channel/UCPKe_spKQKeMl6qW3Wz6bsQ,禅与仙人抚我顶,15
-http://www.youtube.com/channel/UCPKn-wg-wHJW9qf5ytbnenA,Simplest way to live,15
-http://www.youtube.com/channel/UCPYjficQZ3mP9vxyBIDFbrQ,Rommo,15
-http://www.youtube.com/channel/UCPZBoxbCUyzZow9aG9pPPmQ,Paul Davids,15
-http://www.youtube.com/channel/UCPta8Th5UcfDryD5PvBAkqA,BPC.drag,15
-http://www.youtube.com/channel/UCPua28avon4qCx6MdJWzAnw,Studio Ghibli,8
-http://www.youtube.com/channel/UCQ1K0nU7LFqP_FWty-0S5jg,PHILO,15
-http://www.youtube.com/channel/UCQ5qhz9hvfIGT-CcY37d_mg,PioneerWorks,15
-http://www.youtube.com/channel/UCQ5sBNl5V9o3uCuwiAafy7A,Bendyworks,15
-http://www.youtube.com/channel/UCQ9zFy9ArJZOuPnX8lTF9Pg,Arc of Thought,15
-http://www.youtube.com/channel/UCQB5kIHv4uYDT3JP-BZ6gcA,You Gotta Rec,15
-http://www.youtube.com/channel/UCQFHeCUOJuiOS6XVxKjccLA,Ales Trcek,15
-http://www.youtube.com/channel/UCQnDI1UgvTYmEw_7BwUfLVw,Type Foo Bar,15
-http://www.youtube.com/channel/UCQwLUZEgDzbCD3fW0nI5zhg,Cojovo,15
-http://www.youtube.com/channel/UCR04nazUE1tQS6YffB3Bc1g,GI Joe Sailing,15
-http://www.youtube.com/channel/UCR2GqQczOlAhk9SXAhhRuRQ,pongara,15
-http://www.youtube.com/channel/UCR3kRYg9CCrC5pT-1oi-j2Q,jards macalé,1
-http://www.youtube.com/channel/UCR835UN39Ty8REM3wrX7V7w,By the Way (btw),15
-http://www.youtube.com/channel/UCR8aOsjMPGDuQM0NPQNTcvg,Frosty Drinks,15
-http://www.youtube.com/channel/UCRAJgGaAHYdjS2UKxQGr98g,JohnPlay AC,15
-http://www.youtube.com/channel/UCRBOlLP_UwMf1DG57pBf5rQ,Lucy Holland,15
-http://www.youtube.com/channel/UCRH_D9sN6myyBH6jCPc1gIA,Tech Ingredients,5
-http://www.youtube.com/channel/UCRMdRAWeVq4lFqVhyTGInNg,Cigar Box Guitars,1
-http://www.youtube.com/channel/UCRf2jrV6luK9r8FtO1T4KDw,Gypsy Meets Jazz,1
-http://www.youtube.com/channel/UCRlpDnT1Htmx_I-cy8XfY5g,USB Scrupt,15
-http://www.youtube.com/channel/UCRnoRDP1H8BQzvVEjGihqKg,FIABCI,15
-http://www.youtube.com/channel/UCRnyNTpRa4EIzuvr-vp1Qiw,KURAHOME,15
-http://www.youtube.com/channel/UCRpuWwlfm5dRfd7hxt2eFug,Soft White Underbelly,15
-http://www.youtube.com/channel/UCRtgS3lYppZKV_b5W2DByVA,Min Aung Hlaing,15
-http://www.youtube.com/channel/UCRuOIvDF8ifmkvQ9U8Eu6xA,Mr Chee,15
-http://www.youtube.com/channel/UCRuvqLgRAlW02i-14Qm3DDA,Janis Brenner,1
-http://www.youtube.com/channel/UCRxY2NqmuFlQHxfS4EuJf3w,Visualization 7,12
-http://www.youtube.com/channel/UCRyYzfcMDe-F6KGhIqF2X0w,Virtual Jam Session,1
-http://www.youtube.com/channel/UCRyyU2L7rgaQNy29FxKsphQ,Compand,15
-http://www.youtube.com/channel/UCS-uAuhZkUNGhBJDeAXpV3Q,Monika Blume,15
-http://www.youtube.com/channel/UCS0voqYwvY8jGZrTc6w3hPw,Info Valencia,15
-http://www.youtube.com/channel/UCS4JuJx2cy-LIAgnPe_6ikA,Mathebau,4
-http://www.youtube.com/channel/UCS5HR_1LMjlWWKk9KjtSUTQ,Aarti Music,1
-http://www.youtube.com/channel/UCSAYU644b2LK-8YmYjbfRAQ,Stateofbeats,1
-http://www.youtube.com/channel/UCSDrwBXHLh3fKlvCder50tQ,JesusCarrillo,15
-http://www.youtube.com/channel/UCSIRFoZ_TqrGkiFyRvUVXzQ,Philip Bass,1
-http://www.youtube.com/channel/UCSKTJ0GW0CjZ-UgAkbfcoIw,Il Idil,15
-http://www.youtube.com/channel/UCSM16qv5yJZ2lgodYdkKOYQ,Marimba Kingdom,1
-http://www.youtube.com/channel/UCSMrd1r6Dwu7548_WnOy8MA,Aeronvator,15
-http://www.youtube.com/channel/UCSNrE3XEA8nmv2yHjTRIYFw,SOL NEO,15
-http://www.youtube.com/channel/UCSU0xgTT8Y4CGvinp96rBPw,Sea & Tide,15
-http://www.youtube.com/channel/UCSa2qUFEr3Wf8IdLpDX_OFg,21C Culture Lab,15
-http://www.youtube.com/channel/UCSbOcC3S49UMGoakeW1llsQ,SpinStew,1
-http://www.youtube.com/channel/UCSj4xmveppAhHFrMRPFLy2Q,机器人学与智能控制专业组,15
-http://www.youtube.com/channel/UCSjNZ7rEGn1b6Y0lYCDcKgw,AnimalHuman,15
-http://www.youtube.com/channel/UCSlkOjhc_Sia5iC-xF0W8vA,KolincsInHell,15
-http://www.youtube.com/channel/UCSoPj0ZJrEOPs70xcSfbXsg,Slow Flash,15
-http://www.youtube.com/channel/UCt16nmLkGKt6p4wObamzjAg,Veritasium,4
-http://www.youtube.com/channel/UCt41EiDpempxiavZ1Myl1Jg,ec music,1
-http://www.youtube.com/channel/UCt_PgEhrkjYzyc2Qgm0VGFQ,model.f,12
-http://www.youtube.com/channel/UCtB1EuOrmkiA2GWMfX7Kw2g,AzaanSiddikii,15
-http://www.youtube.com/channel/UCtClofsaq9LhwyjEc0rTyhg,Beautiful Rendition,1
-http://www.youtube.com/channel/UCtKPsdyHy5gI9c9egTF36iQ,Arezki Moussaoui,15
-http://www.youtube.com/channel/UCtKvSJT8P5xC2wzLX-5-6iQ,Matthew Harmonov,15
-http://www.youtube.com/channel/UCtTQmDG9he4at5tySq1P6Vg,Peter Parker,15
-http://www.youtube.com/channel/UCtVXlYPu3T7MOsj-fE3oYfQ,Hosed,15
-http://www.youtube.com/channel/UCtayTSMadn6iv6Uf6lH19IA,开幕LIVE,15
-http://www.youtube.com/channel/UCtoHC8oERmblATkw8l0oVqg,OkumaGames,15
-http://www.youtube.com/channel/UCtrE3w4y_fBejIZ1y60yX-g,StoneSoothing,15
-http://www.youtube.com/channel/UCtsRBjMB7a-Q9fIqsC04xYA,sonic_pe,1
-http://www.youtube.com/channel/UCttkVWHX3KQ0w4JWO70z2Kw,Free Engine,5
-http://www.youtube.com/channel/UCtuSC8SvYd9pQNUznF-fxLg,rvabadur,15
-http://www.youtube.com/channel/UCtv2OIXcAQ3h7fQu1mOpqKg,Zolrxi,15
-http://www.youtube.com/channel/UCu16v2XydpmdPOJV8FnRyXg,Christopher Banks,15
-http://www.youtube.com/channel/UCu3lApxblY8OuiopuEg6suQ,Clyde Lewis,15
-http://www.youtube.com/channel/UCu5IR1dfp7DW5bF3LRm4lfg,BBC Earth,3
-http://www.youtube.com/channel/UCu6mSoMNzHQiBIOCkHUa2Aw,Cody'sLab,13
-http://www.youtube.com/channel/UCuIfbBuMtzWBHiON1WrD1g,Two Minute Papers,4
-http://www.youtube.com/channel/UCuLPS151bSgMgLSQFSaA16w,Colwell & Rose,1
-http://www.youtube.com/channel/UCuV4krM8JubnFOvAh8VONhA,Singing Light,1
-http://www.youtube.com/channel/UCuWqUweuWzHKvZZp1kvVdpQ,Mehmet Ali Han,15
-http://www.youtube.com/channel/UCuYr5UQfnlXQbQPOhn7nxgQ,The Ordinary Things,15
-http://www.youtube.com/channel/UCua1S3nz4qlMX5XhsR8Zpus,STEM NUS,13
-http://www.youtube.com/channel/UCubQg8t-PBJUh2L2dX4aDAA,Praxis,15
-http://www.youtube.com/channel/UCufoHYI3HbHExM3D_BkBoew,Philip Greenough,15
-http://www.youtube.com/channel/UCukZaq4X-xxeP-jrG71YLxg,Pressure Drop,15
-http://www.youtube.com/channel/UCurv4t6NN0iEjf4w0f0S4Cw,Coastal Carolina University,13
-http://www.youtube.com/channel/UCus2kQnD2sGcQ2pGEp4QBUQ,d3c1ph3d,15
-http://www.youtube.com/channel/UCuvT_c_QZV9Tqz0gR1OeY1g,ToneNF,1
-http://www.youtube.com/channel/UCuwhJuyf9TnKOh1r2rQkqYQ,SCIM,15
-http://www.youtube.com/channel/UCuy-Ft3IoCUjm1qxm2eYvTA,AnsariSaqib,15
-http://www.youtube.com/channel/UCuyEr_g1VG1-cVVYvACNLxA,SoundRide,1
-http://www.youtube.com/channel/UCv0XOMWOeAlaWkVAHExuZVQ,Garrett Animates,15
-http://www.youtube.com/channel/UCv0aU2eKry3kdSTnFa8QAWA,Science Magazine,4
-http://www.youtube.com/channel/UCvE0x32fC1MOMoDCYqtuAIw,亿点点不一样,15
-http://www.youtube.com/channel/UCvMLMyKPomE6kTTL9Kv8Iww,Sound Field,1
-http://www.youtube.com/channel/UCvVIk8oQ2vnZsCi4vR9O4dg,歪果仁研究协会 Ychina,10
-http://www.youtube.com/channel/UCvj6-b8cesueYQV45GBjIjg,Linsey Pollak,15
-http://www.youtube.com/channel/UCvlkMq7QfHFK5VJZa0aeMeQ,Rowan Atkinson Live,15
-http://www.youtube.com/channel/UCvtdw-YVb9TDHq834W2DI8Q,星球研究所Institute for Planets,13
-http://www.youtube.com/channel/UCvurorFL4m8-rcDYRXIC66w,Defacto Sound,15
-http://www.youtube.com/channel/UCvvFazVkWRLfK1drGvr9fYw,Climbers Crag,11
-http://www.youtube.com/channel/UCwHUYtwH5E41O6MiYoC19ng,和之梦 - 官方频道,15
-http://www.youtube.com/channel/UCwbsWIWfcOL2FiUZ2hKNJHQ,UC Berkeley,13
-http://www.youtube.com/channel/UCwg6_F2hDHYrqbNSGjmar4w,Animalogic,3
-http://www.youtube.com/channel/UCwlvSJdcMc7iGdR-aducSog,Geopolitical Economy Report,10
-http://www.youtube.com/channel/UCx2M2bGHtXBszG6tuR_NIbQ,The Pop-Up Channel,15
-http://www.youtube.com/channel/UCxk9idBsQt1glnzcZp4eFug,Andreas Kay,15
-http://www.youtube.com/channel/UCxqkOxQYocXRtSqlotgXh7w,Fkj,15
-http://www.youtube.com/channel/UCxrd1I7wmE2chwpoqD4DSTA,EnterTheDojoShow,9
-http://www.youtube.com/channel/UCxseO_JzIiiJENauW2RmcJQ,barnabydixon,2
-http://www.youtube.com/channel/UCy0Pr5u-MwGXXzp_GDd4m_g,Julie Nolke,15
-http://www.youtube.com/channel/UCy0tKL1T7wFoYcxCe0xjN6Q,Technology Connections,15
-http://www.youtube.com/channel/UCyArfuouSLqk3cnMoDUUzlQ,Doodles,15
-http://www.youtube.com/channel/UCyBiaKhsutPlGzFR-aVYYgQ,Tom Park,15
-http://www.youtube.com/channel/UCyDnS1yML2lWka5u3m0TT3A,AllClassical,1
-http://www.youtube.com/channel/UCyGi33538KzB1ILhEUUNnVw,filmschoolcomments,8
-http://www.youtube.com/channel/UCyGqObd717uKwGWf_KdNbXw,Anna Hazelnutt,15
-http://www.youtube.com/channel/UCyNtlmLB73-7gtlBz00XOQQ,Folding Ideas,15
-http://www.youtube.com/channel/UCyU97yKDHCf4Jqj6ME_qLKA,Anton Fomenko,15
-http://www.youtube.com/channel/UCyWDmyZRjrGHeKF-ofFsT5Q,Internet Comment Etiquette with Erik,9
-http://www.youtube.com/channel/UCyp1gCHZJU_fGWFf2rtMkCg,Numberphile2,4
-http://www.youtube.com/channel/UCzDZY6LlJxLqaPumRURPMwg,Oskar Roman Jezior,15
+# 1 = Music & Audio
+# 2 = Makers & To-Makes
+# 3 = Nature & Discoveries
+# 4 = Scientific Expositions
+# 5 = Engineering & Technology
+# 6 = Mathematics & Puzzles
+# 7 = Visual Media & Critiques
+# 8 = Entertainers & Comedy
+# 9 = Philosophies & Politics
+# 10 = Outdoor Sports & Climbing
+# 11 = Institutes & Organizations
+# 12 = Uncategorized & Uncategorizable
+Channel Url, Channel Title, Category Id
+https://www.youtube.com/@giestas, Giestas, 2
+http://www.youtube.com/channel/UC-04mJDJUYHEyE8JPIEa0-w, Mediocre Amateur, 10
+http://www.youtube.com/channel/UC-3SbfTPJsL8fJAPKiVqBLg, Deep Look, 3
+http://www.youtube.com/channel/UC-TonrUZ07YT4FSjz1UOomA, HHMI's Janelia Research Campus, 11
+http://www.youtube.com/channel/UC-zD2Q_ye_OhkdAYMu0ic0A, SEMF, 11
+http://www.youtube.com/channel/UC06HVrkOL33D5lLnCPjr6NQ, Breaking Taps, 2
+http://www.youtube.com/channel/UC176GAQozKKjhz62H8u9vQQ, Real Science, 4
+http://www.youtube.com/channel/UC1KOOWHthbQVXH2kZue3_xA, EVNautilus, 3
+http://www.youtube.com/channel/UC1LpsuAUaKoMzzJSEt5WImw, Asianometry, 5
+http://www.youtube.com/channel/UC1UNB6Gy11umcbEj_hqIwhw, Little Chinese Everywhere, 10
+http://www.youtube.com/channel/UC1_uAIS3r8Vu6JjXWvastJg, Mathologer, 12
+http://www.youtube.com/channel/UC1m5LdKP0m64n8nY3NhK6Zg, Schmidt Ocean, 3
+http://www.youtube.com/channel/UC1yNl2E66ZzKApQdRuTQ4tw, Sabine Hossenfelder, 9
+http://www.youtube.com/channel/UC212K1tH6XJwHj6ZiVtLDrw, The Flashbulb, 1
+http://www.youtube.com/channel/UC2HPq4j2tAbzViiGVS1deyA, Singing Wells, 1
+http://www.youtube.com/channel/UC2UIXt4VQnhQ-VZM4P1bUMQ, AVROTROS Klassiek, 1
+http://www.youtube.com/channel/UC2bkHVIDjXS7sgrgjFtzOXQ, engineerguy, 5
+http://www.youtube.com/channel/UC2cRwTuSWxxEtrRnT4lrlQA, Mediastorm影视飓风, 7
+http://www.youtube.com/channel/UC2kF6qdHRTM_hDYfEmzkS9w, Netherlands Bach Society, 1
+http://www.youtube.com/channel/UC2pfQLCfrLWwyJlP31MmmFw, 黃信惠的瘋狂教室, 2
+http://www.youtube.com/channel/UC2vjCc0CiaxF8bHHaOPQUXw, Wolf Zipp, 2
+http://www.youtube.com/channel/UC2vkAkx4vkFGYayzi6H5wQQ, Daniel Kovacs, 11
+http://www.youtube.com/channel/UC3CrzXzBFVqEopj5T1jiRtA, Peter Brown, 2
+http://www.youtube.com/channel/UC3GSTfB8NhcDijkSe5YpoFA, Out on the Ranch (with Dr. Lee), 9
+http://www.youtube.com/channel/UC3mY2SKYhPjqImtBBXsR6_Q, MayTree, 1
+http://www.youtube.com/channel/UC471PiF0kKzg5pb_HoT2xHA, American Physical Society, 11
+http://www.youtube.com/channel/UC4EQCwfH54ieNPswtXh5K0w, my mechanics insights, 2
+http://www.youtube.com/channel/UC4eYXhJI4-7wSWc8UNRwD4A, NPR Music, 1
+http://www.youtube.com/channel/UC4zzTEL5tuIgGMvzjk1Ozbg, Henry Segerman, 6
+http://www.youtube.com/channel/UC52kszkc08-acFOuogFl5jw, Tibees, 6
+http://www.youtube.com/channel/UC5CSgrlchwozIeFlacSztHw, Catalyst Climbing, 10
+http://www.youtube.com/channel/UC5DGiN7-nlPno2kjHUdcdCg, 老肉雜談, 4
+http://www.youtube.com/channel/UC5Lz88Rt3GT75YT2ORAmaMQ, Cornell Lab of Ornithology, 3
+http://www.youtube.com/channel/UC5Y9H2KDRHZZTWZJtlH4VbA, TheCatsters, 6
+http://www.youtube.com/channel/UC6107grRI4m0o2-emgoDnAA, SmarterEveryDay, 4
+http://www.youtube.com/channel/UC6Bl8MTbW9M9MQoPhxbarpw, Daniel Dumbrill, 9
+http://www.youtube.com/channel/UC6S-TJHOZnwXRhvBd8Ol_1A, Kavli Institute for Theoretical Physics, 11
+http://www.youtube.com/channel/UC6ccwVtN2VCF1cnBmPPCZPQ, Ricky Doodles, 8
+http://www.youtube.com/channel/UC6fkI4J4BqmoaaXWu3TuRcw, klusmanp, 8
+http://www.youtube.com/channel/UC6q7I1DD2Jv5Ur9UEIavIrA, Becorns | David M Bird, 7
+http://www.youtube.com/channel/UC6u6uY4VbvuNtU0BU7F9olw, Studson Studio, 2
+http://www.youtube.com/channel/UC71Q4vDh1e650fep-VEQJbg, JanTec Engineering, 5
+http://www.youtube.com/channel/UC7BhnwhEDExZFtRlO9Am-wg, Glenn Gould, 1
+http://www.youtube.com/channel/UC7MEiOx466GnN9PUHff_mWg, Amao Chan, 2
+http://www.youtube.com/channel/UC7uoovBt-854ZO4-4tosU5g, kutiman, 1
+http://www.youtube.com/channel/UC7vVhkEfw4nOGp8TyDk7RcQ, Boston Dynamics, 5
+http://www.youtube.com/channel/UC873OURVczg_utAk8dXx_Uw, RCLifeOn, 2
+http://www.youtube.com/channel/UC8R8FRt1KcPiR-rtAflXmeg, Nahre Sol, 1
+http://www.youtube.com/channel/UC8VkNBOwvsTlFjoSnNSMmxw, Smarter Every Day 2, 4
+http://www.youtube.com/channel/UC8aRaZ6_0weiS50pvCmo0pw, Institute for Advanced Study, 11
+http://www.youtube.com/channel/UC8eNyF9eYwgr_K-Nl4gSHWw, Adam Ondra, 10
+http://www.youtube.com/channel/UC8yuA2fDyMVaIsDHhoiDmWg, 阳和平说事儿, 9
+http://www.youtube.com/channel/UC9-y-6csu5WGm29I7JiwpnA, Computerphile, 4
+http://www.youtube.com/channel/UC97YN7gYqtdk6z9jYHOn_lQ, Noah Kellman, 1
+http://www.youtube.com/channel/UC98tcedR6gULv8_b70WJKyw, Frog Leap Studios, 1
+http://www.youtube.com/channel/UC9D-nVmcQdCgAGUPBJZcmOA, 漫士沉思录 Meditation Math, 6
+http://www.youtube.com/channel/UC9I_d6WgAVVBwX-68Km6bUg, Bouldering TV, 10
+http://www.youtube.com/channel/UC9Ntx-EF3LzKY1nQ5rTUP2g, cyriak, 7
+http://www.youtube.com/channel/UC9_mmA5bGKaZWA7Lhd_Z6lg, SquidGod, 2
+http://www.youtube.com/channel/UC9gLvca-96qDQBmjEQtOwoQ, DJI Enterprise, 5
+http://www.youtube.com/channel/UC9qoB5JgECKwB4y2oYC711w, ForgeCore, 2
+http://www.youtube.com/channel/UC9rHXgUE9pikzYcGrAujMXQ, Santa Fe Institute, 11
+http://www.youtube.com/channel/UCA1shkhjIY_QiDdYfEYDqew, Peacockspiderman, 3
+http://www.youtube.com/channel/UCAAbACtY1antXTZG04EVJKg, Totally Glueless, 2
+http://www.youtube.com/channel/UCAL3JXZSzSm8AlZyD3nQdBA, Primitive Technology, 2
+http://www.youtube.com/channel/UCAP57cF-FSjJKzzXg7ntPlQ, CRITERION, 7
+http://www.youtube.com/channel/UCAQpSHsgUcNt6uCOjpgD8kw, Pecos Hank, 3
+http://www.youtube.com/channel/UCAbAsEZ-0LccTNbl8r-3EaQ, Scott Yu-Jan, 2
+http://www.youtube.com/channel/UCAtf-avZj2vWLnYtCchZp8A, Robbie Phillips, 10
+http://www.youtube.com/channel/UCAycaw3D68A7mK6ChdypW0Q, 温铁军, 9
+http://www.youtube.com/channel/UCB-pG-YPZmRHFQBNwk0qeDA, Vital Audio, 1
+http://www.youtube.com/channel/UCBAdGeil51Iw4y29Sh9Y7hA, 稚晖君, 2
+https://space.bilibili.com/505274392, 飞羽社, 5
+http://www.youtube.com/channel/UCBa659QWEk1AI4Tg--mrJ2A, Tom Scott, 4
+http://www.youtube.com/channel/UCBbnbBWJtwsf0jLGUwX5Q3g, Journey to the Microcosmos, 3
+http://www.youtube.com/channel/UCBuZ6okBbRvosC0S67WI2gg, The Living Histories Series, 11
+http://www.youtube.com/channel/UCC9X5bLhdMeLvPxlMb-GShw, 大问题Dialectic, 9
+http://www.youtube.com/channel/UCCMvR6IxZKysfUfX_6BrHzg, NoseFluter, 1
+http://www.youtube.com/channel/UCCWeRTgd79JL0ilH0ZywSJA, AlphaPhoenix, 4
+http://www.youtube.com/channel/UCCaOLUPbmS-04WkN7SEZytA, Under Studio, 8
+http://www.youtube.com/channel/UCChNhjW49smKB3zssiUjENg, Emily Hopkins, 1
+http://www.youtube.com/channel/UCCoAJ5JYKYTMubpTIsWi70w, David Hilowitz Music, 1
+http://www.youtube.com/channel/UCDBrVr0ttWpoRY-_yZajp2Q, alyankovic, 8
+http://www.youtube.com/channel/UCDFD8RdIL2FxNfkKkus5RSQ, ibi, 1
+http://www.youtube.com/channel/UCDGdXbJQ7-cdwOLcXcCR-gQ, Jeff Kerr, 2
+http://www.youtube.com/channel/UCDVpdm607KDgCv72FUA8Kwg, cassiopeiaproject, 4
+http://www.youtube.com/channel/UCDe08Fs0s0YKJuk5h45csAQ, Polyphia, 1
+http://www.youtube.com/channel/UCDe255jOP5vCjSSMSqrpndQ, GuanSchool观学院, 9
+http://www.youtube.com/channel/UCDjGU4DP3b-eGxrsipCvoVQ, SciFri, 4
+http://www.youtube.com/channel/UCDuL7JTPSW1QryB8Ep4qepQ, iSongs, 1
+http://www.youtube.com/channel/UCDwMh0pu1iSXeKx7qmqjIQA, Device Orchestra, 1
+http://www.youtube.com/channel/UCDwf2ONr5iTF3KIpHmViC8w, Brian Peter Tan, 7
+http://www.youtube.com/channel/UCEIwxahdLz7bap-VDs9h35A, Steve Mould, 4
+http://www.youtube.com/channel/UCEOXxzW2vU0P-0THehuIIeg, Captain Disillusion, 7
+http://www.youtube.com/channel/UCFMGumZU2HL4ErtR5a6FQhw, Playfool, 2
+http://www.youtube.com/channel/UCFtc3XdXgLFwhlDajMGK69w, NightHawkInLight, 2
+http://www.youtube.com/channel/UCFy846QdKs3LbLgBpSqPcdg, The Kiffness, 8
+http://www.youtube.com/channel/UCG8E64EJVj0AMZLBtYOdvTw, Mats Vermeeren, 6
+http://www.youtube.com/channel/UCG9lNhVqk9luFLxBKDzuO9g, 5secondfilms, 8
+http://www.youtube.com/channel/UCGEnLjNRMZG1nC-VaTV1jOw, 木の歯車工房　機巧部, 5
+http://www.youtube.com/channel/UCGJykI0BRfFV044deqERlxQ, OskarPuzzle, 6
+http://www.youtube.com/channel/UCGPrWh6uJe2YVl4eTMyPxdw, PolyPEDAL, 5
+http://www.youtube.com/channel/UCGUDkpFlYHNaI6ML7PBaW5g, Dimsmary, 2
+http://www.youtube.com/channel/UCGWYKICLOE8Wxy7q3eYXmPA, 最佳拍档, 5
+http://www.youtube.com/channel/UCGfGP45SQujt5vZVJsa3nHQ, Sympawnies by Noam Oxman, 1
+http://www.youtube.com/channel/UCGi1aJf82xrHU3Et3uGLc-A, Bird Kind, 3
+http://www.youtube.com/channel/UCGm3CO6LPcN-Y7HIuyE0Rew, Monty Python, 8
+http://www.youtube.com/channel/UCH74Hc_7WYVzx1GXhLEH6Eg, Mathologer 2, 6
+http://www.youtube.com/channel/UCHAUlULA0quOmHvX5uGNcHA, Gal Lahat, 4
+http://www.youtube.com/channel/UCHCph-_jLba_9atyCZJPLQQ, How It Should Have Ended, 8
+http://www.youtube.com/channel/UCHYty7uxes_Eu2Bb2YbeJgQ, BPPB Virtual Seminars, 11
+http://www.youtube.com/channel/UCHmI2RV5sjUyvO52e_kRgsA, Flower-3D, 2
+http://www.youtube.com/channel/UCHsRtomD4twRf5WVHHk-cMw, TierZoo, 8
+http://www.youtube.com/channel/UCHvclDvjk_dUpZW59geZBmw, Flautas Kaypora, 1
+http://www.youtube.com/channel/UCIAmdxvgfnIEZnyQSiqgVgQ, Keenan Crane, 6
+http://www.youtube.com/channel/UCIQ8Zpb_NYmKcRLkRI3wb7w, Stated Casually, 4
+http://www.youtube.com/channel/UCIRjdHLsHq6xdtAHAmoueqg, Bouldering Bobat, 10
+http://www.youtube.com/channel/UCIgKGGJkt1MrNmhq3vRibYA, NurdRage, 2
+https://www.youtube.com/@linksphotograph, Links TV, 7
+http://www.youtube.com/channel/UCIjUIjWig0r5DIixQrt6A3A, t3ssel8r, 5
+http://www.youtube.com/channel/UCJ0-OtVpF0wOKEqT2Z1HEtA, ElectroBOOM, 4
+http://www.youtube.com/channel/UCJDddEUqK26B0soFP23fvmA, The Float Life, 10
+http://www.youtube.com/channel/UCJm8Q-9K_8n-UBrgwEo4yLA, ARIatHOME, 1
+http://www.youtube.com/channel/UCK2AbaC2A5j5br2wA9mllNw, ETI Magic, 5
+http://www.youtube.com/channel/UCKJvfb-6icHloy6MBpHg9aw, 毕导THU, 4
+http://www.youtube.com/channel/UCKeTCCYBg0CFrFHm2nxx_rQ, Japhy Riddle, 7
+http://www.youtube.com/channel/UCKpvVIrdj_gBxOKmDkZ3-cw, Etoilec1 Animations, 7
+http://www.youtube.com/channel/UCLDYDiIo5CmWScrENJWYJAw, The Whitest Kids U'Know, 8
+http://www.youtube.com/channel/UCLYsOHTQhS_vjFWQa31Lh4A, PhilosophyCosmology, 9
+http://www.youtube.com/channel/UCLdPicN16eAKPKir8EY1UXQ, Kale Brock (Kale Brock), 10
+http://www.youtube.com/channel/UCLdZXAkPK8aIB2NeBLMJt0Q, Gravity Sketch, 5
+http://www.youtube.com/channel/UCLlxee8JwNs4hrNDx8zeVvg, SorrelsSouls, 2
+http://www.youtube.com/channel/UCLt9kIslIa1ffiM8A04KORw, W&M Levsha, 2
+http://www.youtube.com/channel/UCLtXaIMUhZIZ54gJbAPV2PQ, Olga Scheps, 1
+http://www.youtube.com/channel/UCLze_9DjASz_ZxB7UTt2Alw, Bouldering DabRats, 10
+http://www.youtube.com/channel/UCM42XWqRoruK6bNkgbgoJMw, DisneyResearchHub, 5
+http://www.youtube.com/channel/UCMEH-Cv9D1TjPp6As1vE7Zg, SawLady, 1
+http://www.youtube.com/channel/UCMOqf8ab-42UUQIdVoKwjlQ, Practical Engineering, 4
+http://www.youtube.com/channel/UCMk_WSPy3EE16aK5HLzCJzw, NativLang, 4
+http://www.youtube.com/channel/UCMkybZyI_B-xgkLQo_eCQ_w, American Museum of Natural History, 11
+http://www.youtube.com/channel/UCMrMVIBtqFW6O0-MWq26gqw, my mechanics, 2
+http://www.youtube.com/channel/UCMuDqExNJkCJpOHsX4VKY9g, REEL ROCK, 10
+http://www.youtube.com/channel/UCN-StetwWuVYf-MU2_NVj4A, Agility Robotics, 5
+http://www.youtube.com/channel/UCNAckPiDYxRWengUlRujs6Q, gerubach, 1
+http://www.youtube.com/channel/UCNLehxWiyfwbOo7IHfGkTDg, Paul Bourke, 12
+http://www.youtube.com/channel/UCNk3CeLpCA0qIZsuzGl09cw, Homemade Science with Bruce Yeany, 4
+http://www.youtube.com/channel/UCNwMlvgV3i7T3plk-VCfu5Q, Pete's Free Info Center, 4
+http://www.youtube.com/channel/UCOGIECHTKwpVkxqJrbTBSUw, Mechanistic, 2
+http://www.youtube.com/channel/UCOGeU-1Fig3rrDjhm9Zs_wg, Vihart, 6
+http://www.youtube.com/channel/UCOIE6FWr1SpWvbPJIIiEgog, clayisland, 10
+http://www.youtube.com/channel/UCOQN5u9oIocoYEdn3LQID4Q, But Why?, 4
+http://www.youtube.com/channel/UCORIeT1hk6tYBuntEXsguLg, PostmodernJukebox, 1
+http://www.youtube.com/channel/UCOhJe_WzF7bVojkgkz3V_gA, Easy Origami - Yakomoga, 2
+http://www.youtube.com/channel/UCOjm3MCxpq_YF4ywdnhZMkA, 谈三圈, 5
+http://www.youtube.com/channel/UCOojfmX4Wq3Ww-XP_IkvviQ, True Cuckoo, 1
+http://www.youtube.com/channel/UCOwZa5EtffJa7we4dfMUdng, Goatstream, 5
+http://www.youtube.com/channel/UCOxkak25bS67-EIGCd89BLw, Sondre Berg, 10
+http://www.youtube.com/channel/UCP3KhLhmG3Z1CMWyLkn7pbQ, Jerboa, 4
+http://www.youtube.com/channel/UCP5Kd0smdWe9H_bDH-73c6Q, 老师好我叫何同学, 7
+http://www.youtube.com/channel/UCP7jMXSY2xbc3KCAE0MHQ-A, Google DeepMind, 5
+http://www.youtube.com/channel/UCPA1NCFqYebL6RBW5-bnOrg, Robert Tolone, 2
+http://www.youtube.com/channel/UCPKnBhy8PqPLapWIZ7orlKQ, Institute of Physics, 11
+http://www.youtube.com/channel/UCQ3PmH7kBZnWCD1jGqBYahg, Yaybahar, 1
+http://www.youtube.com/channel/UCQ5kqUO7Pkc7YWRNnjetfbw, Skid Kids, 10
+http://www.youtube.com/channel/UCQ9e0JHba7ApNz_-HL-p_6A, GREENPOWERSCIENCE, 12
+http://www.youtube.com/channel/UCQRnnO-TlbPKhlIjp04TnWg, INDUSTRIAL JP, 1
+http://www.youtube.com/channel/UCQZkWBdIi24VkVjgd5znSkQ, MOSFET, 5
+http://www.youtube.com/channel/UCQvq-0fss4lNrmIz7gcPLtQ, HowNOT2, 10
+http://www.youtube.com/channel/UCR4U_q_MojVVqYnawAVlryw, 睡前消息, 9
+http://www.youtube.com/channel/UCRAHO4kfQUx451TPuaBIJlg, shiura, 5
+http://www.youtube.com/channel/UCRBwLPbXGsI2cJe9W1zfSjQ, Just Have a Think, 9
+http://www.youtube.com/channel/UCRByPS00RZsAUe2DTCoHuFQ, 好奇大叔 Uncle Curious, 9
+http://www.youtube.com/channel/UCRmtQhqRR8TmXOwuMu4sd1Q, 王天一铁粉, 7
+https://www.youtube.com/@jeoresearch, Jason Orlosky, 5
+http://www.youtube.com/channel/UCSQXKht7qG4sDO2U-5GTucA, quietmarverick, 2
+http://www.youtube.com/channel/UCSb_Sui6FBxVS4_ROsrU_Iw, Natural Habitat Shorts, 8
+http://www.youtube.com/channel/UCSgGqt-30oXBq0-n0K-t4Nw, 科技新信号TechSignal, 9
+http://www.youtube.com/channel/UCSy9wGvGb1PCZjWy0jFFQNw, RED 6, 8
+http://www.youtube.com/channel/UCSzx-qTK2639JBWgrb6mTmw, Fields Institute, 11
+http://www.youtube.com/channel/UCT118DW2mVwwtxzmBT4mKtw, 1st ADmendment, 8
+http://www.youtube.com/channel/UCT7EcU7rC44DiS3RkfZzZMg, Arvind Gupta, 2
+http://www.youtube.com/channel/UCT8dDpDEM80YvcNiZqdbvPg, ones and zeros, 7
+http://www.youtube.com/channel/UCTmY-LBmbLugkJ0ryZfjZTQ, MrAlexTech, 5
+http://www.youtube.com/channel/UCU1hNQjdgTrw6szQHUSI5Lw, HappinessHorizontal, 2
+http://www.youtube.com/channel/UCUAwOBo-ZZ8S8cIH0SGoXpg, Musica e Oltre Srl, 1
+http://www.youtube.com/channel/UCUGJ-yKqQHl4FSZwUmGpiUg, 回形针PaperClip, 4
+http://www.youtube.com/channel/UCUK0HBIBWgM2c4vsPhkYY4w, The Slow Mo Guys, 7
+http://www.youtube.com/channel/UCUaiGrBfRCaC6pL7ZnZjWbg, JK Brickworks, 2
+http://www.youtube.com/channel/UCUeZBocfxALSUdOgNJB5ySA, Dr Ben Miles, 5
+http://www.youtube.com/channel/UCUnbIK56tCdeKC_GmRP-H2A, Improbable Research, 11
+http://www.youtube.com/channel/UCUoLyhTBTUnMOatEWBFM_Rg, 历史新视角, 9
+http://www.youtube.com/channel/UCUqIRJJJeKgbuNAPTl_Afig, Albert Ok, 10
+http://www.youtube.com/channel/UCUuvZ0skL2WYZ3rhPMZbfdA, Brick Technology, 2
+http://www.youtube.com/channel/UCUzmizB92LJ9oxf5T_snZNA, BadEmpanada, 9
+http://www.youtube.com/channel/UCV0t1y4h_6-2SqEpXBXgwFQ, AngeTheGreat, 7
+http://www.youtube.com/channel/UCV2g02zq5y7unJ_GSr-de2w, Stable Sort, 6
+http://www.youtube.com/channel/UCVSHXNNBitaPd5lYz48--yg, Tech Ingredients, 5
+http://www.youtube.com/channel/UCVZlxkKqlvVqzRJXhAGq42Q, JoergSprave, 2
+http://www.youtube.com/channel/UCVpankR4HtoAVtYnFDUieYA, Ze Frank, 8
+http://www.youtube.com/channel/UCWvq4kcdNI1r1jZKFw9TiUA, ScienceClic English, 4
+http://www.youtube.com/channel/UCWx-9tUBYtpVVchhNVDchSw, 青蛙刀圣1993, 9
+http://www.youtube.com/channel/UCWxiO_Br1awgEjy79VItspQ, Ant Lab, 3
+http://www.youtube.com/channel/UCX1r6-956FHoCvsxEKQpjXA, Jellyfish Farm, 3
+http://www.youtube.com/channel/UCX1ztT76CZfs29aGK9Nn7_A, Corporals Corner, 10
+http://www.youtube.com/channel/UCX981hh-RI_L1QOwV08osNA, Aaed Musa, 2
+http://www.youtube.com/channel/UCXIRZeKsc2lErllD3CugjmQ, Little_Dolphin5, 10
+http://www.youtube.com/channel/UCXSCm3S2XZHLBz8kH0N5Heg, Vet Ranch, 8
+http://www.youtube.com/channel/UCXUPKJO5MZQN11PqgIvyuvQ, Andrej Karpathy, 6
+http://www.youtube.com/channel/UCXXIjcs3YojaedFlKMvJeew, 国仁全球大学堂, 9
+http://www.youtube.com/channel/UCXYGUeekJCrBpM32yaJpjRw, Wallace & Gromit, 8
+http://www.youtube.com/channel/UCXgXjojxxGOzQ8FeaTCTm3Q, Bioactive UKFluids, 11
+http://www.youtube.com/channel/UCXvKDZ1p5gTiTdGwh9Ea6Iw, OneMinuteThings, 6
+http://www.youtube.com/channel/UCY9BG4A03eLQn-i7IALdUjA, fish code studios, 3
+http://www.youtube.com/channel/UCYO_jab_esuFRV4b17AJtAw, 3Blue1Brown, 6
+http://www.youtube.com/channel/UCYbH8CWlZkNgoE8EY0SoE3g, 硬件茶谈, 5
+http://www.youtube.com/channel/UCYeF244yNGuFefuFKqxIAXw, The Royal Institution, 11
+http://www.youtube.com/channel/UCYfJG6cGfW84FVLuy7semEg, 观视频工作室 Guan Video, 9
+http://www.youtube.com/channel/UCZHmQk67mSJgfCCTn7xBfew, Yannic Kilcher, 5
+http://www.youtube.com/channel/UCZpvLeZDtm8mmmvwgBrNVyg, KLR Productions, 8
+http://www.youtube.com/channel/UC_7p3yqxNR24i-9Qtu1Haxg, floatwheel, 10
+http://www.youtube.com/channel/UC_9AeV5Riy9AsIJZEsnsCDw, 箭厂ArrowFactory Doc, 7
+http://www.youtube.com/channel/UC_QG8miwKHFNuWY9VpkrI8w, Cateen かてぃん, 1
+http://www.youtube.com/channel/UC__2HUqq7EBo5EbUZW_U6UA, 河马史诗, 9
+http://www.youtube.com/channel/UC_cznB5YZZmvAmeq7Y3EriQ, Stated Clearly, 4
+http://www.youtube.com/channel/UC_gSotrFVZ_PiAxo3fTQVuQ, Magnus Midtbø, 10
+http://www.youtube.com/channel/UC_rLZ-cBPWNLGbctIkjomKw, Aliaksei Zholner, 2
+http://www.youtube.com/channel/UCaCfi0KmVTnjhI8KEVWdR0g, 仮装大賞公式チャンネル, 8
+http://www.youtube.com/channel/UCaFbEXMbLW_EDKWElYSeyyQ, biopolyhedron, 4
+http://www.youtube.com/channel/UCaSlyjhR4WC7QhYuaivxb6g, Nathan Rich, 9
+http://www.youtube.com/channel/UCb-6zoH3lxsrrdqvV8kdhrg, kiki lem, 7
+http://www.youtube.com/channel/UCbNvfx3rYYxEopnRGxfu53Q, Joseph's Machines, 8
+http://www.youtube.com/channel/UCbbQalJ4OaC0oQ0AqRaOJ9g, Jay and Mark, 4
+http://www.youtube.com/channel/UCbfYPyITQ-7l4upoX8nvctg, Two Minute Papers, 5
+http://www.youtube.com/channel/UCbwp5B-uDBy-fS4bDA0TEaw, BBC Earth Explore, 11
+http://www.youtube.com/channel/UCbz-g809KnmGFrdx-VmnGxw, MagicMason1000, 1
+http://www.youtube.com/channel/UCcBp_9YPyma4c3HTadmRJ3Q, Nature on PBS, 11
+http://www.youtube.com/channel/UCcGM3aVEJ6SrH5UtfZ80YHQ, 工科男孙老师 频道迁移中, 5
+http://www.youtube.com/channel/UCcMLuNOTBDbSVXT3i5Itzsg, Uncle John Wyatt, 8
+http://www.youtube.com/channel/UCcNyzOCKvyMBaA4iQVgO9EQ, MyBackyardBirding, 3
+http://www.youtube.com/channel/UCciQ8wFcVoIIMi-lfu8-cjQ, Anton Petrov, 5
+http://www.youtube.com/channel/UCcicEeaznk6-mhwny6vuMeQ, Old Things Never Die, 2
+http://www.youtube.com/channel/UCckETVOT59aYw80B36aP9vw, MatthiasWandel, 2
+http://www.youtube.com/channel/UCd4FmcWIVdWAy0-Q8OJBloQ, 사나고 Sanago, 2
+http://www.youtube.com/channel/UCdBrXvlJn60zgpIQcZ0Fe7w, WEHImovies, 7
+http://www.youtube.com/channel/UCdJ6F8A1AC4XL55E8ZC6cmA, Birdbox Studio, 8
+http://www.youtube.com/channel/UCdJ9oJ2GUF8Vmb-G63ldGWg, Reactions, 4
+http://www.youtube.com/channel/UCdPui8EYr_sX6q1xNXCRPXg, STORROR, 10
+http://www.youtube.com/channel/UCdSenyHIY-kzhdz21CpBISA, Kaplamino, 2
+http://www.youtube.com/channel/UCdXCDBx-E4S28GCAypXXHiw, Stereokroma, 7
+http://www.youtube.com/channel/UCdbetV_5wxUnBTdb_d51qoA, Synthet, 1
+http://www.youtube.com/channel/UCdcemy56JtVTrsFIOoqvV8g, ANDREW HUANG, 1
+http://www.youtube.com/channel/UCdgSU3Os5wHCqe80DqW22vQ, 小王Albert, 9
+http://www.youtube.com/channel/UCdkQzfvvGV5BdVmsPUNi4Dw, Betch, 8
+http://www.youtube.com/channel/UCdmAhiG8HQDlz8uyekw4ENw, Inigo Quilez, 6
+http://www.youtube.com/channel/UCdsd8BN9d-xgbOh7Wc3HCwQ, Levi Doron, 1
+http://www.youtube.com/channel/UCdxTCCRnQgfi2vr2fZupYIQ, Carl Bugeja, 2
+http://www.youtube.com/channel/UCe6ye3l9WA4SdNkqgs0YeMA, QI, 8
+http://www.youtube.com/channel/UCeQEKFH31vvD-InkTGSvCrA, brusspup, 7
+http://www.youtube.com/channel/UCeXksuVW8H1x9v4gh7DWoyQ, Physics for the Birds, 4
+http://www.youtube.com/channel/UCeiYXex_fwgYDonaTcSIk6w, MinuteEarth, 4
+http://www.youtube.com/channel/UCeyWqNFj-OcJGDVhlYMBO_g, Bob James, 1
+http://www.youtube.com/channel/UCfGlb6MECzX-UISmWA2U-EA, plusmathsorg, 6
+http://www.youtube.com/channel/UCfIbForcbE83cxm8MScOTlQ, Jerry Kowal 郭杰瑞, 8
+http://www.youtube.com/channel/UCfmAjVU0aF41zi7oWB8_TUg, NewJazz, 1
+http://www.youtube.com/channel/UCfsbn7NkF2n4KQp2XBluz_g, More Magnus, 10
+http://www.youtube.com/channel/UCg3qsVzHeUt5_cPpcRtoaJQ, 圧倒的不審者の極み!, 8
+http://www.youtube.com/channel/UCg7TpTHtPO6B-jK_QL2jUjA, All you can lead, 10
+http://www.youtube.com/channel/UCgfe2ooZD3VJPB6aJAnuQng, bycloud, 5
+http://www.youtube.com/channel/UCgp1nt1CzxL66fn7W1aIaqw, 范迪夏, 5
+http://www.youtube.com/channel/UCgsusRV1WcPeOQsINDdM43g, 小学科学SSR, 4
+http://www.youtube.com/channel/UCgtOMaHBiYvsRYZ77utf8FQ, Eric Karlsson, 10
+http://www.youtube.com/channel/UCgyl5xVlLLUZVpgfMGw-ETA, Bonobo, 1
+http://www.youtube.com/channel/UChK06HeqIYUM1QpKsR4ke3A, David Renshaw, 6
+http://www.youtube.com/channel/UChzhFNSV-OuHQiYpwDMImsw, Rescue & Restore, 2
+http://www.youtube.com/channel/UCi6RkdaEqgRVKi3AzidF4ow, Global Weirding with Katharine Hayhoe, 9
+http://www.youtube.com/channel/UCiAuybSv94YrdXhrGECtAxQ, 绵羊料理, 8
+http://www.youtube.com/channel/UCiaXSTaypbXOA7Lqyvknekw, Suzuki Musical Instruments, 1
+http://www.youtube.com/channel/UCinly6oBtteEBXFwojyGetQ, 有点艺思哦, 7
+http://www.youtube.com/channel/UCixibRupM6mH3kuZQeLvpgA, BM Sculptures, 2
+http://www.youtube.com/channel/UCj1VqrHhDte54oLgPG4xpuQ, Stuff Made Here, 5
+http://www.youtube.com/channel/UCjBXNfzN9gpgEMYRcOqNJVg, K形态生命科学, 9
+http://www.youtube.com/channel/UCjFqcJQXGZ6T6sxyFB-5i6A, Every Frame a Painting, 7
+http://www.youtube.com/channel/UCjGsdh719cwQG39k1tyYSiw, 机械小熊猫, 2
+http://www.youtube.com/channel/UCjq6e7k_pkOkrBD2Qieqxnw, Wide Boyz, 10
+http://www.youtube.com/channel/UCkNqSFUZ4XXuiJ8JWpFPs1w, Hombre_McSteez, 8
+http://www.youtube.com/channel/UCkPTPJ_Xe17uG2FAT84z6uQ, 格致SELF, 9
+http://www.youtube.com/channel/UCkUD_8b1JoTL2ipOVtxfNKw, Will Cogley, 2
+http://www.youtube.com/channel/UCkVdkd-DBrvSbpC4gefsnkw, Bitwig, 1
+http://www.youtube.com/channel/UCkdcbIid09Rv8PxcLXfDBIQ, Flip - the most powerful portable sampler, 1
+http://www.youtube.com/channel/UCkyfHZ6bY2TjqbJhiH8Y2QQ, thebrainscoop, 3
+http://www.youtube.com/channel/UClBNq7mCMf5xm8baE_VMl3A, Qiskit, 8
+http://www.youtube.com/channel/UClLEMac0ZjZCsVOTiaBtJBg, 芳斯塔芙, 4
+http://www.youtube.com/channel/UClMJeVIVyGp-3_kWtspkS0Q, EPFL, 11
+http://www.youtube.com/channel/UClaEdLrmti779-tyovta8zw, 阿木爷爷 Grandpa Amu, 2
+http://www.youtube.com/channel/UCldxC_-VlXTwMWk8bzFu2qQ, StopmoNick, 2
+http://www.youtube.com/channel/UCli_RJkGWfZvw4IlDLHNCQg, thang010126, 6
+http://www.youtube.com/channel/UClsFdM0HzTdF1JYoraQ0aUw, Brick Experiment Channel, 2
+http://www.youtube.com/channel/UCltmf0pqjXyLtNsF2vek_wQ, 自得琴社 Zi De Guqin Studio, 1
+http://www.youtube.com/channel/UClu8Q445-ZAG1dzzP1mHiAw, Engineering with Rosie, 9
+http://www.youtube.com/channel/UClzkvZI21mkjGq9E3KWfJfA, Bitcraze, 5
+http://www.youtube.com/channel/UCmCZ-oLEnCgmBs_TMql9afw, Zenta, 5
+http://www.youtube.com/channel/UCmEmX_jw_pRp5UbAdzkZq-g, Posy, 1
+https://www.youtube.com/@Aty0730, Aty, 3
+http://www.youtube.com/channel/UCmVDTLCjcIrLaLJYOz904Kg, CARDBOARD ROBOTS, 2
+http://www.youtube.com/channel/UCmaflrfppKNfq8uuZVZZxQg, Victoria and Albert Museum, 11
+http://www.youtube.com/channel/UCmq2yMo-lTfC7BQLth_PqOw, Sevish, 1
+http://www.youtube.com/channel/UCmtyQOKKmrMVaKuRXz02jbQ, Sebastian Lague, 2
+http://www.youtube.com/channel/UCn4UedbiTeN96izf-CxEPbg, The Microscopic Odyssey, 3
+http://www.youtube.com/channel/UCnEq_kG1lbRaQpbS4GVc82w, Wayne Logue, 8
+http://www.youtube.com/channel/UCnbbOxqwPK2lfkEP3FzIf2Q, Hard Is Easy, 10
+http://www.youtube.com/channel/UCnkp4xDOwqqJD7sSM3xdUiQ, Adam Neely, 1
+http://www.youtube.com/channel/UCnmgSO_4g6QcRzy0yFeglyA, Grand Illusions, 8
+http://www.youtube.com/channel/UCnqTGj8s80Wo1xN_zVusYJg, billbailey, 12
+http://www.youtube.com/channel/UConVfxXodg78Tzh5nNu85Ew, Welch Labs, 6
+http://www.youtube.com/channel/UCovy0sFH1AWpUXk0JJLhqDg, Giant Rock, 10
+http://www.youtube.com/channel/UCoxcjq-8xIDTYp3uz647V5A, Numberphile, 6
+http://www.youtube.com/channel/UCpLQXR116cLVUa1LRY8KS4w, OwlKitty, 8
+http://www.youtube.com/channel/UCpU_PAsVFl2fO649QF6Zj0Q, Apartment Sessions, 1
+http://www.youtube.com/channel/UCpnkp_D4FLPCiXOmDhoAeYA, UnusualVideos, 8
+http://www.youtube.com/channel/UCq51vojGdbi7Bm9kLLhMFow, 中科院格致论道-Chinese Academy of Sciences【官方频道】, 4
+http://www.youtube.com/channel/UCqJ_RSsIzee-p7TqnuFih3Q, KestrelTapes, 1
+http://www.youtube.com/channel/UCqO9j1kihaQzlTpxJriVWMQ, Nils Berglund, 6
+http://www.youtube.com/channel/UCqOXOERKRoH8bEoHZsCpi1g, BlueBearFlutes, 1
+http://www.youtube.com/channel/UCqnbZVjoZHJLgsDHp3VxNtQ, 硬核料理男子tiger, 12
+http://www.youtube.com/channel/UCqrrxZeeFSNCjGmD-33SKMw, u m a m i, 8
+http://www.youtube.com/channel/UCqzB9Ks5H939XLuSuVLuPVw, Nicolas Bras, 1
+http://www.youtube.com/channel/UCr6LvLhGBnB7z0Tj4-nY34A, Adam Neely 2, 1
+http://www.youtube.com/channel/UCr7-oFkrAqai1LWiJwgzUNw, Wake Thief, 10
+http://www.youtube.com/channel/UCr7C_U_O4ttoU3x_dNFQZ_w, 吸奇侠, 9
+http://www.youtube.com/channel/UCrHXK2A9JtiexqwHuWGeSMg, CERN, 11
+http://www.youtube.com/channel/UCrML0FFc2VWOMbG3AnbrnrA, The Point Studios, 4
+http://www.youtube.com/channel/UCrcunOh8BIDdrBH-SVeO8_Q, Geometric Toy, 6
+http://www.youtube.com/channel/UCrlZs71h3mTR45FgQNINfrg, Mathemaniac, 6
+http://www.youtube.com/channel/UCryGec9PdUCLjpJW2mgCuLw, NASA Jet Propulsion Laboratory, 11
+http://www.youtube.com/channel/UCs4aHmggTfFrpkPcWSaBN9g, PBS Infinite Series, 11
+http://www.youtube.com/channel/UCs9imIZVa00roYUmdo9qhug, BPPB Seminar, 11
+http://www.youtube.com/channel/UCs9wGXdQrN9-dcQucuzRzNw, Melodica Men, 1
+http://www.youtube.com/channel/UCsISPX5_aJH7C-ABOCqT7LA, The Seabreacher, 5
+http://www.youtube.com/channel/UCsMbp4V8oxzHCMdOUP-3oWw, Unitree Robotics, 5
+http://www.youtube.com/channel/UCsc6EM80X68E7Quu_Bkb2Ig, Matthew Buckley, 7
+http://www.youtube.com/channel/UCshObcm-nLhbu8MY50EZ5Ng, Benn Jordan, 12
+http://www.youtube.com/channel/UCsmEoK_tX6dT54IHuUjJMug, Paul Chevallier, 2
+http://www.youtube.com/channel/UCsqZk5V2d44TNLRFSI5aVfg, Hooper's Beta, 10
+http://www.youtube.com/channel/UCt2ZH6WzVKzW2xcVFVepx0A, Picture to sound, 12
+http://www.youtube.com/channel/UCtESv1e7ntJaLJYKIO1FoYw, Periodic Videos, 4
+http://www.youtube.com/channel/UCtFuCBKQTItHCwfHRP9LIjQ, Dr Geoff Lindsey, 4
+http://www.youtube.com/channel/UCtKfv-cquuKDFje61-B6oeQ, Levi Janssen, 2
+http://www.youtube.com/channel/UCteTZ9jZce49VHt7mtSL47A, studioJOHO, 7
+http://www.youtube.com/channel/UCto7D1L-MiRoOziCXK9uT5Q, Let's Game It Out, 8
+http://www.youtube.com/channel/UCtqPP7oM-n0VIZL85ddyMHA, sean charmatz, 8
+http://www.youtube.com/channel/UCtrtCvRBjJgqZaD17FDg64Q, Sarah Jeffery / Team Recorder, 1
+http://www.youtube.com/channel/UCtwKon9qMt5YLVgQt1tvJKg, Objectivity, 8
+http://www.youtube.com/channel/UCtyp2OZ_z-yNESH7QLx1yCA, Reinier Kuppens, 5
+http://www.youtube.com/channel/UCu6mSoMNzHQiBIOCkHUa2Aw, Cody'sLab, 2
+http://www.youtube.com/channel/UCuQYLUgUkv_IGLW2OFQVhSA, FIRST CLASS AMATEUR, 12
+http://www.youtube.com/channel/UCuwRke43bi6P-Hs93RPG4Og, 当下频道DxChannel, 7
+http://www.youtube.com/channel/UCv0XOMWOeAlaWkVAHExuZVQ, Garrett Animates, 8
+http://www.youtube.com/channel/UCv0aU2eKry3kdSTnFa8QAWA, Science Magazine, 11
+http://www.youtube.com/channel/UCvE0x32fC1MOMoDCYqtuAIw, 亿点点不一样, 4
+http://www.youtube.com/channel/UCvMLMyKPomE6kTTL9Kv8Iww, Sound Field, 1
+http://www.youtube.com/channel/UCvVIk8oQ2vnZsCi4vR9O4dg, 歪果仁研究协会 Ychina, 8
+http://www.youtube.com/channel/UCvj6-b8cesueYQV45GBjIjg, Linsey Pollak, 1
+http://www.youtube.com/channel/UCvlkMq7QfHFK5VJZa0aeMeQ, Rowan Atkinson Live, 8
+http://www.youtube.com/channel/UCvtdw-YVb9TDHq834W2DI8Q, 星球研究所Institute for Planets, 3
+http://www.youtube.com/channel/UCvurorFL4m8-rcDYRXIC66w, Defacto Sound, 8
+http://www.youtube.com/channel/UCvvFazVkWRLfK1drGvr9fYw, Climbers Crag, 10
+http://www.youtube.com/channel/UCwHUYtwH5E41O6MiYoC19ng, 和之梦 - 官方频道, 9
+http://www.youtube.com/channel/UCwbsWIWfcOL2FiUZ2hKNJHQ, UC Berkeley, 11
+http://www.youtube.com/channel/UCwg6_F2hDHYrqbNSGjmar4w, Animalogic, 4
+http://www.youtube.com/channel/UCwlvSJdcMc7iGdR-aducSog, Geopolitical Economy Report, 9
+http://www.youtube.com/channel/UCx2M2bGHtXBszG6tuR_NIbQ, The Pop-Up Channel, 2
+http://www.youtube.com/channel/UCxk9idBsQt1glnzcZp4eFug, Andreas Kay (insects), 3
+http://www.youtube.com/channel/UCxqkOxQYocXRtSqlotgXh7w, Fkj, 1
+http://www.youtube.com/channel/UCxrd1I7wmE2chwpoqD4DSTA, EnterTheDojoShow, 8
+http://www.youtube.com/channel/UCxseO_JzIiiJENauW2RmcJQ, barnabydixon, 8
+http://www.youtube.com/channel/UCy0Pr5u-MwGXXzp_GDd4m_g, Julie Nolke, 8
+http://www.youtube.com/channel/UCy0tKL1T7wFoYcxCe0xjN6Q, Technology Connections, 5
+http://www.youtube.com/channel/UCyBiaKhsutPlGzFR-aVYYgQ, Tom Park, 3
+http://www.youtube.com/channel/UCyDnS1yML2lWka5u3m0TT3A, AllClassical, 1
+http://www.youtube.com/channel/UCyGi33538KzB1ILhEUUNnVw, filmschoolcomments, 7
+http://www.youtube.com/channel/UCyGqObd717uKwGWf_KdNbXw, Anna Hazelnutt, 10
+http://www.youtube.com/channel/UCyNtlmLB73-7gtlBz00XOQQ, Folding Ideas, 9
+http://www.youtube.com/channel/UCyU97yKDHCf4Jqj6ME_qLKA, Anton Fomenko, 10
+http://www.youtube.com/channel/UCyWDmyZRjrGHeKF-ofFsT5Q, Internet Comment Etiquette with Erik, 8
+http://www.youtube.com/channel/UCyp1gCHZJU_fGWFf2rtMkCg, Numberphile2, 6
+http://www.youtube.com/channel/UCzDZY6LlJxLqaPumRURPMwg, Oskar Roman Jezior, 1

@@ -5,7 +5,12 @@ title: Shitty Film Rants
 
 <div id="review-page" class="container">
 	<div class="row">
-		<div class="container col-md-9"><h2>Some Film Rants</h2></div>
+		<div class="container col-md-9">
+		  <h2 id="h-rants">Some Film Rants</h2>
+		  <div id="lang-switch" style="float:right; margin-top:-28px; font-size:0.95em;">
+		    <a href="#" id="lang-en">English</a> | <a href="#" id="lang-zh">中文</a>
+		  </div>
+		</div>
 		
 		<div class="container col-md-3">
 			<h4>
@@ -35,3 +40,60 @@ title: Shitty Film Rants
 		<p> Of course this whole discussion ignored a very significant population of pirates, the ones who are doing it to make bank. These people are probably paying for the content just to share it freely online so that they can profit from some sort of ad revenue. They exist just to exploit how (certain) consumers value IP drastically differently comparing to the makers. And it seems only honesty and a pay whatever you want system can fix this problem. (or we can approximate that solution with a minimum price, which is being done but requires a lot of effort in judgment to come up with that proper price. on the other hand, services like patreon are helping awesome youtubers like Brady and Dustin etc. to fill the revenue gap. And I am sorry to say that I block ads and have yet to donate to them.)</p>
 	</div>
 </div>
+
+<style>
+/* Optional subtle emphasis for active language */
+#lang-switch a { text-decoration: none; }
+#lang-switch a.active { font-weight: bold; text-decoration: underline; }
+</style>
+
+<script>
+(function() {
+  // Chinese translations for header/tabs and H2s only
+  const zh = {
+    'header-top': '<a href="/\"><h1>凌峰</h1></a>',
+    'hometab': '<a href="/">首页</a>',
+    'cvtab': '<a href="/cv">作品</a>',
+    'moretab': '其他 <b class="caret"></b>',
+    'collectab': '秋收冬藏',
+    'filmtab': '影评（久无更新）',
+    'fototab': '摄影（久无更新）',
+    'blogtab': '博客（久无更新）',
+    'h-rants': '一些影评吐槽'
+  };
+
+  function setActiveLink(lang) {
+    var en = document.getElementById('lang-en');
+    var zhLink = document.getElementById('lang-zh');
+    if (en && zhLink) {
+      en.classList.toggle('active', lang === 'en');
+      zhLink.classList.toggle('active', lang === 'zh');
+    }
+  }
+
+  function setLang(lang) {
+    document.documentElement.classList.toggle('lang-zh', lang === 'zh');
+    document.documentElement.classList.toggle('lang-en', lang !== 'zh');
+    try { localStorage.setItem('lang', lang); } catch(e) {}
+
+    Object.keys(zh).forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (!el.dataset.en) { el.dataset.en = el.innerHTML; }
+      el.innerHTML = (lang === 'zh') ? zh[id] : el.dataset.en;
+    });
+
+    setActiveLink(lang);
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var stored = 'en';
+    try { stored = localStorage.getItem('lang') || 'en'; } catch(e) {}
+    setLang(stored);
+    var en = document.getElementById('lang-en');
+    var zhLink = document.getElementById('lang-zh');
+    if (en) en.addEventListener('click', function(e){ e.preventDefault(); setLang('en'); });
+    if (zhLink) zhLink.addEventListener('click', function(e){ e.preventDefault(); setLang('zh'); });
+  });
+})();
+</script>
