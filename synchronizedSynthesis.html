@@ -1605,6 +1605,47 @@ const simulation = new SynchronizedSynth();
 const audio = new SynthAudio(simulation);
 
 // Best-effort iOS/Safari audio unlock on first user gesture
+// Also tries an optional media-session nudge using a hidden inline <video>
+// fed by a nearly-silent WebAudio stream. This mirrors how real media
+// playback (e.g., YouTube) can play in iOS Silent Mode.
+let __iosMediaKeeper = null;
+function ensureIosMediaPlaybackSession(ctx) {
+  // Only attempt on iOS-ish devices, once.
+  const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!isiOS || __iosMediaKeeper) return;
+  try {
+    const video = document.createElement('video');
+    video.id = 'ios-media-keeper';
+    video.setAttribute('playsinline', '');
+    video.playsInline = true;
+    // Do NOT set muted: we want Safari to treat it as real media audio.
+    // Keep it effectively inaudible by feeding near-silence.
+    Object.assign(video.style, {
+      position: 'fixed', left: '-9999px', top: '0', width: '1px', height: '1px',
+      opacity: 0, pointerEvents: 'none', zIndex: -1,
+    });
+    document.body.appendChild(video);
+
+    // Create a nearly-silent audio track via WebAudio and feed it to the <video>.
+    const dest = ctx.createMediaStreamDestination();
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 220;
+    const g = ctx.createGain();
+    g.gain.value = 1e-6; // effectively silent but not optimized away
+    osc.connect(g).connect(dest);
+    try { osc.start(); } catch (_) {}
+
+    video.srcObject = dest.stream;
+    const p = video.play();
+    if (p && p.catch) p.catch(() => {});
+
+    // Keep references alive so the stream doesn’t get GC’d.
+    __iosMediaKeeper = { video, dest, osc, g };
+  } catch (_) {}
+}
+
 function unlockAudioOnce() {
   try {
     const ctx = audio.ensureContext();
@@ -1625,6 +1666,9 @@ function unlockAudioOnce() {
     } else {
       doUnlock();
     }
+
+    // Nudge iOS Safari into a media playback session (bypasses Silent Mode)
+    ensureIosMediaPlaybackSession(ctx);
   } catch (_) {}
 
   // Remove all unlock listeners after first invocation
