@@ -242,6 +242,12 @@ input[type="range"] {
       <p class="tagline">Ciliary carpet inspired wavetable synthesizer - an interactive phased oscillator coordination display</p>
     </header>
     <main id="app">
+      <!-- Audio unlock overlay for iOS/strict browsers -->
+      <div id="audio-unlock" style="display:none; position: sticky; top: 0; z-index: 9999;">
+        <button type="button" id="audio-unlock-btn" style="width:100%; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid var(--panel-border); background: var(--panel); color: var(--fg); font-weight: 600;">
+          Tap to enable audio
+        </button>
+      </div>
       <section class="controls" aria-label="Rotor controls">
         <div class="control-row">
           <button type="button" id="pause-toggle">Pause</button>
@@ -1450,7 +1456,8 @@ class SynthAudio {
 
   ensureContext() {
     if (!this.context) {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
       const gain = ctx.createGain();
       gain.gain.value = this.muted ? 0 : 0.7;
       gain.connect(ctx.destination);
@@ -1604,6 +1611,29 @@ class SynthAudio {
 const simulation = new SynchronizedSynth();
 const audio = new SynthAudio(simulation);
 
+// Helper: show/hide the audio unlock UI
+function setAudioUnlockVisible(show) {
+  const banner = document.getElementById('audio-unlock');
+  if (!banner) return;
+  banner.style.display = show ? 'block' : 'none';
+}
+
+function isIOS() {
+  // Covers iOS and iPadOS in mobile and desktop mode
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function updateAudioUnlockUI() {
+  try {
+    if (!audio.context) {
+      // On iOS and similar strict environments, prompt proactively
+      setAudioUnlockVisible(isIOS());
+      return;
+    }
+    setAudioUnlockVisible(audio.context.state !== 'running');
+  } catch (_) {}
+}
+
 // Best-effort iOS/Safari audio unlock on first user gesture
 function unlockAudioOnce() {
   try {
@@ -1618,6 +1648,7 @@ function unlockAudioOnce() {
         try { src.start(0); } catch (_) {}
         // Stop/disconnect soon after
         setTimeout(() => { try { src.stop(); src.disconnect(); } catch (_) {} }, 0);
+        updateAudioUnlockUI();
       } catch (_) {}
     };
     if (ctx.state === 'suspended') {
@@ -1630,14 +1661,33 @@ function unlockAudioOnce() {
   // Remove all unlock listeners after first invocation
   window.removeEventListener('pointerdown', unlockAudioOnce);
   window.removeEventListener('touchstart', unlockAudioOnce);
+  window.removeEventListener('touchend', unlockAudioOnce);
   window.removeEventListener('click', unlockAudioOnce);
   window.removeEventListener('keydown', unlockAudioOnce);
 }
 
-window.addEventListener('pointerdown', unlockAudioOnce, { once: true, passive: true, capture: true });
-window.addEventListener('touchstart', unlockAudioOnce, { once: true, passive: true });
+// Use non-passive listeners for broader iOS compatibility and add touchend
+window.addEventListener('pointerdown', unlockAudioOnce, { once: true, capture: true });
+window.addEventListener('touchstart', unlockAudioOnce, { once: true });
+window.addEventListener('touchend', unlockAudioOnce, { once: true });
 window.addEventListener('click', unlockAudioOnce, { once: true });
 window.addEventListener('keydown', unlockAudioOnce, { once: true });
+
+// Visible unlock button as a fallback
+document.getElementById('audio-unlock-btn').addEventListener('click', () => {
+  unlockAudioOnce();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    // Attempt to keep the context running when returning to the page
+    try { if (audio.context && audio.context.state === 'suspended') { audio.context.resume(); } } catch (_) {}
+    updateAudioUnlockUI();
+  }
+});
+
+// Initialize unlock UI state
+updateAudioUnlockUI();
 
 const rotorCanvas = document.getElementById('rotor-canvas');
 const rotorCtx = rotorCanvas.getContext('2d');
