@@ -1651,19 +1651,17 @@ function unlockAudioOnce() {
         updateAudioUnlockUI();
       } catch (_) {}
     };
-    if (ctx.state === 'suspended') {
-      ctx.resume().then(doUnlock).catch(() => { try { doUnlock(); } catch (_) {} });
-    } else {
-      doUnlock();
-    }
+    // Important for iOS/Brave: call resume synchronously inside the gesture handler
+    try { ctx.resume(); } catch (_) {}
+    doUnlock();
   } catch (_) {}
 
   // Remove all unlock listeners after first invocation
-  window.removeEventListener('pointerdown', unlockAudioOnce);
-  window.removeEventListener('touchstart', unlockAudioOnce);
-  window.removeEventListener('touchend', unlockAudioOnce);
-  window.removeEventListener('click', unlockAudioOnce);
-  window.removeEventListener('keydown', unlockAudioOnce);
+  window.removeEventListener('pointerdown', unlockAudioOnce, true);
+  window.removeEventListener('touchstart', unlockAudioOnce, false);
+  window.removeEventListener('touchend', unlockAudioOnce, false);
+  window.removeEventListener('click', unlockAudioOnce, false);
+  window.removeEventListener('keydown', unlockAudioOnce, false);
 }
 
 // Use non-passive listeners for broader iOS compatibility and add touchend
@@ -1904,6 +1902,8 @@ const isBlackSemitone = (i) => {
 
 function triggerKey(index) {
   if (activeKeys.has(index)) return;
+  // Ensure audio context is unlocked when a key is pressed
+  try { unlockAudioOnce(); } catch (_) {}
   const freq = frequencies[index] * octaveMultiplier;
   audio.playKey(index, freq);
   keyElements[index].classList.add('active');
