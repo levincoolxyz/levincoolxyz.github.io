@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <!-- CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike) https://creativecommons.org/licenses/by-nc-sa/4.0/ -->
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Fish School Simulation</title>
@@ -19,7 +20,7 @@
     /* Ensure the drawing surface always fills its slot and never leaves
        stray gaps due to min-heights/flex sizing rounding */
     #view{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;min-height:0;flex:1 1 auto}
-    canvas{width:100%;height:100%;display:block;background:#05070c}
+    canvas{width:100%;height:100%;display:block;background:#05070c;touch-action:none}
     aside{background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:16px;overflow:hidden;min-height:0;transition:padding .2s ease,border-color .2s ease,transform .25s ease;scrollbar-width:thin}
     aside h2{margin:0;font-size:15px;color:var(--fg)}
     .controls{flex:1;display:flex;flex-direction:column;gap:12px;overflow:auto;padding:0 4px 0 0;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;scroll-padding-bottom:120px;padding-bottom:max(72px,env(safe-area-inset-bottom,0px)+48px)}
@@ -394,6 +395,13 @@ let startTime = performance.now();
 // View state for panning/following centroid
 // View state for panning/following centroid + zoom (worldHeight = vertical world units visible)
 let viewState = {follow: true, centerX: 0, centerY: 0, worldHeight: 40};
+// Zoom limits (world units visible vertically)
+const MIN_WORLD_H = 10;
+const MAX_WORLD_H = 200;
+// Track active pointers for pinch-zoom
+const activePointers = new Map(); // pointerId -> {x,y}
+let pinchLastDist = 0;
+let isPinching = false;
 function getViewCenter(){
   if(viewState.follow){ return {x: meanX(), y: meanY()}; }
   return {x: viewState.centerX, y: viewState.centerY};
@@ -1035,6 +1043,31 @@ function screenToWorld(clientX, clientY){
   };
 }
 
+// Convert a PointerEvent's client coordinates to canvas-local coords
+function getLocalPosFromClient(e){
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+// Apply zoom around a given canvas-local anchor (like wheel-to-cursor)
+function zoomAtLocal(localX, localY, zoom){
+  if(!isFinite(zoom) || zoom <= 0) return;
+  const c = getViewCenter();
+  if(viewState.follow){
+    viewState.centerX = c.x;
+    viewState.centerY = c.y;
+    // keep follow true to match wheel behavior
+  }
+  const before = screenToWorld(localX, localY);
+  const prevH = viewState.worldHeight;
+  let nextH = prevH / zoom;
+  nextH = Math.max(MIN_WORLD_H, Math.min(MAX_WORLD_H, nextH));
+  viewState.worldHeight = nextH;
+  const after = screenToWorld(localX, localY);
+  viewState.centerX += (before.x - after.x);
+  viewState.centerY += (before.y - after.y);
+}
+
 function draw(){
   // Clear using the actual backing-store size to avoid leaving a strip
   // of uncleared pixels when CSS size changes slightly without a resize.
@@ -1324,10 +1357,64 @@ controls.N.addEventListener('change', () => {
 // Initialize dependent UI states
 updateGoalUiDisabled();
 
+canvas.addEventListener('pointerdown', e => {
+  // Track pointers for pinch gestures
+  const pos = getLocalPosFromClient(e);
+  activePointers.set(e.pointerId, pos);
+  pinchLastDist = 0;
+  isPinching = activePointers.size >= 2;
+  try { canvas.setPointerCapture(e.pointerId); } catch {}
+});
+
 canvas.addEventListener('pointermove', e => {
-  const world = screenToWorld(e.offsetX, e.offsetY);
+  const pos = getLocalPosFromClient(e);
+  // Update tracked pointer position
+  if(activePointers.has(e.pointerId)){
+    activePointers.set(e.pointerId, pos);
+  }
+
+  if(activePointers.size >= 2){
+    // Pinch-zoom: use the first two pointers
+    const it = activePointers.values();
+    const p1 = it.next().value;
+    const p2 = it.next().value;
+    if(p1 && p2){
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.hypot(dx, dy);
+      const midX = (p1.x + p2.x)/2;
+      const midY = (p1.y + p2.y)/2;
+      // Keep cp at the midpoint in world coords for mobile behaviors
+      cp = screenToWorld(midX, midY);
+      pointerActive = true;
+      pointerInside = true;
+      if(pinchLastDist > 0){
+        const scale = dist / pinchLastDist;
+        zoomAtLocal(midX, midY, scale);
+      }
+      pinchLastDist = dist;
+      isPinching = true;
+      // Prevent page scroll/zoom while pinching
+      e.preventDefault();
+      return;
+    }
+  }
+
+  // Single-pointer move: update cursor position for interactions
+  const world = screenToWorld(pos.x, pos.y);
   cp = world;
   pointerActive = true;
+});
+
+canvas.addEventListener('pointerup', e => {
+  activePointers.delete(e.pointerId);
+  isPinching = activePointers.size >= 2;
+  if(activePointers.size < 2){ pinchLastDist = 0; }
+});
+canvas.addEventListener('pointercancel', e => {
+  activePointers.delete(e.pointerId);
+  isPinching = activePointers.size >= 2;
+  if(activePointers.size < 2){ pinchLastDist = 0; }
 });
 canvas.addEventListener('pointerenter', () => { pointerInside = true; });
 canvas.addEventListener('pointerleave', () => { pointerInside = false; });
@@ -1335,34 +1422,16 @@ canvas.addEventListener('pointerleave', () => { pointerInside = false; });
 // Zoom with mouse wheel (middle-button scroll). Zooms toward cursor, clamps range.
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  // Zoom factor: positive deltaY -> zoom out, negative -> zoom in
+  // Positive deltaY -> zoom out, negative -> zoom in
   const zoom = Math.exp(-e.deltaY * 0.001);
-  const minH = 10;   // max zoom-in (show fewer world units)
-  const maxH = 200;  // max zoom-out (show more world units)
-
-  // Use current center snapshot; if following, unlock and pin to current centroid
-  const c = getViewCenter();
-  if(viewState.follow){
-    viewState.centerX = c.x;
-    viewState.centerY = c.y;
-    viewState.follow = false;
+  // Use offsetX/Y when available; fall back to client coords
+  const hasOffset = Number.isFinite(e.offsetX) && Number.isFinite(e.offsetY);
+  if(hasOffset){
+    zoomAtLocal(e.offsetX, e.offsetY, zoom);
+  } else {
+    const pos = getLocalPosFromClient(e);
+    zoomAtLocal(pos.x, pos.y, zoom);
   }
-
-  // World position under cursor before zoom
-  const before = screenToWorld(e.offsetX, e.offsetY);
-
-  // Apply zoom as change to world-height (inverse of screen scale)
-  const prevH = viewState.worldHeight;
-  let nextH = prevH / zoom;
-  nextH = Math.max(minH, Math.min(maxH, nextH));
-  viewState.worldHeight = nextH;
-
-  // World position under cursor after zoom (with same center)
-  const after = screenToWorld(e.offsetX, e.offsetY);
-
-  // Adjust center so the cursor stays anchored on the same world point
-  viewState.centerX += (before.x - after.x);
-  viewState.centerY += (before.y - after.y);
 }, { passive: false });
 
 canvas.addEventListener('click', e => {

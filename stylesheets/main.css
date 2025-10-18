@@ -163,6 +163,73 @@ footer img {
 	-webkit-filter: invert(100%);
 }
 
+/* YouTube creators grid */
+#yt-creators.yt-grid,
+#yt-creators .yt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-gap: 14px;
+  align-items: start;
+}
+
+/* toolbar sits above grid */
+.yt-toolbar {
+  margin: 8px 0 12px;
+  display: flex;
+  gap: 8px;
+}
+.yt-toolbar button {
+  background: #333;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.yt-toolbar button:hover { background: #3c3c3c; }
+
+.yt-block {
+  background: rgba(30,30,30,0.9);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+/* details/summary styling */
+.yt-block summary {
+  list-style: none;
+  cursor: pointer;
+  font-weight: 700;
+  margin: -4px -6px 6px -6px;
+  padding: 6px 6px 6px 6px;
+}
+.yt-block summary::-webkit-details-marker { display: none; }
+.yt-block summary:before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  transform: rotate(0deg);
+  transition: transform 0.1s ease-in;
+}
+.yt-block[open] summary:before { transform: rotate(90deg); }
+.yt-block .yt-count { opacity: 0.8; font-weight: 400; }
+
+.yt-block ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.yt-block li { margin: 0.1rem 0; }
+
+.yt-block a {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* review index page */
 
 #review-list li,
