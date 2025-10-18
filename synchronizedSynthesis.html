@@ -253,8 +253,8 @@ input[type="range"] {
         </div>
         <div class="control-row">
           <label>Speed <input type="range" id="speed" min="0.05" max="10" step="0.05" value="5" /></label>
-          <label>Size in X <input type="range" id="nx" min="8" max="50" step="1" value="30" /></label>
-          <label>Size in Y <input type="range" id="ny" min="8" max="50" step="1" value="30" /></label>
+          <label>Size in X <input type="range" id="nx" min="8" max="50" step="1" value="50" /></label>
+          <label>Size in Y <input type="range" id="ny" min="8" max="50" step="1" value="50" /></label>
           <label>Chaos <input type="range" id="jitter" min="0" max="1" step="0.01" value="0.01" /></label>
         </div>
         <div class="control-row">
@@ -495,8 +495,8 @@ const TWO_PI = Math.PI * 2;
 
 class SynchronizedSynth {
   constructor(options = {}) {
-    this.Nx = options.Nx ?? 30;
-    this.Ny = options.Ny ?? 30;
+    this.Nx = options.Nx ?? 50;
+    this.Ny = options.Ny ?? 50;
     this.Nr = this.Nx * this.Ny;
     this.thetaResolution = options.thetaResolution ?? 720;
 

@@ -391,6 +391,7 @@ function getViewCenter(){
   if(viewState.follow){ return {x: meanX(), y: meanY()}; }
   return {x: viewState.centerX, y: viewState.centerY};
 }
+
 function nudgeView(dx, dy){
   if(viewState.follow){
     const c = {x: meanX(), y: meanY()};
