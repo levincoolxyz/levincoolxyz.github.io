@@ -1985,14 +1985,31 @@ for (let index = 0; index < keyFaces.length; index += 1) {
   keyElements[index] = key;
 }
 
+// Normalize browser key identifiers to our keyCodes entries.
+function normalizeKeyForPiano(event){
+  // Prefer event.key when it is a simple printable key we expect
+  let k = event.key;
+  // Map Safari/Firefox code names to printable characters
+  // Use event.code when key is a named code on some browsers
+  const c = event.code || '';
+  // BracketRight/BracketLeft/Quote/Semicolon may appear as code values
+  if (k === 'Semicolon' || c === 'Semicolon') k = ';';
+  if (k === 'Quote' || c === 'Quote') k = "'";
+  if (k === 'BracketRight' || c === 'BracketRight') k = ']';
+  if (k === 'BracketLeft' || c === 'BracketLeft') k = '['; // not used, but safe
+  if (k === 'Return') k = 'Enter';
+  return k;
+}
+
 window.addEventListener('keydown', (event) => {
   if (event.repeat) return;
-  const idx = keyCodes.indexOf(event.key);
+  const key = normalizeKeyForPiano(event);
+  const idx = keyCodes.indexOf(key);
   if (idx !== -1) {
     triggerKey(idx);
     return;
   }
-  switch (event.key) {
+  switch (key) {
     case '+': case '=':{
       octaveUpBtn.click();
       break;
@@ -2058,7 +2075,8 @@ window.addEventListener('keydown', (event) => {
 });
 
 window.addEventListener('keyup', (event) => {
-  const idx = keyCodes.indexOf(event.key);
+  const key = normalizeKeyForPiano(event);
+  const idx = keyCodes.indexOf(key);
   if (idx !== -1) {
     releaseKey(idx);
   }

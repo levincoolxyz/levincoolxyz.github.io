@@ -398,10 +398,11 @@ let viewState = {follow: true, centerX: 0, centerY: 0, worldHeight: 40};
 // Zoom limits (world units visible vertically)
 const MIN_WORLD_H = 10;
 const MAX_WORLD_H = 200;
-// Track active pointers for pinch-zoom
+// Track active pointers for pinch-zoom and two-finger pan
 const activePointers = new Map(); // pointerId -> {x,y}
 let pinchLastDist = 0;
 let isPinching = false;
+let twoPanLastMidWorld = null; // world-space midpoint anchor for two-finger pan
 function getViewCenter(){
   if(viewState.follow){ return {x: meanX(), y: meanY()}; }
   return {x: viewState.centerX, y: viewState.centerY};
@@ -1363,6 +1364,22 @@ canvas.addEventListener('pointerdown', e => {
   activePointers.set(e.pointerId, pos);
   pinchLastDist = 0;
   isPinching = activePointers.size >= 2;
+  if(activePointers.size >= 2){
+    // Initialize two-finger pan anchor and disable follow like arrow keys
+    const it = activePointers.values();
+    const p1 = it.next().value; const p2 = it.next().value;
+    if(p1 && p2){
+      const midX = (p1.x + p2.x)/2;
+      const midY = (p1.y + p2.y)/2;
+      twoPanLastMidWorld = screenToWorld(midX, midY);
+      if(viewState.follow){
+        const c = {x: meanX(), y: meanY()};
+        viewState.centerX = c.x;
+        viewState.centerY = c.y;
+        viewState.follow = false;
+      }
+    }
+  }
   try { canvas.setPointerCapture(e.pointerId); } catch {}
 });
 
@@ -1374,7 +1391,7 @@ canvas.addEventListener('pointermove', e => {
   }
 
   if(activePointers.size >= 2){
-    // Pinch-zoom: use the first two pointers
+    // Pinch-zoom + two-finger pan: use the first two pointers
     const it = activePointers.values();
     const p1 = it.next().value;
     const p2 = it.next().value;
@@ -1384,17 +1401,31 @@ canvas.addEventListener('pointermove', e => {
       const dist = Math.hypot(dx, dy);
       const midX = (p1.x + p2.x)/2;
       const midY = (p1.y + p2.y)/2;
-      // Keep cp at the midpoint in world coords for mobile behaviors
-      cp = screenToWorld(midX, midY);
+      // Set interaction flags and disable follow if not already done
       pointerActive = true;
       pointerInside = true;
+      if(viewState.follow){
+        const c = {x: meanX(), y: meanY()};
+        viewState.centerX = c.x;
+        viewState.centerY = c.y;
+        viewState.follow = false;
+      }
+      // Pan: translate center so the world-point under the midpoint remains stable
+      const beforeWorld = twoPanLastMidWorld ?? screenToWorld(midX, midY);
+      // Zoom: adjust scale around the midpoint
       if(pinchLastDist > 0){
         const scale = dist / pinchLastDist;
         zoomAtLocal(midX, midY, scale);
       }
+      // After zoom, compute world at new midpoint and shift center accordingly
+      const afterWorld = screenToWorld(midX, midY);
+      viewState.centerX += (beforeWorld.x - afterWorld.x);
+      viewState.centerY += (beforeWorld.y - afterWorld.y);
+      // Update anchors
+      twoPanLastMidWorld = screenToWorld(midX, midY);
       pinchLastDist = dist;
       isPinching = true;
-      // Prevent page scroll/zoom while pinching
+      // Prevent page scroll/zoom while pinching/panning
       e.preventDefault();
       return;
     }
@@ -1409,12 +1440,12 @@ canvas.addEventListener('pointermove', e => {
 canvas.addEventListener('pointerup', e => {
   activePointers.delete(e.pointerId);
   isPinching = activePointers.size >= 2;
-  if(activePointers.size < 2){ pinchLastDist = 0; }
+  if(activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
 });
 canvas.addEventListener('pointercancel', e => {
   activePointers.delete(e.pointerId);
   isPinching = activePointers.size >= 2;
-  if(activePointers.size < 2){ pinchLastDist = 0; }
+  if(activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
 });
 canvas.addEventListener('pointerenter', () => { pointerInside = true; });
 canvas.addEventListener('pointerleave', () => { pointerInside = false; });
