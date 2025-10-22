@@ -8,3 +8,4 @@
 * Be VERY careful when translate complex number and vectorized arithematics from MATLAB into javascript or other languages. Double check signs and conventions and perform small scale tests if at all possible.
 * For new code/file always add CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike) https://creativecommons.org/licenses/by-nc-sa/4.0/ notices.
 * When user asks for debugging, first check arithematic and condition logics (variable scope and execution sequence/path) before jumping to big conclusions on missing modules or functionalities. Don't be lazy and be padentic.
+* When rendering or drawing under periodic boundary conditions, avoid long chords that jump across wrap edges: either remap segments to the minimum image or break polylines at crossings so particle traces and geometries visually respect periodicity.

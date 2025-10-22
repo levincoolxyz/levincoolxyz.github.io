@@ -1,0 +1,1990 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike) https://creativecommons.org/licenses/by-nc-sa/4.0/ -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fish School Simulation</title>
+  <style>
+    :root{--bg:#0b0d12;--fg:#e8eaed;--muted:#9aa0a6;--acc:#8ab4f8;--panel:#0f131d;--border:#1f2937;--danger:#ef5350;--success:#4caf50}
+    html,body{height:100%;margin:0}
+    body{background:var(--bg);color:var(--fg);font:14px/1.4 "Inter",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    .app{display:grid;grid-template-columns:minmax(280px,360px) 1fr;grid-template-rows:auto 1fr;height:100%;min-height:0;transition:grid-template-columns .25s ease}
+    .app>*{min-width:0;min-height:0}
+    .app.collapsed{grid-template-columns:0 1fr}
+    header{grid-column:1 / -1;padding:12px 16px;border-bottom:1px solid var(--border);background:#0f1113}
+    header .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    header h1{font-size:18px;margin:0}
+    header small{color:var(--muted)}
+    main{grid-column:2 / -1;position:relative;background:#05070c;display:flex;align-items:stretch;justify-content:stretch}
+    /* Ensure the drawing surface always fills its slot and never leaves
+       stray gaps due to min-heights/flex sizing rounding */
+    #view{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;min-height:0;flex:1 1 auto}
+    canvas{width:100%;height:100%;display:block;background:#05070c;touch-action:none}
+    aside{background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:16px;overflow:hidden;min-height:0;transition:padding .2s ease,border-color .2s ease,transform .25s ease;scrollbar-width:thin}
+    aside h2{margin:0;font-size:15px;color:var(--fg)}
+    .controls{flex:1;display:flex;flex-direction:column;gap:12px;overflow:auto;padding:0 4px 0 0;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;scroll-padding-bottom:120px;padding-bottom:max(72px,env(safe-area-inset-bottom,0px)+48px)}
+    .control{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,160px);gap:10px;align-items:center}
+    .control label{font-size:12px;color:var(--muted)}
+    .control span.value{color:var(--fg);font-variant-numeric:tabular-nums}
+    .control input[type=range]{width:100%}
+    .control input[type=checkbox]{justify-self:end}
+    .buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+    button, .toggle{background:#1a2536;color:var(--fg);border:1px solid #233047;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;transition:background .2s ease,color .2s ease,border .2s ease}
+    button:hover, .toggle:hover{background:#223149}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .toggle.active{background:var(--acc);color:#041024;border-color:#5d8df4}
+    .toggle.disabled{opacity:.55;cursor:not-allowed;filter:saturate(0.6)}
+    .toggles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+    .btn-toggle{background:#10192a;color:var(--fg);border:1px solid #233047;border-radius:10px;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,border .2s ease,color .2s ease}
+    .btn-toggle:hover{background:#17253b}
+    .algo-note{margin:16px 4px 0;padding:12px 14px;border:1px solid rgba(143,160,181,.35);border-radius:12px;background:rgba(15,23,42,.55);color:var(--muted);font-size:12px;line-height:1.5}
+    .app.collapsed aside{pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
+    .app.collapsed main{grid-column:1 / -1}
+    .app:not(.collapsed) aside{pointer-events:auto;opacity:1;transform:translateX(0)}
+    .app.collapsed header .row{gap:10px}
+    #stats{position:absolute;left:12px;bottom:12px;padding:8px 10px;background:rgba(0,0,0,.45);border-radius:8px;font:12px ui-monospace;color:#cbd5e1;white-space:pre}
+    #messages{position:absolute;right:12px;bottom:12px;padding:10px 14px;background:rgba(43,27,27,.85);color:#ffdcdc;border:1px solid #a55;border-radius:10px;font:12px ui-monospace;display:none;max-width:46ch}
+    /* Waveform overlay */
+    #waveform{position:absolute;right:12px;bottom:100px;width:300px;height:80px;background:rgba(0,0,0,.45);border:1px solid var(--border);border-radius:8px}
+    .tutorial-note{position:absolute;right:16px;top:120px;width:min(280px,90vw);padding:12px 14px;background:rgba(15,23,42,.78);border:1px solid rgba(148,163,184,.35);border-radius:12px;color:var(--fg);font-size:12px;line-height:1.5;z-index:5;box-shadow:0 14px 38px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+    .tutorial-note header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+    .tutorial-note header strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .tutorial-note button[data-close]{background:transparent;border:1px solid rgba(148,163,184,.4);color:var(--muted);border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+    .tutorial-note button[data-close]:hover{color:var(--fg);border-color:rgba(148,163,184,.7)}
+    .tutorial-note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+    .tutorial-note li{color:var(--fg)}
+    a{color:var(--acc)}
+    /* D‑pad overlay (top-right) */
+    #fishDpad{position:absolute;right:16px;top:16px;display:grid;grid-template-columns:28px 28px 28px;grid-template-rows:28px 28px 28px;gap:6px;user-select:none;z-index:4}
+    #fishDpad button{width:28px;height:28px;border-radius:6px;border:1px solid #233047;background:#10192a;color:#e8eaed;cursor:pointer}
+    #fishDpad button:hover{background:#17253b}
+    @media (max-width:960px){
+      .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+      /* When collapsed on narrow screens, remove the aside row entirely. */
+      .app.collapsed{grid-template-columns:1fr;grid-template-rows:auto 0 1fr}
+      aside{grid-column:1 / -1;max-height:min(420px,60vh)}
+      /* Ensure collapsed aside contributes zero height and doesn't leave a gap */
+      .app.collapsed aside{max-height:0 !important;height:0 !important;padding:0 !important;border:0 !important;overflow:hidden}
+      main{grid-column:1 / -1;min-height:55vh}
+    }
+    @media (max-width:640px){
+      header h1{font-size:16px}
+      .btn-toggle{width:34px;height:34px}
+      .control{grid-template-columns:1fr}
+      .control input[type=checkbox]{justify-self:start}
+      .toggles{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+    }
+    @media (max-width:520px){
+      .buttons{grid-template-columns:1fr}
+      .toggles{grid-template-columns:minmax(0,1fr)}
+      .toggle{text-align:center}
+    }
+  </style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="row">
+      <button id="togglePanel" class="btn-toggle" aria-label="Collapse controls" aria-expanded="true">&laquo;</button>
+      <h1>Fish School Simulation</h1>
+      <button id="playPause">Pause</button>
+      <button id="respawn">Reset</button>
+      <div class="toggle" data-key="bait" title="Toggle bait placement (click canvas to add)">Set baits</div>
+      <button id="clearBaits">Remove baits</button>
+      <div class="toggle" data-key="shark">Baskin' shark</div>
+      <div class="toggle" data-key="whale">Blue whale!</div>
+      <div class="toggle" data-key="goal">Shark target</div>
+      <div class="toggle" data-key="whaleFollow">Whale follows cursor</div>
+      <div class="toggle" data-key="audio">Audio</div>
+      <small>Potential-flow dipole swimmers with Voronoi vision control</small>
+    </div>
+  </header>
+  <aside id="panel" tabindex="-1">
+    <h2>Controls</h2>
+    <div class="controls">
+      <div class="control">
+        <label for="initMode">Initial condition</label>
+        <select id="initMode">
+          <option value="random">2D Gaussian</option>
+          <option value="line">Line formation</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="N">School size (force respawn): <span class="value" id="NVal">150</span></label>
+        <input id="N" type="range" min="10" max="10000" step="1" value="150">
+      </div>
+      <div class="control">
+        <label for="Ia">Alignment by vision I<sub>a</sub>: <span class="value" id="IpVal">1.50</span></label>
+        <input id="Ia" type="range" min="0.01" max="10" step="0.01" value="1.5">
+      </div>
+      <div class="control">
+        <label for="In">Free-will noise I<sub>n</sub>: <span class="value" id="InVal">0.30</span></label>
+        <input id="In" type="range" min="0" max="5" step="0.01" value="0.3">
+      </div>
+      <div class="control">
+        <label for="hydro">Regularized dipole-field hydrodynamic interactions</label>
+        <input id="hydro" type="checkbox" checked>
+      </div>
+      <div class="control">
+        <label for="hydroShell">Hydrodynamics for nearest Voronoi only</label>
+        <input id="hydroShell" type="checkbox" checked>
+      </div>
+      <div class="control">
+        <label for="hydroRange">Hydrodynamics with cutoff distance R <span class="value" id="hydroRVal">5.0</span></label>
+        <input id="hydroRange" type="checkbox">
+      </div>
+      <div class="control">
+        <label for="hydroRadius">Cutoff radius R</label>
+        <input id="hydroRadius" type="range" min="0.5" max="20" step="0.1" value="5.0">
+      </div>
+      <div class="toggles">
+        <div class="toggle active" data-key="mouse">Scary cursor</div>
+        <div class="toggle active" data-key="death">Enable death</div>
+        <div class="toggle active" data-key="evade">Auto evade</div>
+        <div class="toggle active" data-key="hard">Auto hunt</div>
+      </div>
+      <div class="control">
+        <label for="audioVol">Audio volume <span class="value" id="audioVolVal">0.20</span></label>
+        <input id="audioVol" type="range" min="0" max="1" step="0.01" value="0.20">
+      </div>
+      <div class="control">
+        <label for="audioTheta">Angle gain gθ <span class="value" id="audioThetaVal">16.0</span></label>
+        <input id="audioTheta" type="range" min="0" max="64" step="0.1" value="16">
+      </div>
+      <div class="control">
+        <label for="audioSpeed">Speed gain gS <span class="value" id="audioSpeedVal">1.00</span></label>
+        <input id="audioSpeed" type="range" min="0" max="4" step="0.01" value="1.00">
+      </div>
+      <div class="control">
+        <label for="audioFreq">Carrier freq <span class="value" id="audioFreqVal">220 Hz</span></label>
+        <input id="audioFreq" type="range" min="20" max="2000" step="1" value="220">
+      </div>
+      <div class="control">
+        <label for="audioBias">Bias gain gB <span class="value" id="audioBiasVal">0.80</span></label>
+        <input id="audioBias" type="range" min="0" max="2" step="0.01" value="0.80">
+      </div>
+      <div class="control">
+        <label for="audioFM">Freq dev gF <span class="value" id="audioFMVal">120</span></label>
+        <input id="audioFM" type="range" min="0" max="400" step="1" value="120">
+      </div>
+      
+      <p class="algo-note">
+        Alignement torques are averaged over Delaunay neighbors with vision cone bias, dipole flow field shape hydrodynamic interactions, wrapped Gaussian turning noise injects 'agency' per fish, evasive behavior based on vision and orthogonal turning. Fish color indicates speed (shinier is faster).
+      </p>
+      <p class="algo-note">For more with geometric confinement see <a href="https://www.pnas.org/doi/full/10.1073/pnas.2406293121">our paper</a> in PNAS.</p>
+    </div>
+  </aside>
+  <main>
+    <div id="view">
+      <canvas id="canvas"></canvas>
+      <canvas id="waveform" width="300" height="80" aria-label="Audio waveform"></canvas>
+      <div id="stats"></div>
+      <div id="messages"></div>
+      <div id="fishDpad" title="Pan view (arrow keys or buttons); center to follow">
+        <div></div>
+        <button id="fishPanUp">↑</button>
+        <div></div>
+        <button id="fishPanLeft">←</button>
+        <button id="fishPanCenter">•</button>
+        <button id="fishPanRight">→</button>
+        <div></div>
+        <button id="fishPanDown">↓</button>
+        <div></div>
+      </div>
+      <div class="tutorial-note" id="dipoleNavNote">
+        <header>
+          <strong>Navigation tips</strong>
+          <button type="button" data-close aria-label="Hide navigation tips">×</button>
+        </header>
+        <ul>
+          <li>Pan the camera with arrow keys or the D-pad buttons (Shift = bigger step).</li>
+          <li>Zoom in/out with the mouse wheel to cursor position.</li>
+          <li>Use the center dot to focus on the school centroid.</li>
+          <li>Press Space or Pause/Play to halt the simulation.</li>
+          <li>Fish is scared of your (moving) cursor by default, turn off with "Scary Cursor" toggle.</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+</div>
+<script type="module">
+// CDN-first import with local snapshot fallback for d3-delaunay
+async function importWithFallback(candidates){
+  for (const url of candidates){
+    try { return await import(url); } catch(e){ console.warn('Import failed:', url, e); }
+  }
+  throw new Error('All import candidates failed: ' + candidates.join(', '));
+}
+async function loadScript(src){
+  return new Promise((resolve, reject)=>{
+    const s=document.createElement('script');
+    s.src=src; s.async=true;
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('Script load failed: '+src));
+    document.head.appendChild(s);
+  });
+}
+let Delaunay;
+try {
+  const mod = await importWithFallback([
+    'https://cdn.skypack.dev/d3-delaunay@6',
+  ]);
+  Delaunay = mod.Delaunay ?? mod.default ?? mod;
+} catch (err) {
+  console.warn('Falling back to UMD d3-delaunay:', err);
+  await loadScript('/javascripts/vendor/d3-delaunay/6/d3-delaunay.min.js');
+  // UMD attaches to global d3
+  Delaunay = (window.d3 && window.d3.Delaunay) ? window.d3.Delaunay : undefined;
+  if (!Delaunay) throw new Error('Unable to load Delaunay from local UMD');
+}
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const statsEl = document.getElementById('stats');
+const messageEl = document.getElementById('messages');
+const appEl = document.getElementById('app');
+const togglePanelBtn = document.getElementById('togglePanel');
+const panelEl = document.getElementById('panel');
+// Keep JS breakpoint in sync with CSS media query (960px)
+const collapseQuery = window.matchMedia('(max-width: 960px)');
+let userLockedPanel = false;
+
+const focusPanel = () => {
+  if(!panelEl || typeof panelEl.focus !== 'function') return;
+  try {
+    panelEl.focus({preventScroll:true});
+  } catch (err) {
+    panelEl.focus();
+  }
+};
+
+const setCollapsed = (collapsed) => {
+  appEl.classList.toggle('collapsed', collapsed);
+  togglePanelBtn.setAttribute('aria-expanded', String(!collapsed));
+  togglePanelBtn.innerHTML = collapsed ? '&raquo;' : '&laquo;';
+  togglePanelBtn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
+  requestAnimationFrame(resize);
+};
+
+togglePanelBtn.addEventListener('click', () => {
+  const collapsed = !appEl.classList.contains('collapsed');
+  userLockedPanel = true;
+  setCollapsed(collapsed);
+  if(!collapsed){
+    focusPanel();
+  }
+});
+
+const handleCollapseChange = (event) => {
+  if(userLockedPanel) return;
+  setCollapsed(event.matches);
+};
+
+collapseQuery.addEventListener?.('change', handleCollapseChange);
+collapseQuery.addListener?.(handleCollapseChange);
+// Initialize collapsed state to match media query layout
+setCollapsed(collapseQuery.matches);
+
+const controls = {
+  N: document.getElementById('N'),
+  NVal: document.getElementById('NVal'),
+  initMode: document.getElementById('initMode'),
+  Ia: document.getElementById('Ia'),
+  In: document.getElementById('In'),
+  IpVal: document.getElementById('IpVal'),
+  InVal: document.getElementById('InVal'),
+  hydro: document.getElementById('hydro'),
+  hydroShell: document.getElementById('hydroShell'),
+  hydroRange: document.getElementById('hydroRange'),
+  hydroRadius: document.getElementById('hydroRadius'),
+  hydroRVal: document.getElementById('hydroRVal'),
+  respawn: document.getElementById('respawn'),
+  clearBaits: document.getElementById('clearBaits'),
+  audioVol: document.getElementById('audioVol'),
+  audioVolVal: document.getElementById('audioVolVal'),
+  audioTheta: document.getElementById('audioTheta'),
+  audioThetaVal: document.getElementById('audioThetaVal'),
+  audioSpeed: document.getElementById('audioSpeed'),
+  audioSpeedVal: document.getElementById('audioSpeedVal'),
+  audioFreq: document.getElementById('audioFreq'),
+  audioFreqVal: document.getElementById('audioFreqVal'),
+  audioBias: document.getElementById('audioBias'),
+  audioBiasVal: document.getElementById('audioBiasVal'),
+  audioFM: document.getElementById('audioFM'),
+  audioFMVal: document.getElementById('audioFMVal'),
+};
+const playPauseBtn = document.getElementById('playPause');
+let isPlaying = true;
+const setPlaying = (playing) => {
+  isPlaying = playing;
+  if (playPauseBtn) {
+    playPauseBtn.textContent = isPlaying ? 'Pause' : 'Play';
+  }
+  startTime = performance.now();
+};
+if (playPauseBtn){
+  playPauseBtn.addEventListener('click', () => {
+    setPlaying(!isPlaying);
+  });
+}
+
+const stateFlags = {
+  mouse: true,
+  shark: false,
+  whale: false,
+  evade: true,
+  death: true,
+  hard: true,
+  whaleFollow: false,
+  audio: false,
+};
+
+const armedPlacers = {bait:false, goal:false};
+const toggleButtons = new Map();
+document.querySelectorAll('.toggle').forEach(btn => {
+  const key = btn.dataset.key;
+  toggleButtons.set(key, btn);
+  if(btn.classList.contains('active')) stateFlags[key] = true;
+  btn.addEventListener('click', () => {
+    if(btn.classList.contains('disabled')) return;
+    if(key === 'goal'){
+      const active = btn.classList.toggle('active');
+      armedPlacers.goal = active;
+      if (!active) sharkGoal = null;
+      return;
+    } else if (key === 'bait') {
+      const active = btn.classList.toggle('active');
+      armedPlacers.bait = active;
+      return;
+    }
+    const active = btn.classList.toggle('active');
+    if(key === 'death'){
+      stateFlags[key] = active;
+    }else{
+      stateFlags[key] = active;
+    }
+    if(key === 'shark'){
+      updateGoalUiDisabled();
+    }
+    if(key === 'audio'){
+      if(active){ startAudio(); } else { stopAudio(); }
+    }
+  });
+});
+
+function updateGoalUiDisabled(){
+  const goalBtn = toggleButtons.get('goal');
+  if(!goalBtn) return;
+  const enabled = !!stateFlags.shark;
+  goalBtn.classList.toggle('disabled', !enabled);
+}
+
+const params = {
+  n: 150,
+  dt: 0.05,
+  If: 1e-2,
+  attrS: 1,
+  fishL: 0.6,
+  fishH: 0.1,
+  replD: 0.6 * 2,
+  replS: 100,
+  sharkH: 3,
+  whaleH: 8,
+};
+
+const fishShape = {
+  x: [-0.5,-0.25,0,0.1,0.125,0.1,0,-0.25],
+  y: [0,0.075,0.1,0.05,0,-0.05,-0.1,-0.075].map(v => v/2),
+};
+
+const sharkShape = {
+  head: {
+    x: [0,0,-0.05,0.05,1,1.8,2.25,3,2.25,1.8,1,0.05,-0.05,0],
+    y: [0,1,1.85,2,1,0.9,0.5,0,-0.5,-0.9,-1,-2,-1.85,-1],
+  },
+  body: {
+    x: [-4,-3.33,-2,-1,0,1,2,1,0,-1,-2,-3.33,-4],
+    y: [0,0.48,0.75,0.85,1,1,0,-1,-1,-0.85,-0.75,-0.48,0],
+  },
+  tail: {
+    x: [-6.6,-6.5,-5.6,-4.6,-4,-2.5,-2.5,-4,-4.6,-5.6,-6.5],
+    y: [0,0.1,0.15,0.25,0.5,0.6,0,-0.6,-0.5,-0.25,-0.1],
+  },
+};
+
+const sharkHeadOffset = 1.5; // distance from shark reference point to mouth
+const whaleHeadOffset = 0.8; // distance from shark reference point to mouth
+
+const whaleShape = {
+  x: [-3.9,-4,-3.75,-3.5,-1.5,0,-0.15,-0.4,0.25,0.75,1.5,1.85,2,1.85,1.5,0.75,0.25,-0.4,-0.15,0,-1.5,-3.5,-3.75,-4,-3.9].map(v => v*2),
+  y: [0,0.9,0.67,0.2,0.75,1,1.5,2,1.5,1,0.75,0.45,0,-0.45,-0.75,-1,-1.5,-2,-1.5,-1,-0.75,-0.2,-0.67,-0.9,0].map(v => v*2),
+};
+
+let errTol = 1e-12;
+
+let fishes = [];
+let velocities = [];
+let wBuffer = [];
+let baits = [];
+let sharkGoal = null;
+let cp = {x:0,y:0};
+let pointerActive = false;
+let pointerInside = false;
+
+let sharkState = {pos:{x:-25,y:0},theta:0};
+let whaleState = {pos:{x:0,y:-25},theta:Math.PI/2};
+let startTime = performance.now();
+
+function pushScalar(val){
+  const t = audioState.ctx ? audioState.ctx.currentTime : (performance.now()/1000);
+  audioState.ringHead = (audioState.ringHead + 1) % audioState.ringSize;
+  audioState.ringVals[audioState.ringHead] = val;
+  audioState.ringTimes[audioState.ringHead] = t;
+  if(audioState.ringCount < audioState.ringSize) audioState.ringCount++;
+}
+
+// Audio state (mono, no carrier): output ~ sum_i gS*speed_i * cos(gθ*theta_i)
+const audioState = {
+  ctx: null,
+  gain: null,
+  node: null, // AudioWorkletNode (may be null if ScriptProcessor fallback is used)
+  vol: 0.20,
+  gainK: 1.0,
+  gTheta: 16.0,
+  gSpeed: 1.0,
+  freq: 220,
+  biasGain: 0.8,
+  freqDev: 120,
+  scalar: 0, // aggregate sum_i speed_i * cos(theta_i)
+  // Ring buffer of recent scalar values with timestamps (for interpolation)
+  ringSize: 512,
+  ringVals: null,
+  ringTimes: null,
+  ringHead: -1,
+  ringCount: 0,
+  // Playback state for ScriptProcessor fallback
+  playT: 0,
+  playSeg: 0,
+  // Waveform preview buffer
+  wavePreview: new Float32Array(256),
+};
+
+// Init audio ring buffers (after audioState exists)
+audioState.ringVals = new Float32Array(audioState.ringSize);
+audioState.ringTimes = new Float64Array(audioState.ringSize);
+
+// Voronoi→mono mapping config (feeds existing audio worklet)
+const audioVoronoiMap = {
+  R: 2.0,
+  rhoMax: 6.0,
+  kV: 120,       // Hz per mean speed
+  kD: 60,        // Hz per mean Doppler proj
+  fNyqFrac: 0.33,
+  kSig: 600,     // freqDev gain per heading spread
+  A0: 0.03,      // base loudness factor
+  kKappa: 0.04,  // loudness vs curvature
+  kJerk: 0.02,   // loudness vs jerk proxy
+};
+const clamp01 = (x)=>Math.max(0, Math.min(1, x));
+
+// View state for panning/following centroid
+// View state for panning/following centroid + zoom (worldHeight = vertical world units visible)
+let viewState = {follow: true, centerX: 0, centerY: 0, worldHeight: 40};
+// Zoom limits (world units visible vertically)
+const MIN_WORLD_H = 10;
+const MAX_WORLD_H = 200;
+// Track active pointers for pinch-zoom and two-finger pan
+const activePointers = new Map(); // pointerId -> {x,y}
+let pinchLastDist = 0;
+let isPinching = false;
+let twoPanLastMidWorld = null; // world-space midpoint anchor for two-finger pan
+function getViewCenter(){
+  if(viewState.follow){ return {x: meanX(), y: meanY()}; }
+  return {x: viewState.centerX, y: viewState.centerY};
+}
+
+function nudgeView(dx, dy){
+  if(viewState.follow){
+    const c = {x: meanX(), y: meanY()};
+    viewState.centerX = c.x;
+    viewState.centerY = c.y;
+    viewState.follow = false;
+  }
+  viewState.centerX += dx;
+  viewState.centerY += dy;
+}
+
+function resetSchool(){
+  fishes = [];
+  velocities = [];
+  wBuffer = [];
+  const mode = controls.initMode?.value || 'random';
+  if(mode === 'line'){
+    // MATLAB-style line formation
+    // r = [ones(n,1), linspace(-10,10,n)'] + randn(n,1)/5;
+    // alpha = zeros(n,1);
+    const n = params.n;
+    for(let i=0;i<n;i++){
+      const t = n > 1 ? (i/(n-1)) : 0.5;
+      const y = -10 + 20*t+gaussian();
+      const x = gaussian();
+      const theta = 0; // face +x
+      fishes.push({x:x, y:y + gaussian(), theta});
+      velocities.push({x:0,y:0});
+      wBuffer.push(0);
+    }
+  } else {
+    for(let i=0;i<params.n;i++){
+      const theta = Math.random()*Math.PI*2;
+      fishes.push({x:gaussian()*10,y:gaussian()*10,theta});
+      velocities.push({x:0,y:0});
+      wBuffer.push(0);
+    }
+  }
+}
+
+function gaussian(){
+  let u=0,v=0;
+  while(u===0) u=1-Math.random(); //Converting [0,1) to (0,1]
+  while(v===0) v=Math.random();
+  return Math.sqrt(-2.0*Math.log(u))*Math.cos(2.0*Math.PI*v);
+}
+
+function wrapAngle(a){
+  a = (a + Math.PI) % (Math.PI*2);
+  if(a < 0) a += Math.PI*2;
+  return a - Math.PI;
+}
+
+function getSharkHeadPos(dir){
+  const ex = dir?.x ?? Math.cos(sharkState.theta);
+  const ey = dir?.y ?? Math.sin(sharkState.theta);
+  return {
+    x: sharkState.pos.x + ex * sharkHeadOffset,
+    y: sharkState.pos.y + ey * sharkHeadOffset,
+  };
+}
+
+function getWhaleHeadPos(dir){
+  const ex = dir?.x ?? Math.cos(whaleState.theta);
+  const ey = dir?.y ?? Math.sin(whaleState.theta);
+  return {
+    x: whaleState.pos.x + ex * whaleHeadOffset,
+    y: whaleState.pos.y + ey * whaleHeadOffset,
+  };
+}
+
+function getAngle(phi, dx, dy, dist){
+  const r = dist ?? Math.hypot(dx, dy);
+  if(!isFinite(r) || r === 0) {
+    console.log('overlapped fish or something wrong!', r);
+    return 0;
+  }
+  const rx = dx / r;
+  const ry = dy / r;
+  const ex = Math.cos(phi);
+  const ey = Math.sin(phi);
+  let cross = ex*ry - ey*rx;
+  let dot = ex*rx + ey*ry;
+  cross = Math.max(-1, Math.min(1, cross));
+  dot = Math.max(-1, Math.min(1, dot));
+  let theta = Math.acos(dot);
+  if(cross < 0) theta = -theta;
+  return theta;
+}
+
+function computeStep(){
+  const dt = params.dt;
+  const Ia = parseFloat(controls.Ia.value);
+  const In = parseFloat(controls.In.value);
+  const n = fishes.length;
+  if(!n) return;
+
+  const hydroEnabled = controls.hydro.checked;
+  const hydroShellOnly = hydroEnabled && controls.hydroShell?.checked && n >= 900;
+  const hydroRangeOnly = hydroEnabled && controls.hydroRange?.checked && n >= 900;
+  const rCut = parseFloat(controls.hydroRadius?.value ?? '3');
+  const cosT = fishes.map(f => Math.cos(f.theta));
+  const sinT = fishes.map(f => Math.sin(f.theta));
+
+  const delaunay = n >= 3 ? Delaunay.from(fishes, f => f.x, f => f.y) : null;
+  const delaunayNeighbors = delaunay ? Array.from({length:n}, (_,i) => Array.from(delaunay.neighbors(i))) : null;
+  const wVision = new Float64Array(n).fill(0);
+  const minDist = new Float64Array(n).fill(Infinity);
+
+  if(delaunay){
+    for(let i=0;i<n;i++){
+      const neighbors = delaunayNeighbors[i];
+      let sum = 0;
+      let denom = 0;
+      let minR = Infinity;
+      for(const j of neighbors){
+        if(j === i) continue;
+        const dx = fishes[j].x - fishes[i].x;
+        const dy = fishes[j].y - fishes[i].y;
+        const dist = Math.hypot(dx, dy);
+        // if(dist === 0) continue;
+        const theta = getAngle(fishes[i].theta, dx, dy, dist);
+        const phi = wrapAngle(fishes[j].theta - fishes[i].theta);
+        const weight = 1 + Math.cos(theta);
+        // if(weight <= 0) continue;
+        sum += (Ia*Math.sin(phi) + dist*Math.sin(theta))*weight;
+        denom += weight;
+        if(dist < minR) minR = dist;
+      }
+      wVision[i] = denom > errTol ? sum / denom : 0;
+      minDist[i] = minR;
+    }
+  }
+
+  if(baits.length){
+    const attrNum = Math.min(n, 5);
+    for(const bait of baits){
+      const distList = fishes.map((f,idx) => ({idx, dist: Math.hypot(bait.x - f.x, bait.y - f.y)}));
+      distList.sort((a,b) => a.dist - b.dist);
+      const attrD = (distList[0].dist + distList[Math.min(attrNum-1, distList.length-1)].dist)/2;
+      for(let k=0;k<attrNum && k<distList.length;k++){
+        const {idx, dist} = distList[k];
+        const dvx = bait.x - fishes[idx].x;
+        const dvy = bait.y - fishes[idx].y;
+        const wBait = getAngle(fishes[idx].theta, dvx, dvy, dist);
+        const blend = Math.exp(params.attrS * (dist - attrD));
+        wVision[idx] = (wVision[idx]*blend + wBait)/(1 + blend);
+      }
+    }
+  }
+
+  if(stateFlags.mouse && pointerActive){
+    for(let i=0;i<n;i++){
+      const dx = cp.x - fishes[i].x;
+      const dy = cp.y - fishes[i].y;
+      const dist = Math.hypot(dx, dy);
+      if(dist === 0) continue;
+      const wCp = getAngle(fishes[i].theta, -dy, -dx, dist);
+      const blend = Math.exp(params.replS * (params.replD - dist));
+      wVision[i] = (wVision[i] + wCp*blend)/(1 + blend);
+    }
+  }
+
+  const wNoise = new Array(n).fill(0).map(() => In*Math.sqrt(dt)*gaussian());
+  // Predator-induced panic noise (like MATLAB): amplify turning noise near predators
+  // Factor per fish: 1 + 2*In * sigmoid(H - d), where d is distance to predator
+  if(stateFlags.shark){
+    const head = getSharkHeadPos();
+    for(let i=0;i<n;i++){
+      const d = Math.hypot(head.x - fishes[i].x, head.y - fishes[i].y);
+      const sig = 1/(1 + Math.exp(-(params.sharkH - d)));
+      wNoise[i] *= (1 + 2*In*sig);
+    }
+  }
+  if(stateFlags.whale){
+    const head = getWhaleHeadPos();
+    for(let i=0;i<n;i++){
+      const d = Math.hypot(head.x - fishes[i].x, head.y - fishes[i].y);
+      const sig = 1/(1 + Math.exp(-(params.whaleH - d)));
+      wNoise[i] *= (1 + 2*In*sig);
+    }
+  }
+  const Ux = new Float64Array(n).fill(0);
+  const Uy = new Float64Array(n).fill(0);
+  const wHydro = new Float64Array(n).fill(0);
+
+  if(hydroEnabled){
+    if(hydroShellOnly && delaunayNeighbors){
+      // O(N * average degree) using Delaunay neighbors only
+      for(let i=0;i<n;i++){
+        let uR = 0, uI = 0, wSum = 0;
+        const neighbors = delaunayNeighbors[i];
+        for(const j of neighbors){
+          if(i === j) continue;
+          const dx = fishes[i].x - fishes[j].x;
+          const dy = fishes[i].y - fishes[j].y;
+          const r2 = dx*dx + dy*dy;
+          if(r2 < errTol) continue;
+          const invr4 = 1/(r2*r2);
+          const invr6 = invr4/r2;
+          const c2r = dx*dx - dy*dy;
+          const c2i = -2*dx*dy;
+          const c3r = c2r*dx + c2i*dy;
+          const c3i = c2r*(-dy) + c2i*dx;
+          const expOjR = cosT[j];
+          const expOjI = sinT[j];
+          const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+          const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+          const termUr = expOjR*c2r - expOjI*c2i;
+          const termUi = expOjR*c2i + expOjI*c2r;
+          const termWr = expTermR*c3r - expTermI*c3i;
+          const termWi = expTermR*c3i + expTermI*c3r;
+          uR += termUr * invr4;
+          uI += termUi * invr4;
+          wSum += termWi * invr6 * 2;
+        }
+        const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+        Ux[i] = uR / Math.PI * params.If * avoid;
+        Uy[i] = -uI / Math.PI * params.If * avoid;
+        wHydro[i] = wSum / Math.PI * params.If * avoid;
+      }
+    } else if(hydroRangeOnly){
+      // Spatial hash for O(N) range queries
+      const cell = rCut > 0 ? rCut : 1.0;
+      const r2cut = rCut*rCut;
+      const grid = new Map();
+      const key = (ix,iy) => ix + ',' + iy;
+      for(let i=0;i<n;i++){
+        const ix = Math.floor(fishes[i].x / cell);
+        const iy = Math.floor(fishes[i].y / cell);
+        const k = key(ix,iy);
+        let arr = grid.get(k);
+        if(!arr){ arr = []; grid.set(k, arr); }
+        arr.push(i);
+      }
+      for(let i=0;i<n;i++){
+        let uR = 0, uI = 0, wSum = 0;
+        const ix = Math.floor(fishes[i].x / cell);
+        const iy = Math.floor(fishes[i].y / cell);
+        for(let gx=ix-1; gx<=ix+1; gx++){
+          for(let gy=iy-1; gy<=iy+1; gy++){
+            const arr = grid.get(key(gx,gy));
+            if(!arr) continue;
+            for(const j of arr){
+              if(i === j) continue;
+              const dx = fishes[i].x - fishes[j].x;
+              const dy = fishes[i].y - fishes[j].y;
+              const r2 = dx*dx + dy*dy;
+              if(r2 > r2cut || r2 < errTol) continue;
+              const invr4 = 1/(r2*r2);
+              const invr6 = invr4/r2;
+              const c2r = dx*dx - dy*dy;
+              const c2i = -2*dx*dy;
+              const c3r = c2r*dx + c2i*dy;
+              const c3i = c2r*(-dy) + c2i*dx;
+              const expOjR = cosT[j];
+              const expOjI = sinT[j];
+              const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+              const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+              const termUr = expOjR*c2r - expOjI*c2i;
+              const termUi = expOjR*c2i + expOjI*c2r;
+              const termWr = expTermR*c3r - expTermI*c3i;
+              const termWi = expTermR*c3i + expTermI*c3r;
+              uR += termUr * invr4;
+              uI += termUi * invr4;
+              wSum += termWi * invr6 * 2;
+            }
+          }
+        }
+        const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+        Ux[i] = uR / Math.PI * params.If * avoid;
+        Uy[i] = -uI / Math.PI * params.If * avoid;
+        wHydro[i] = wSum / Math.PI * params.If * avoid;
+      }
+    } else {
+      // Fallback: full O(N^2) hydrodynamics (small N)
+      // let debug = 0;
+      for(let i=0;i<n;i++){
+        let uR = 0, uI = 0, wSum = 0;
+        for(let j=0;j<n;j++){
+          if(i === j) continue;
+          const dx = fishes[i].x - fishes[j].x;
+          const dy = fishes[i].y - fishes[j].y;
+          const r2 = dx*dx + dy*dy;
+          if(r2 < errTol) continue;
+          const invr4 = 1/(r2*r2);
+          const invr6 = invr4/r2;
+          const c2r = dx*dx - dy*dy;
+          const c2i = -2*dx*dy;
+          const c3r = c2r*dx + c2i*dy;
+          const c3i = c2r*(-dy) + c2i*dx;
+          const expOjR = cosT[j];
+          const expOjI = sinT[j];
+          const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+          const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+          const termUr = expOjR*c2r - expOjI*c2i;
+          const termUi = expOjR*c2i + expOjI*c2r;
+          const termWr = expTermR*c3r - expTermI*c3i;
+          const termWi = expTermR*c3i + expTermI*c3r;
+          uR += termUr * invr4;
+          uI += termUi * invr4;
+          wSum += termWi * invr6 * 2;
+        }
+        const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+        Ux[i] = uR / Math.PI * params.If * avoid;
+        Uy[i] = -uI / Math.PI * params.If * avoid;
+        wHydro[i] = wSum / Math.PI * params.If * avoid;
+        // debug += minDist[i];
+      }
+      // console.log('Hydro debug:', debug/n);
+    }
+  }
+
+  if(stateFlags.shark){
+    if(hydroEnabled){
+      addPredatorFlow(sharkState, params.sharkH, 1000, Ux, Uy, wHydro);
+    }
+  }else{
+    sharkState.pos = {x:meanX()-25, y:meanY()};
+    sharkState.theta = 0;
+  }
+  if(stateFlags.whale){
+    if(hydroEnabled){
+      addPredatorFlow(whaleState, params.whaleH, 6, Ux, Uy, wHydro);
+    }
+  }else{
+    whaleState.pos = {x:meanX(), y:meanY()-25};
+    whaleState.theta = Math.PI/2;
+  }
+
+  if(stateFlags.evade){
+    if(stateFlags.shark) applySharkEvade(wVision);
+    if(stateFlags.whale) applyWhaleEvade(wVision);
+  }
+
+  const thetaDot = new Float64Array(n);
+  for(let i=0;i<n;i++){
+    thetaDot[i] = wVision[i] + wNoise[i] + wHydro[i];
+  }
+  wBuffer = thetaDot.slice();
+
+  for(let i=0;i<n;i++){
+    fishes[i].x += (Math.cos(fishes[i].theta) + Ux[i]) * dt;
+    fishes[i].y += (Math.sin(fishes[i].theta) + Uy[i]) * dt;
+    fishes[i].theta = wrapAngle(fishes[i].theta + thetaDot[i] * dt);
+    velocities[i].x = Math.cos(fishes[i].theta) + Ux[i];
+    velocities[i].y = Math.sin(fishes[i].theta) + Uy[i];
+  }
+
+  // Update audio aggregate: sum_i gS * speed_i * cos(gθ * theta_i)
+  let scalar = 0;
+  const gTh = audioState.gTheta || 1;
+  const gSp = audioState.gSpeed || 1;
+  for(let i=0;i<n;i++){
+    const spd = Math.hypot(velocities[i].x, velocities[i].y);
+    scalar += (gSp * spd) * Math.cos((fishes[i].theta) * gTh);
+  }
+  audioState.scalar = scalar;
+  pushScalar(scalar);
+
+  // Integrate Voronoi-driven features into existing mono synth
+  // Listener direction (unit): +x
+  const lx = 1, ly = 0;
+  let sumSpd=0, sumDop=0, sumRho=0, sumSig=0, sumKap=0, sumJ=0, cnt=0;
+  const R = audioVoronoiMap.R || 2.0;
+  const rhoMax = audioVoronoiMap.rhoMax || 6.0;
+  const sr = (audioState.ctx && audioState.ctx.sampleRate) || 48000;
+  const fNyq = sr * (audioVoronoiMap.fNyqFrac || 0.33);
+  for(let i=0;i<n;i++){
+    const vx = velocities[i].x, vy = velocities[i].y;
+    const spd = Math.hypot(vx, vy);
+    sumSpd += spd;
+    sumDop += vx*lx + vy*ly;
+    // curvature ~ |thetaDot| / speed
+    const kap = Math.abs(wBuffer[i] || 0) / Math.max(spd, 1e-6);
+    sumKap += kap;
+    // jerk proxy ~ |thetaDot|
+    sumJ += Math.abs(wBuffer[i] || 0);
+
+    let rho = 0, C=0, S=0, K=0;
+    const nb = delaunayNeighbors ? delaunayNeighbors[i] : null;
+    if(nb && nb.length){
+      K = nb.length;
+      for(let k=0;k<K;k++){
+        const j = nb[k];
+        const dx = fishes[i].x - fishes[j].x;
+        const dy = fishes[i].y - fishes[j].y;
+        const r2 = dx*dx + dy*dy;
+        rho += Math.exp(-r2/(2*R*R));
+        const dth = fishes[j].theta - fishes[i].theta;
+        C += Math.cos(dth); S += Math.sin(dth);
+      }
+      C/=K; S/=K;
+    }
+    rho = Math.min(rhoMax, rho);
+    sumRho += rho;
+    const Rcirc = Math.hypot(C,S) || 0;
+    const sigTH = Math.sqrt(Math.max(0, -2*Math.log(Math.max(1e-6, Rcirc))));
+    sumSig += sigTH;
+    cnt++;
+  }
+  if(cnt>0){
+    const mSpd = sumSpd/cnt;
+    const mDop = sumDop/cnt;
+    const mSig = sumSig/cnt;
+    const mKap = sumKap/cnt;
+    const mJ   = sumJ/cnt;
+    const baseF = Number.parseFloat(controls.audioFreq?.value) || audioState.freq || 220;
+    const baseFM= Number.parseFloat(controls.audioFM?.value) || audioState.freqDev || 120;
+    const baseV = Number.parseFloat(controls.audioVol?.value) || audioState.vol || 0.2;
+    const fNow = Math.max(40, Math.min(fNyq, baseF + (audioVoronoiMap.kV||0)*mSpd + (audioVoronoiMap.kD||0)*mDop));
+    const fmNow = Math.max(0, Math.min(1000, baseFM + (audioVoronoiMap.kSig||0)*mSig));
+    const loud = (audioVoronoiMap.A0||0) + (audioVoronoiMap.kKappa||0)*mKap + (audioVoronoiMap.kJerk||0)*mJ;
+    const vNow = Math.max(0, Math.min(1, baseV * (1 + 2*loud)));
+    audioState.freq = fNow;
+    audioState.freqDev = fmNow;
+    audioState.vol = vNow;
+  }
+  if(audioState.node){ postAudioState(); }
+
+  function avgVecNorm(xvec,yvec){
+    const len = xvec.length;
+    let sum = 0;
+    for(let i=0;i<len;i++){
+      sum += Math.sqrt(xvec[i] * xvec[i] + yvec[i] * yvec[i]);
+    }
+    if(len === 0) return 0;
+    return sum / len;
+  }
+
+  // console.log('Avg. induced speed:', avgVecNorm(Ux,Uy).toFixed(4));
+
+  if(stateFlags.shark){
+    updateShark(Ux, Uy);
+  }
+  if(stateFlags.whale){
+    updateWhale(Ux, Uy);
+  }
+
+  if(stateFlags.death && (stateFlags.shark || stateFlags.whale)){
+    const survivors = [];
+    const survivorVel = [];
+    const survivorTheta = [];
+    const sharkHead = stateFlags.shark ? getSharkHeadPos() : null;
+    const whaleHead = stateFlags.whale ? getWhaleHeadPos() : null;
+    for(let i=0;i<fishes.length;i++){
+      const fish = fishes[i];
+      let dead = false;
+      if(stateFlags.shark){
+        const d = Math.hypot(fish.x - sharkHead.x, fish.y - sharkHead.y);
+        if(d <= params.sharkH/3) dead = true;
+      }
+      if(!dead && stateFlags.whale){
+        const d = Math.hypot(fish.x - whaleHead.x, fish.y - whaleHead.y);
+        if(d <= params.whaleH/3) dead = true;
+      }
+      if(!dead){
+        survivors.push(fish);
+        survivorVel.push(velocities[i]);
+        survivorTheta.push(wBuffer[i]);
+      }
+    }
+    fishes = survivors;
+    velocities = survivorVel;
+    wBuffer = survivorTheta;
+    if(fishes.length <= 2){
+      showMessage('Game over – the school was eaten. Respawn to continue.');
+    }
+  }
+
+}
+
+function addPredatorFlow(predState, scaleH, factor, Ux, Uy, wHydro){
+  const n = fishes.length;
+  for(let i=0;i<n;i++){
+    const dx = fishes[i].x - predState.pos.x;
+    const dy = fishes[i].y - predState.pos.y;
+    const r2 = dx*dx + dy*dy;
+    if(r2 < errTol) continue;
+    const invr4 = 1/(r2*r2);
+    const invr6 = invr4 / r2;
+    const c2r = dx*dx - dy*dy;
+    const c2i = -2*dx*dy;
+    const c3r = c2r*dx + c2i*dy;
+    const c3i = c2r*(-dy) + c2i*dx;
+    const expR = Math.cos(predState.theta);
+    const expI = Math.sin(predState.theta);
+    const expTermR = Math.cos(2*fishes[i].theta + predState.theta);
+    const expTermI = Math.sin(2*fishes[i].theta + predState.theta);
+    const termUr = expR*c2r - expI*c2i;
+    const termUi = expR*c2i + expI*c2r;
+    const termWr = expTermR*c3r - expTermI*c3i;
+    const termWi = expTermR*c3i + expTermI*c3r;
+    Ux[i] += termUr * invr4 / Math.PI * params.If * factor;
+    Uy[i] += -termUi * invr4 / Math.PI * params.If * factor;
+    wHydro[i] += termWi * invr6 * 2 / Math.PI * params.If * factor;
+  }
+}
+
+function applySharkEvade(wVision){
+  const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+  const orth = {x: -esk.y, y: esk.x};
+  const Sharkhead = getSharkHeadPos(esk);
+  for(let i=0;i<fishes.length;i++){
+    const fish = fishes[i];
+    const d = Math.hypot(Sharkhead.x - fish.x, Sharkhead.y - fish.y);
+    if(d === 0) continue;
+    const dop1 = Math.hypot(Sharkhead.x - orth.x - fish.x, Sharkhead.y - orth.y - fish.y);
+    const dop2 = Math.hypot(Sharkhead.x + orth.x - fish.x, Sharkhead.y + orth.y - fish.y);
+    const sign = dop1 <= dop2 ? -1 : 1;
+    const wSk = getAngle(fish.theta, orth.x * sign, orth.y * sign);
+    const blend = Math.exp((params.sharkH - d));
+    wVision[i] = (wVision[i] + wSk*blend)/(1 + blend);
+  }
+}
+
+function applyWhaleEvade(wVision){
+  const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+  const orth = {x: -ewh.y, y: ewh.x};
+  for(let i=0;i<fishes.length;i++){
+    const fish = fishes[i];
+    const dVec = {x: whaleState.pos.x - fish.x, y: whaleState.pos.y - fish.y};
+    const d = Math.hypot(dVec.x, dVec.y);
+    if(d === 0) continue;
+    const dop1 = Math.hypot(whaleState.pos.x - orth.x - fish.x, whaleState.pos.y - orth.y - fish.y);
+    const dop2 = Math.hypot(whaleState.pos.x + orth.x - fish.x, whaleState.pos.y + orth.y - fish.y);
+    const sign = dop1 <= dop2 ? -1 : 1;
+    const unit = {x: dVec.x/d, y: dVec.y/d};
+    const wWh = getAngle(fish.theta, orth.x*sign - unit.x, orth.y*sign - unit.y);
+    const blend = Math.exp((params.whaleH - d));
+    wVision[i] = (wVision[i] + wWh*blend)/(1 + blend);
+  }
+}
+
+function updateShark(Ux, Uy){
+  const dt = params.dt;
+  const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+  const head = getSharkHeadPos(esk);
+  if(stateFlags.hard && fishes.length){
+    let best = null;
+    let bestDist = Infinity;
+    const phiC = Math.PI/2;
+    for(const fish of fishes){
+      const dx = fish.x - head.x;
+      const dy = fish.y - head.y;
+      const dist = Math.hypot(dx, dy);
+      const phi = getAngle(sharkState.theta, dx, dy, dist);
+      if(Math.abs(phi) < phiC && dist < bestDist){
+        best = {dx, dy, dist};
+        bestDist = dist;
+      }
+    }
+    if(!best){
+      for(const fish of fishes){
+        const dx = fish.x - head.x;
+        const dy = fish.y - head.y;
+        const dist = Math.hypot(dx, dy);
+        if(dist < bestDist){
+          best = {dx, dy, dist};
+          bestDist = dist;
+        }
+      }
+    }
+    if(best){
+      let w = getAngle(sharkState.theta, best.dx, best.dy, best.dist);
+      w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+      sharkState.theta = wrapAngle(sharkState.theta + w*dt);
+    }
+    sharkState.pos.x += esk.x * dt * 1.5;
+    sharkState.pos.y += esk.y * dt * 1.5;
+  }else if(sharkGoal){
+    const dx = sharkGoal.x - head.x;
+    const dy = sharkGoal.y - head.y;
+    const dist = Math.hypot(dx, dy);
+    let w = getAngle(sharkState.theta, dx, dy, dist);
+    w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+    sharkState.theta = wrapAngle(sharkState.theta + w*dt);
+    sharkState.pos.x += esk.x * dt * 1.5;
+    sharkState.pos.y += esk.y * dt * 1.5;
+  }else if(fishes.length){
+    const idx = Math.min(fishes.length-1, Math.floor(fishes.length*187/500));
+    const noise = gaussian()/Math.sqrt(dt);
+    sharkState.pos.x += esk.x * dt * 1.5 + Ux[idx] * dt;
+    sharkState.pos.y += esk.y * dt * 1.5 + Uy[idx] * dt;
+    sharkState.theta = wrapAngle(sharkState.theta + ((wBuffer[idx] ?? 0) + noise)*0.1*dt);
+  }
+}
+
+function updateWhale(Ux, Uy){
+  const dt = params.dt;
+  const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+  // Follow-cursor mode: when enabled and pointer is within the canvas, steer toward cursor
+  if(stateFlags.whale && stateFlags.whaleFollow && pointerInside){
+    const dx = cp.x - whaleState.pos.x;
+    const dy = cp.y - whaleState.pos.y;
+    const dist = Math.hypot(dx, dy);
+    if(dist > errTol){
+      let w = getAngle(whaleState.theta, dx, dy, dist);
+      w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+      whaleState.theta = wrapAngle(whaleState.theta + w*dt);
+    }
+    const e = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+    whaleState.pos.x += e.x * dt / 1.5;
+    whaleState.pos.y += e.y * dt / 1.5;
+    return;
+  }
+  if(stateFlags.hard && fishes.length){
+    const phiC = Math.PI/2;
+    const subset = fishes.filter(fish => {
+      const dx = fish.x - whaleState.pos.x;
+      const dy = fish.y - whaleState.pos.y;
+      const dist = Math.hypot(dx, dy);
+      const phi = getAngle(whaleState.theta, dx, dy, dist);
+      return Math.abs(phi) < phiC;
+    });
+    const targetSet = subset.length ? subset : fishes;
+    const target = medianPoint(targetSet);
+    const dx = target.x - whaleState.pos.x;
+    const dy = target.y - whaleState.pos.y;
+    const dist = Math.hypot(dx, dy);
+    let w = getAngle(whaleState.theta, dx, dy, dist);
+    w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+    whaleState.theta = wrapAngle(whaleState.theta + w*dt);
+    whaleState.pos.x += ewh.x * dt;
+    whaleState.pos.y += ewh.y * dt;
+  }else if(fishes.length){
+    const idx = Math.min(fishes.length-1, Math.floor(fishes.length*234/500));
+    const noise = gaussian()/Math.sqrt(dt);
+    whaleState.pos.x += ewh.x * dt / 1.5 + Ux[idx] * dt;
+    whaleState.pos.y += ewh.y * dt / 1.5 + Uy[idx] * dt;
+    whaleState.theta = wrapAngle(whaleState.theta + ((wBuffer[idx] ?? 0) + noise)*0.1*dt);
+  }
+}
+
+function medianPoint(arr){
+  const xs = arr.map(p => p.x).sort((a,b) => a-b);
+  const ys = arr.map(p => p.y).sort((a,b) => a-b);
+  const mid = Math.floor(xs.length/2);
+  const medX = xs.length % 2 ? xs[mid] : (xs[mid-1]+xs[mid])/2;
+  const medY = ys.length % 2 ? ys[mid] : (ys[mid-1]+ys[mid])/2;
+  return {x:medX,y:medY};
+}
+
+function showMessage(msg){
+  messageEl.textContent = msg;
+  messageEl.style.display = 'block';
+  setTimeout(() => {
+    messageEl.style.display = 'none';
+  }, 4000);
+}
+
+function updateStats(){
+  const elapsed = (performance.now() - startTime);
+  statsEl.textContent = `N = ${fishes.length}\nIp = ${parseFloat(controls.Ia.value).toFixed(2)}\nIn = ${parseFloat(controls.In.value).toFixed(2)}\nRender time ${elapsed.toFixed(1)} ms`;
+}
+
+// Keep canvas backing store in lock-step with CSS size using DPR, and
+// guard against fractional rounding mismatches that can leave uncleared bands.
+function resize(){
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  // Establish device-pixel scaling baseline for subsequent draws
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function meanX(){
+  if(!fishes.length) return 0;
+  return fishes.reduce((acc,f) => acc + f.x, 0)/fishes.length;
+}
+function meanY(){
+  if(!fishes.length) return 0;
+  return fishes.reduce((acc,f) => acc + f.y, 0)/fishes.length;
+}
+
+function worldToScreen(x,y){
+  const rect = canvas.getBoundingClientRect();
+  const aspect = rect.width/rect.height;
+  const worldHeight = viewState.worldHeight;
+  const c = getViewCenter();
+  const cx = c.x;
+  const cy = c.y;
+  const scale = rect.height/(worldHeight);
+  return {
+    x: rect.width/2 + (x - cx) * scale,
+    y: rect.height/2 - (y - cy) * scale,
+    scale,
+  };
+}
+
+function screenToWorld(clientX, clientY){
+  const rect = canvas.getBoundingClientRect();
+  const worldHeight = viewState.worldHeight;
+  const c = getViewCenter();
+  const cx = c.x;
+  const cy = c.y;
+  const scale = rect.height/(worldHeight);
+  return {
+    x: cx + (clientX - rect.width/2)/scale,
+    y: cy - (clientY - rect.height/2)/scale,
+  };
+}
+
+// Convert a PointerEvent's client coordinates to canvas-local coords
+function getLocalPosFromClient(e){
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+// Apply zoom around a given canvas-local anchor (like wheel-to-cursor)
+function zoomAtLocal(localX, localY, zoom){
+  if(!isFinite(zoom) || zoom <= 0) return;
+  const c = getViewCenter();
+  if(viewState.follow){
+    viewState.centerX = c.x;
+    viewState.centerY = c.y;
+    // keep follow true to match wheel behavior
+  }
+  const before = screenToWorld(localX, localY);
+  const prevH = viewState.worldHeight;
+  let nextH = prevH / zoom;
+  nextH = Math.max(MIN_WORLD_H, Math.min(MAX_WORLD_H, nextH));
+  viewState.worldHeight = nextH;
+  const after = screenToWorld(localX, localY);
+  viewState.centerX += (before.x - after.x);
+  viewState.centerY += (before.y - after.y);
+}
+
+function draw(){
+  // Clear using the actual backing-store size to avoid leaving a strip
+  // of uncleared pixels when CSS size changes slightly without a resize.
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Reapply DPR scaling for drawing
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const rect = canvas.getBoundingClientRect();
+  ctx.save();
+  const c = getViewCenter();
+  const cx = c.x;
+  const cy = c.y;
+  const scale = rect.height/(viewState.worldHeight);
+  ctx.translate(rect.width/2, rect.height/2);
+  ctx.scale(scale, -scale);
+  ctx.translate(-cx, -cy);
+
+  ctx.lineWidth = 1/scale;
+  // World-anchored subtle backdrop to convey motion when following centroid
+  drawBackdrop();
+  drawBaits();
+  if(!stateFlags.shark) sharkGoal = null;
+  if(sharkGoal) drawSharkGoal();
+  if(stateFlags.shark) drawShark();
+  if(stateFlags.whale) drawWhale();
+  drawFishes();
+  ctx.restore();
+}
+
+// Waveform preview drawing from scalar ring buffer (decoupled from audio thread)
+function drawWaveformPreview(){
+  const wf = document.getElementById('waveform');
+  if(!wf) return;
+  const wctx = wf.getContext('2d');
+  const dpr = Math.max(1, window.devicePixelRatio||1);
+  const cssW = wf.clientWidth || 300;
+  const cssH = wf.clientHeight || 80;
+  const w = Math.max(1, Math.round(cssW*dpr));
+  const h = Math.max(1, Math.round(cssH*dpr));
+  if(wf.width !== w || wf.height !== h){ wf.width = w; wf.height = h; }
+  wctx.setTransform(1,0,0,1,0,0);
+  wctx.clearRect(0,0,w,h);
+  // Background
+  wctx.fillStyle = 'rgba(0,0,0,0.35)';
+  wctx.fillRect(0,0,w,h);
+  // Axis
+  wctx.strokeStyle = 'rgba(200,220,255,0.25)';
+  wctx.beginPath();
+  wctx.moveTo(0, h/2);
+  wctx.lineTo(w, h/2);
+  wctx.stroke();
+
+  const count = audioState.ringCount;
+  if(count < 2) return;
+  // Sample last span seconds into preview buffer
+  const preview = audioState.wavePreview;
+  const N = preview.length;
+  const latestT = ringGetTimeAt(count-1);
+  const span = 0.6; // seconds
+  let prevT = latestT - span;
+  let phase = 0;
+  let sNow = 0;
+  const sAlpha = 0.06;
+  const freq = audioState.freq || 220;
+  const biasGain = audioState.biasGain || 0.8;
+  const freqDev = audioState.freqDev || 0;
+  for(let i=0;i<N;i++){
+    const t = latestT - span + (span * i)/(N-1);
+    // Find segment
+    let seg = 0;
+    while(seg < count-2 && ringGetTimeAt(seg+1) < t) seg++;
+    const t0 = ringGetTimeAt(seg), t1 = ringGetTimeAt(seg+1);
+    const v0 = ringGetValAt(seg), v1 = ringGetValAt(seg+1);
+    const f = (t - t0) / ((t1 - t0) || 1e-6);
+    const scalar = v0 + (v1 - v0)*Math.max(0, Math.min(1, f));
+    sNow += (scalar - sNow) * sAlpha;
+    const dt = Math.max(0, t - prevT);
+    const finst = freq + freqDev * sNow;
+    phase += 2*Math.PI*finst*dt;
+    if(phase > 1e6) phase %= 2*Math.PI;
+    const y = Math.tanh(Math.sin(phase) + biasGain * sNow) * (audioState.vol || 0.2);
+    preview[i] = y;
+    prevT = t;
+  }
+  // Normalize preview for display (RMS scaling)
+  let rms = 0; for(let i=0;i<N;i++){ rms += preview[i]*preview[i]; }
+  rms = Math.sqrt(rms/Math.max(1,N));
+  const scale = rms > 1e-6 ? (0.8*(h/2)/ (3*rms)) : 1; // conservative scale
+  wctx.strokeStyle = '#8ab4f8';
+  wctx.beginPath();
+  for(let i=0;i<N;i++){
+    const x = (i/(N-1)) * (w-2) + 1;
+    const y = h/2 - preview[i]*scale;
+    if(i===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
+  }
+  wctx.stroke();
+}
+
+// Deterministic 2D hash → 32-bit unsigned int
+function hash32(ix, iy, salt){
+  // Mix coordinates with a salt and avalanche
+  let h = Math.imul(ix|0, 0x9e3779b1) ^ Math.imul((iy|0) + (salt|0), 0x85ebca6b);
+  h ^= h >>> 16; h = Math.imul(h, 0x7feb352d); h ^= h >>> 15; h = Math.imul(h, 0x846ca68b); h ^= h >>> 16;
+  return h >>> 0;
+}
+
+// Get two repeatable [0,1) floats per cell
+function rand2(ix, iy, salt){
+  const a = hash32(ix, iy, 0x1234abcd ^ salt);
+  const b = hash32(ix, iy, 0xdeadbeef ^ salt);
+  return [a/4294967296, b/4294967296];
+}
+function rand1(ix, iy, salt){
+  return hash32(ix, iy, salt) / 4294967296;
+}
+
+function drawBackdrop(){
+  const rect = canvas.getBoundingClientRect();
+  const aspect = rect.width/rect.height;
+  const worldH = viewState.worldHeight;
+  const worldW = worldH * aspect;
+  const c = getViewCenter();
+  const cx = c.x, cy = c.y;
+  const minX = cx - worldW/2;
+  const maxX = cx + worldW/2;
+  const minY = cy - worldH/2;
+  const maxY = cy + worldH/2;
+
+  // Layered: subtle dots + very sparse wavy lines
+  const dotLayers = [
+    { tile: 6,  baseRadius: 0.05, baseAlpha: 0.5, salt: 11,  baseColor: [80,190,220] },
+    { tile: 18, baseRadius: 0.07, baseAlpha: 0.2, salt: 27,  baseColor: [60,230,180] },
+  ];
+
+  for(const layer of dotLayers){
+    const T = layer.tile;
+    const ix0 = Math.floor(minX / T) - 1;
+    const ix1 = Math.floor(maxX / T) + 1;
+    const iy0 = Math.floor(minY / T) - 1;
+    const iy1 = Math.floor(maxY / T) + 1;
+    for(let iy = iy0; iy <= iy1; iy++){
+      for(let ix = ix0; ix <= ix1; ix++){
+        // Dot A (always): position and style variations
+        const [u1,v1] = rand2(ix, iy, layer.salt ^ 0x1111);
+        const x1 = ix*T + u1*T;
+        const y1 = iy*T + v1*T;
+        const rJ = rand1(ix, iy, layer.salt ^ 0x2222); // size jitter [0,1)
+        const aJ = rand1(ix, iy, layer.salt ^ 0x3333); // alpha jitter
+        const cJ = rand1(ix, iy, layer.salt ^ 0x4444); // color jitter
+        const radius1 = layer.baseRadius * (0.8 + rJ);
+        const alpha1 = layer.baseAlpha * (0.8 + 0.4*aJ);
+        const [br,bg,bb] = layer.baseColor;
+        const hueShift = (cJ - 0.5) * 16; // small color temperature shift
+        const cr = Math.max(0, Math.min(255, Math.round(br + hueShift*2)));
+        const cg = Math.max(0, Math.min(255, Math.round(bg + hueShift*2)));
+        const cb = Math.max(0, Math.min(255, Math.round(bb + hueShift*2)));
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},${alpha1})`;
+        ctx.beginPath();
+        ctx.arc(x1, y1, radius1, 0, Math.PI*2);
+        ctx.fill();
+
+        // Sparse Dot B: occasional second accent for irregularity
+        if(((hash32(ix, iy, layer.salt ^ 0x51f2) | 0) & 7) === 0){
+          const [u2,v2] = rand2(ix+13, iy-7, layer.salt ^ 0xa5a5);
+          const x2 = ix*T + u2*T;
+          const y2 = iy*T + v2*T;
+          const rK = rand1(ix+5, iy-3, layer.salt ^ 0x5555);
+          const aK = rand1(ix-2, iy+9, layer.salt ^ 0x7777);
+          const cK = rand1(ix+7, iy+11, layer.salt ^ 0x9999);
+          const radius2 = layer.baseRadius * 0.6 * (0.8 + 0.6*rK);
+          const alpha2 = layer.baseAlpha * 0.7 * (0.75 + 0.5*aK);
+          const hueShift2 = (cK - 0.5) * 20;
+          const cr2 = Math.max(0, Math.min(255, Math.round(br + hueShift2*0.6)));
+          const cg2 = Math.max(0, Math.min(255, Math.round(bg + hueShift2)));
+          const cb2 = Math.max(0, Math.min(255, Math.round(bb + hueShift2*1.2)));
+          ctx.fillStyle = `rgba(${cr2},${cg2},${cb2},${alpha2})`;
+          ctx.beginPath();
+          ctx.arc(x2, y2, radius2, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+}
+
+function drawBaits(){
+  ctx.strokeStyle = '#ffd166';
+  ctx.lineWidth = 2/ctx.getTransform().a;
+  for(const bait of baits){
+    ctx.beginPath();
+    ctx.moveTo(bait.x-0.3, bait.y);
+    ctx.lineTo(bait.x+0.3, bait.y);
+    ctx.moveTo(bait.x, bait.y-0.3);
+    ctx.lineTo(bait.x, bait.y+0.3);
+    ctx.stroke();
+  }
+}
+
+function drawSharkGoal(){
+  // Draw a bold red X at the goal location
+  const size = 0.8;
+  ctx.save();
+  ctx.strokeStyle = '#ff4444';
+  ctx.lineWidth = 3/ctx.getTransform().a;
+  ctx.beginPath();
+  ctx.moveTo(sharkGoal.x - size/2, sharkGoal.y - size/2);
+  ctx.lineTo(sharkGoal.x + size/2, sharkGoal.y + size/2);
+  ctx.moveTo(sharkGoal.x - size/2, sharkGoal.y + size/2);
+  ctx.lineTo(sharkGoal.x + size/2, sharkGoal.y - size/2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawShark(){
+  const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+  const rot = (x,y) => ({x: x*esk.x - y*esk.y + sharkState.pos.x, y: x*esk.y + y*esk.x + sharkState.pos.y});
+  ctx.fillStyle = '#30333a';
+  ctx.beginPath();
+  const head = sharkShape.head;
+  head.x.forEach((x,i) => {
+    const p = rot(x, head.y[i]);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.fill();
+  ctx.beginPath();
+  const body = sharkShape.body;
+  body.x.forEach((x,i) => {
+    const p = rot(x, body.y[i]);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.fill();
+  ctx.beginPath();
+  const tail = sharkShape.tail;
+  tail.x.forEach((x,i) => {
+    const p = rot(x, tail.y[i]);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.fill();
+}
+
+function drawWhale(){
+  const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+  const rot = (x,y) => ({x: x*ewh.x - y*ewh.y + whaleState.pos.x, y: x*ewh.y + y*ewh.x + whaleState.pos.y});
+  ctx.fillStyle = '#4c6ef5';
+  ctx.beginPath();
+  whaleShape.x.forEach((x,i) => {
+    const p = rot(x, whaleShape.y[i]);
+    if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+  });
+  ctx.fill();
+}
+
+function drawFishes(){
+  // let speedbuff = 0;
+  for(let i=0;i<fishes.length;i++){
+    const fish = fishes[i];
+    const speed = Math.hypot(velocities[i].x, velocities[i].y);
+    // speedbuff += speed;
+    const color = speedColor(speed);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for(let k=0;k<fishShape.x.length;k++){
+      const x = fishShape.x[k];
+      const y = fishShape.y[k];
+      const px = x*Math.cos(fish.theta) - y*Math.sin(fish.theta) + fish.x;
+      const py = x*Math.sin(fish.theta) + y*Math.cos(fish.theta) + fish.y;
+      if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  // console.log('Avg speed:', (speedbuff/fishes.length).toFixed(4));
+}
+
+function hotColor(t){
+  // MATLAB 'hot' colormap: black -> red -> yellow -> white
+  let r=0,g=0,b=0;
+  const third = 1/3;
+  if(t <= 0){ r = g = b = 0; }
+  else if(t < third){
+    r = 3*t; g = t; b = 0.5*t;
+  } else if(t < 2*third){
+    r = 1; g = 3*t - 1; b = 0;
+  } else if(t < 1){
+    r = 1; g = 1; b = 3*t - 2;
+  } else {
+    r = g = b = 1;
+  }
+  return `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+}
+
+function speedColor(speed){
+  // Match MATLAB: caxis([0.5, 2]) on speed^2 using 'hot' colormap
+  const s2 = speed*speed;
+  const t = Math.max(0, Math.min(1, (s2 - 0.5) / 1.5));
+  return hotColor(t);
+}
+
+function tick(){
+  if(isPlaying){
+    computeStep();
+  }
+  updateStats();
+  draw();
+  drawWaveformPreview();
+  requestAnimationFrame(tick);
+  startTime = performance.now();
+}
+
+controls.Ia.addEventListener('input', () => {
+  controls.IpVal.textContent = parseFloat(controls.Ia.value).toFixed(2);
+});
+controls.In.addEventListener('input', () => {
+  controls.InVal.textContent = parseFloat(controls.In.value).toFixed(2);
+});
+controls.hydroRadius?.addEventListener('input', () => {
+  if(controls.hydroRVal){
+    controls.hydroRVal.textContent = parseFloat(controls.hydroRadius.value).toFixed(1);
+  }
+});
+
+// Audio controls
+controls.audioVol?.addEventListener('input', () => {
+  const v = Math.max(0, Math.min(1, parseFloat(controls.audioVol.value)));
+  audioState.vol = v;
+  if(controls.audioVolVal) controls.audioVolVal.textContent = v.toFixed(2);
+  postAudioState();
+});
+controls.audioTheta?.addEventListener('input', () => {
+  const g = Math.max(0, Math.min(64, parseFloat(controls.audioTheta.value)));
+  audioState.gTheta = g;
+  if(controls.audioThetaVal) controls.audioThetaVal.textContent = g.toFixed(1);
+});
+controls.audioSpeed?.addEventListener('input', () => {
+  const gs = Math.max(0, Math.min(4, parseFloat(controls.audioSpeed.value)));
+  audioState.gSpeed = gs;
+  if(controls.audioSpeedVal) controls.audioSpeedVal.textContent = gs.toFixed(2);
+});
+controls.audioFreq?.addEventListener('input', () => {
+  const f = Math.max(20, Math.min(2000, parseFloat(controls.audioFreq.value)));
+  audioState.freq = f;
+  if(controls.audioFreqVal) controls.audioFreqVal.textContent = `${Math.round(f)} Hz`;
+  postAudioState();
+});
+controls.audioBias?.addEventListener('input', () => {
+  const b = Math.max(0, Math.min(2, parseFloat(controls.audioBias.value)));
+  audioState.biasGain = b;
+  if(controls.audioBiasVal) controls.audioBiasVal.textContent = b.toFixed(2);
+  postAudioState();
+});
+controls.audioFM?.addEventListener('input', () => {
+  const fm = Math.max(0, Math.min(1000, parseFloat(controls.audioFM.value)));
+  audioState.freqDev = fm;
+  if(controls.audioFMVal) controls.audioFMVal.textContent = `${Math.round(fm)}`;
+  postAudioState();
+});
+
+function postAudioState(){
+  if(!audioState.node) return;
+  try {
+    audioState.node.port.postMessage({
+      type: 'state',
+      scalar: audioState.scalar || 0,
+      gainK: audioState.gainK || 1,
+      vol: audioState.vol || 0,
+      freq: audioState.freq || 220,
+      biasGain: audioState.biasGain || 0,
+      freqDev: audioState.freqDev || 0,
+    });
+  } catch (_) {}
+}
+
+function ringStartIndex(){
+  if(audioState.ringCount >= audioState.ringSize){
+    return (audioState.ringHead + 1) % audioState.ringSize;
+  }
+  return 0;
+}
+function ringGetTimeAt(k){
+  const start = ringStartIndex();
+  const idx = (start + k) % audioState.ringSize;
+  return audioState.ringTimes[idx];
+}
+function ringGetValAt(k){
+  const start = ringStartIndex();
+  const idx = (start + k) % audioState.ringSize;
+  return audioState.ringVals[idx];
+}
+
+async function ensureAudioWorklet(){
+  if(audioState.ctx && audioState.node) return audioState.ctx;
+  const ctx = audioState.ctx ?? new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    if(!audioState.node){
+      const workletCode = `
+class FishMonoProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() { return []; }
+  constructor(){
+    super();
+    this.scalar = 0; this.scalarNow = 0; this.gainK = 1.0; this.vol = 0.2;
+    this.freq = 220; this.phase = 0; this.alpha = 0.02;
+    this.biasGain = 0.8; this.freqDev = 120;
+    this.port.onmessage = (e) => {
+      const d = e.data || {};
+      if(d.type==='state'){
+        if(Number.isFinite(d.scalar)) this.scalar = d.scalar;
+        if(Number.isFinite(d.gainK)) this.gainK = d.gainK;
+        if(Number.isFinite(d.vol)) this.vol = d.vol;
+        if(Number.isFinite(d.freq)) this.freq = d.freq;
+        if(Number.isFinite(d.biasGain)) this.biasGain = d.biasGain;
+        if(Number.isFinite(d.freqDev)) this.freqDev = d.freqDev;
+      }
+    };
+  }
+  process(inputs, outputs){
+    const out = outputs[0]; if(!out||!out[0]) return true; const ch0 = out[0];
+    let sNow = this.scalarNow; const g = this.gainK; const vol = this.vol;
+    for(let i=0;i<ch0.length;i++){
+      sNow += (this.scalar - sNow)*this.alpha;
+      const freqInst = this.freq + this.freqDev * sNow;
+      this.phase += 2*Math.PI*freqInst/sampleRate; if(this.phase > 1e6) this.phase %= 2*Math.PI;
+      const y = Math.tanh(Math.sin(this.phase) + this.biasGain * sNow) * vol;
+      ch0[i] = Math.max(-1, Math.min(1, y)) * vol;
+    }
+    this.scalarNow = sNow; return true;
+  }
+}
+registerProcessor('fish-mono', FishMonoProcessor);
+`;
+      const blob = new Blob([workletCode], {type:'application/javascript'});
+      const url = URL.createObjectURL(blob);
+      await ctx.audioWorklet.addModule(url);
+      const node = new AudioWorkletNode(ctx, 'fish-mono');
+      const gain = ctx.createGain();
+      gain.gain.value = 1;
+      node.connect(gain).connect(ctx.destination);
+      audioState.ctx = ctx;
+      audioState.node = node;
+      audioState.gain = gain;
+    }
+  } catch (err){
+    console.warn('AudioWorklet load failed:', err);
+    throw err;
+  }
+  return ctx;
+}
+
+function setupScriptProcessor(ctx){
+  const proc = ctx.createScriptProcessor(1024, 0, 1);
+  const gain = ctx.createGain();
+  gain.gain.value = 1;
+  // Carrier oscillator + shaping (fallback path)
+  let phase = audioState.procPhase || 0;
+  let sNow = audioState.sNow || 0;
+  const sAlpha = 0.02; // smoothing
+  // Initialize playback position with a small latency to have data ahead
+  const count = audioState.ringCount;
+  if(count >= 2){
+    const latestT = ringGetTimeAt(count-1);
+    audioState.playT = latestT - 0.08; // 80 ms look-behind
+    // Find starting segment
+    let seg = 0;
+    while(seg < count-2 && ringGetTimeAt(seg+1) < audioState.playT) seg++;
+    audioState.playSeg = seg;
+  } else {
+    audioState.playT = 0; audioState.playSeg = 0;
+  }
+  proc.onaudioprocess = (e) => {
+    const out = e.outputBuffer.getChannelData(0);
+    const sr = e.outputBuffer.sampleRate || (audioState.ctx?.sampleRate||48000);
+    const vol = audioState.vol || 0;
+    const g = audioState.gainK || 1;
+    const freq = audioState.freq || 220;
+    const biasGain = audioState.biasGain || 0.8;
+    const freqDev = audioState.freqDev || 0;
+    const count = audioState.ringCount;
+    if(count < 2){ out.fill(0); return; }
+    let seg = audioState.playSeg;
+    let t0 = ringGetTimeAt(seg), t1 = ringGetTimeAt(seg+1);
+    let v0 = ringGetValAt(seg), v1 = ringGetValAt(seg+1);
+    let T = audioState.playT;
+    for(let i=0;i<out.length;i++){
+      // Advance segment if needed
+      while(T > t1 && seg < count-2){
+        seg++;
+        t0 = ringGetTimeAt(seg); t1 = ringGetTimeAt(seg+1);
+        v0 = ringGetValAt(seg); v1 = ringGetValAt(seg+1);
+      }
+      const denom = (t1 - t0) || (1/sr);
+      const f = Math.max(0, Math.min(1, (T - t0)/denom));
+      const x = v0 + (v1 - v0)*f; // interpolated scalar
+      // Smooth scalar
+      sNow += (x - sNow) * sAlpha;
+      // FM + bias waveshaping
+      const finst = freq + freqDev * sNow;
+      out[i] = Math.tanh(Math.sin(phase) + biasGain * sNow) * vol;
+      phase += 2*Math.PI*finst/sr; if(phase > 1e6) phase %= 2*Math.PI;
+      T += 1/sr;
+    }
+    audioState.playSeg = seg;
+    audioState.playT = T;
+    audioState.procPhase = phase;
+    audioState.sNow = sNow;
+  };
+  proc.connect(gain).connect(ctx.destination);
+  audioState.node = null; // no worklet
+  audioState.gain = gain;
+  audioState.ctx = ctx;
+}
+
+async function ensureAudioOutput(){
+  const ctx = audioState.ctx ?? new (window.AudioContext || window.webkitAudioContext)();
+  if (ctx.audioWorklet && typeof ctx.audioWorklet.addModule === 'function'){
+    try {
+      await ensureAudioWorklet();
+      return audioState.ctx;
+    } catch (err){
+      console.warn('Worklet failed, falling back to ScriptProcessor:', err);
+      setupScriptProcessor(ctx);
+      return ctx;
+    }
+  } else {
+    setupScriptProcessor(ctx);
+    return ctx;
+  }
+}
+
+async function startAudio(){
+  try{
+    const ctx = await ensureAudioOutput();
+    if(ctx.state === 'suspended'){
+      await ctx.resume();
+    }
+    postAudioState();
+  }catch(err){
+    console.warn('Audio start failed:', err);
+    showMessage('Unable to start audio – browser blocked or unsupported.');
+  }
+}
+
+async function stopAudio(){
+  try{
+    const ctx = audioState.ctx;
+    if(ctx && ctx.state === 'running'){
+      await ctx.suspend();
+    }
+  }catch(_){/* noop */}
+}
+
+// UI disabling logic for hydrodynamics based on N and hydro state
+function updateHydroUiDisabled(){
+  const nVal = parseInt(controls.N?.value ?? '0', 10);
+  const hydroOn = !!controls.hydro?.checked;
+  const allowHydroModes = hydroOn && nVal >= 500;
+  if(controls.hydroShell) controls.hydroShell.disabled = !allowHydroModes;
+  if(controls.hydroRange) controls.hydroRange.disabled = !allowHydroModes;
+  if(controls.hydroRadius) controls.hydroRadius.disabled = !allowHydroModes || !controls.hydroRange?.checked;
+}
+
+// React to hydro and range toggles
+controls.hydro?.addEventListener('change', updateHydroUiDisabled);
+controls.hydroRange?.addEventListener('change', updateHydroUiDisabled);
+// Initialize disabled states on load
+updateHydroUiDisabled();
+controls.respawn.addEventListener('click', () => {
+  params.n = parseInt(controls.N.value, 10);
+  resetSchool();
+});
+controls.clearBaits.addEventListener('click', () => {
+  baits = [];
+});
+
+// School size slider: live update label, respawn on commit
+controls.N.addEventListener('input', () => {
+  controls.NVal.textContent = String(parseInt(controls.N.value, 10));
+  updateHydroUiDisabled();
+});
+controls.N.addEventListener('change', () => {
+  params.n = parseInt(controls.N.value, 10);
+  resetSchool();
+  updateHydroUiDisabled();
+});
+
+// Initialize dependent UI states
+updateGoalUiDisabled();
+
+canvas.addEventListener('pointerdown', e => {
+  // Track pointers for pinch gestures
+  const pos = getLocalPosFromClient(e);
+  activePointers.set(e.pointerId, pos);
+  pinchLastDist = 0;
+  isPinching = activePointers.size >= 2;
+  if(activePointers.size >= 2){
+    // Initialize two-finger pan anchor and disable follow like arrow keys
+    const it = activePointers.values();
+    const p1 = it.next().value; const p2 = it.next().value;
+    if(p1 && p2){
+      const midX = (p1.x + p2.x)/2;
+      const midY = (p1.y + p2.y)/2;
+      twoPanLastMidWorld = screenToWorld(midX, midY);
+      if(viewState.follow){
+        const c = {x: meanX(), y: meanY()};
+        viewState.centerX = c.x;
+        viewState.centerY = c.y;
+        viewState.follow = false;
+      }
+    }
+  }
+  try { canvas.setPointerCapture(e.pointerId); } catch {}
+});
+
+canvas.addEventListener('pointermove', e => {
+  const pos = getLocalPosFromClient(e);
+  // Update tracked pointer position
+  if(activePointers.has(e.pointerId)){
+    activePointers.set(e.pointerId, pos);
+  }
+
+  if(activePointers.size >= 2){
+    // Pinch-zoom + two-finger pan: use the first two pointers
+    const it = activePointers.values();
+    const p1 = it.next().value;
+    const p2 = it.next().value;
+    if(p1 && p2){
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.hypot(dx, dy);
+      const midX = (p1.x + p2.x)/2;
+      const midY = (p1.y + p2.y)/2;
+      // Set interaction flags and disable follow if not already done
+      pointerActive = true;
+      pointerInside = true;
+      if(viewState.follow){
+        const c = {x: meanX(), y: meanY()};
+        viewState.centerX = c.x;
+        viewState.centerY = c.y;
+        viewState.follow = false;
+      }
+      // Pan: translate center so the world-point under the midpoint remains stable
+      const beforeWorld = twoPanLastMidWorld ?? screenToWorld(midX, midY);
+      // Zoom: adjust scale around the midpoint
+      if(pinchLastDist > 0){
+        const scale = dist / pinchLastDist;
+        zoomAtLocal(midX, midY, scale);
+      }
+      // After zoom, compute world at new midpoint and shift center accordingly
+      const afterWorld = screenToWorld(midX, midY);
+      viewState.centerX += (beforeWorld.x - afterWorld.x);
+      viewState.centerY += (beforeWorld.y - afterWorld.y);
+      // Update anchors
+      twoPanLastMidWorld = screenToWorld(midX, midY);
+      pinchLastDist = dist;
+      isPinching = true;
+      // Prevent page scroll/zoom while pinching/panning
+      e.preventDefault();
+      return;
+    }
+  }
+
+  // Single-pointer move: update cursor position for interactions
+  const world = screenToWorld(pos.x, pos.y);
+  cp = world;
+  pointerActive = true;
+});
+
+canvas.addEventListener('pointerup', e => {
+  activePointers.delete(e.pointerId);
+  isPinching = activePointers.size >= 2;
+  if(activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
+});
+canvas.addEventListener('pointercancel', e => {
+  activePointers.delete(e.pointerId);
+  isPinching = activePointers.size >= 2;
+  if(activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
+});
+canvas.addEventListener('pointerenter', () => { pointerInside = true; });
+canvas.addEventListener('pointerleave', () => { pointerInside = false; });
+
+// Zoom with mouse wheel (middle-button scroll). Zooms toward cursor, clamps range.
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  // Positive deltaY -> zoom out, negative -> zoom in
+  const zoom = Math.exp(-e.deltaY * 0.001);
+  // Use offsetX/Y when available; fall back to client coords
+  const hasOffset = Number.isFinite(e.offsetX) && Number.isFinite(e.offsetY);
+  if(hasOffset){
+    zoomAtLocal(e.offsetX, e.offsetY, zoom);
+  } else {
+    const pos = getLocalPosFromClient(e);
+    zoomAtLocal(pos.x, pos.y, zoom);
+  }
+}, { passive: false });
+
+canvas.addEventListener('click', e => {
+  const world = screenToWorld(e.offsetX, e.offsetY);
+  if(armedPlacers.bait){
+    baits.push(world);
+  }else if(armedPlacers.goal){
+    sharkGoal = world;
+  }
+});
+
+document.addEventListener('keydown', e => {
+  const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+  const typing = tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable);
+  if(typing) return;
+  if(e.key === ' '){
+    e.preventDefault();
+    setPlaying(!isPlaying);
+  } else if(e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+    const step = e.shiftKey ? 5 : 1; // world units
+    if(e.key === 'ArrowUp') nudgeView(0, step);
+    if(e.key === 'ArrowDown') nudgeView(0, -step);
+    if(e.key === 'ArrowLeft') nudgeView(-step, 0);
+    if(e.key === 'ArrowRight') nudgeView(step, 0);
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('resize', resize);
+resize();
+// Also react to layout-driven size changes that don't emit window resize
+// (e.g. panel collapse/expand, fonts, scrollbars, zoom changes).
+const ro = new ResizeObserver(() => requestAnimationFrame(resize));
+ro.observe(document.getElementById('view'));
+// Initialize school-size UI from params
+controls.N.value = String(params.n);
+controls.N.dispatchEvent(new Event('input'));
+resetSchool();
+requestAnimationFrame(tick);
+// D‑pad bindings (fish)
+function panStep(ev){ return (ev && ev.shiftKey) ? 5 : 1; }
+const btnU = document.getElementById('fishPanUp');
+const btnD = document.getElementById('fishPanDown');
+const btnL = document.getElementById('fishPanLeft');
+const btnR = document.getElementById('fishPanRight');
+const btnC = document.getElementById('fishPanCenter');
+if(btnU) btnU.addEventListener('click', ev => { nudgeView(0, panStep(ev)); });
+if(btnD) btnD.addEventListener('click', ev => { nudgeView(0, -panStep(ev)); });
+if(btnL) btnL.addEventListener('click', ev => { nudgeView(-panStep(ev), 0); });
+if(btnR) btnR.addEventListener('click', ev => { nudgeView(panStep(ev), 0); });
+if(btnC) btnC.addEventListener('click', () => { viewState.follow = true; });
+const dipoleNote = document.getElementById('dipoleNavNote');
+if(dipoleNote){
+  const closeBtn = dipoleNote.querySelector('[data-close]');
+  closeBtn?.addEventListener('click', () => dipoleNote.remove());
+}
+</script>
+</body>
+</html>
