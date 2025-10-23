@@ -22,7 +22,7 @@ local.properties
 # External tool builders
 .externalToolBuilders/
 .bundle/
-vendor/
+/vendor/
 .jekyll-metadata
 Gemfile.lock
 
