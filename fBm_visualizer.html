@@ -50,8 +50,10 @@
   .tutorial-note li{color:var(--fg)}
   @media (max-width:900px){
     .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
-    .app.collapsed{grid-template-columns:1fr}
     .panel{grid-column:1 / -1}
+    /* When collapsed on narrow screens, remove the aside row entirely */
+    .app.collapsed{grid-template-columns:1fr;grid-template-rows:auto 0 1fr}
+    .app.collapsed .panel{max-height:0 !important;height:0 !important;padding:0 !important;border:0 !important;overflow:hidden}
     main.canvas-wrap{grid-column:1 / -1;min-height:50vh}
     #view{min-height:clamp(260px,60vh,600px)}
   }
@@ -346,17 +348,32 @@ function resize(){
 
 window.addEventListener('resize', resize);
 
+// Responsive sidebar collapse like other visualizers
 const toggleBtn = document.getElementById('togglePanel');
-if (toggleBtn){
-  toggleBtn.addEventListener('click', () => {
-    const app = document.querySelector('.app');
-    if (!app) return;
-    app.classList.toggle('collapsed');
-    const collapsed = app.classList.contains('collapsed');
+(function(){
+  const app = document.querySelector('.app');
+  if (!app || !toggleBtn) return;
+  const collapseQuery = window.matchMedia('(max-width: 900px)');
+  let userLocked = false;
+  const setCollapsed = (collapsed) => {
+    app.classList.toggle('collapsed', !!collapsed);
+    toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+    toggleBtn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
     toggleBtn.textContent = collapsed ? '>>' : '<<';
+    // allow layout to settle then resize
     setTimeout(resize, 50);
+  };
+  // init from media query
+  setCollapsed(collapseQuery.matches);
+  const onChange = (e)=>{ if(!userLocked) setCollapsed(e.matches); };
+  collapseQuery.addEventListener?.('change', onChange);
+  collapseQuery.addListener?.(onChange);
+  toggleBtn.addEventListener('click', ()=>{
+    userLocked = true;
+    const collapsed = !app.classList.contains('collapsed');
+    setCollapsed(collapsed);
   });
-}
+})();
 
 // ---------- Scale bar (safe if renderer not yet ready) ----------
 function updateScaleBarWidth(){

@@ -65,8 +65,11 @@
   a{color:var(--acc)}
   @media (max-width:900px){
     .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+    /* Panel spans full width on narrow screens */
     .panel{grid-column:1 / -1}
-    .app.collapsed{grid-template-columns:1fr}
+    /* When collapsed on narrow screens, remove the panel row height entirely */
+    .app.collapsed{grid-template-columns:1fr;grid-template-rows:auto 0 1fr}
+    .app.collapsed .panel{max-height:0 !important;height:0 !important;padding:0 !important;border:0 !important;overflow:hidden}
     main.canvas-wrap{grid-column:1 / -1;min-height:50vh}
     #view{min-height:clamp(260px,60vh,600px)}
   }
@@ -372,7 +375,41 @@ function quantizePatchLength(v){
   return 1.0 / N;
 }
 function connect(){
-  byId('togglePanel')?.addEventListener('click', ()=>{ document.querySelector('.app')?.classList.toggle('collapsed'); });
+  // Responsive sidebar: auto-collapse on small screens and update ARIA
+  const appEl = document.querySelector('.app');
+  const panelEl = document.querySelector('aside.panel');
+  const toggleBtn = byId('togglePanel');
+  const collapseQuery = window.matchMedia('(max-width: 900px)');
+  let userLockedPanel = false;
+
+  const setCollapsed = (collapsed) => {
+    if (!appEl) return;
+    appEl.classList.toggle('collapsed', !!collapsed);
+    if (toggleBtn) {
+      toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+      toggleBtn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
+      toggleBtn.innerHTML = collapsed ? '&raquo;' : '&laquo;';
+    }
+    // Recompute canvas layout to avoid any interaction dead zones
+    try { requestAnimationFrame(()=>{ resizeCanvas(); draw(); }); } catch(e) {}
+  };
+
+  // Initialize collapsed state based on viewport
+  setCollapsed(collapseQuery.matches);
+
+  // Keep in sync with viewport changes unless user manually toggled
+  const handleChange = (e) => { if (!userLockedPanel) setCollapsed(e.matches); };
+  collapseQuery.addEventListener?.('change', handleChange);
+  collapseQuery.addListener?.(handleChange); // Safari
+
+  // Manual toggle
+  toggleBtn?.addEventListener('click', () => {
+    if (!appEl) return;
+    userLockedPanel = true;
+    const collapsed = !appEl.classList.contains('collapsed');
+    setCollapsed(collapsed);
+    try { if (!collapsed) panelEl?.focus?.({preventScroll:true}); } catch(e) {}
+  });
   byId('playPause')?.addEventListener('click', ()=>{ sim.playing=!sim.playing; byId('playPause').textContent = sim.playing? 'Pause':'Play'; });
   byId('reset')?.addEventListener('click', ()=>{ seedTracers(); });
   const tog = byId('toggleCilia'); if (tog){ tog.addEventListener('click', ()=>{ params.showCilia = !params.showCilia; tog.textContent = params.showCilia ? 'no animated cilia' : 'animate ciliary motion'; draw(); }); tog.textContent = params.showCilia ? 'no animated cilia' : 'animate ciliary motion'; }
@@ -856,7 +893,16 @@ function draw(){
     if (sim.ciliaBlurCanvas.width !== tileW || sim.ciliaBlurCanvas.height !== tileH){
       sim.ciliaBlurCanvas.width = tileW; sim.ciliaBlurCanvas.height = tileH; sim.ciliaBlurCtx = sim.ciliaBlurCanvas.getContext('2d', {alpha:true});
     }
-    const bctx = sim.ciliaBlurCtx; bctx.clearRect(0,0,tileW,tileH); bctx.filter = 'blur(2px)'; bctx.drawImage(sim.ciliaCanvas, 0, 0); bctx.filter='none';
+    const bctx = sim.ciliaBlurCtx; bctx.clearRect(0,0,tileW,tileH);
+    // Scale blur radius by devicePixelRatio so physical blur looks consistent,
+    // and reduce radius on narrow screens to improve mobile performance.
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const isNarrow = Math.min(W,H) <= 720;
+    const baseBlur = isNarrow ? 1.2 : 2.0; // soften less on small screens
+    const blurPx = Math.max(0, baseBlur / dpr);
+    if (blurPx >= 0.25) { bctx.filter = `blur(${blurPx.toFixed(2)}px)`; }
+    bctx.drawImage(sim.ciliaCanvas, 0, 0);
+    bctx.filter='none';
     for (let ix=-nx; ix<=nx; ix++){
       for (let iy=-ny; iy<=ny; iy++){
         ctx.drawImage(sim.ciliaBlurCanvas, anchorX + ix*pxW - 1, anchorY + iy*pyH - 1, pxW+2, pyH+2);

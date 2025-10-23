@@ -83,6 +83,9 @@
     .panel { grid-column: 1 / -1; }
     .canvas-wrap { grid-column: 1 / -1; min-height: 50vh; }
     #minimap { width: 180px; height: 140px; }
+    /* When collapsed on narrow screens, remove the aside row entirely */
+    .app.collapsed { grid-template-columns: 1fr; grid-template-rows: auto 0 1fr; }
+    .app.collapsed .panel { max-height:0 !important; height:0 !important; padding:0 !important; border:0 !important; overflow:hidden; }
     /* ensure scale bar remains readable on small screens */
     #scalebar{ left:12px; top:20px }
   }
@@ -2043,25 +2046,36 @@
       }
       saveBtn.addEventListener('click', doSave);
     })();
-    // panel collapse/expand toggle
-    var toggleBtn = document.getElementById('togglePanel');
-    if (toggleBtn){
-      toggleBtn.onclick = function(){
-        var app = document.querySelector('.app');
-        if (!app) return;
-        app.classList.toggle('collapsed');
-        var collapsed = app.classList.contains('collapsed');
-        // update icon (show >> when collapsed)
-        toggleBtn.textContent = collapsed ? '>>' : '<<';
-        // ensure canvases resize to fill new layout
+    // Responsive panel collapse/expand toggle with auto-collapse on narrow screens
+    (function(){
+      var toggleBtn = document.getElementById('togglePanel');
+      var app = document.querySelector('.app');
+      if (!toggleBtn || !app) return;
+      var mq = window.matchMedia('(max-width: 900px)');
+      var userLocked = false;
+      function postResize(){
         setTimeout(resizeBF, 50);
-        if (sim.renderer) { sim.renderer.setSize((document.getElementById('threeMini').clientWidth||240), (document.getElementById('threeMini').clientHeight||180)); }
+        if (sim.renderer) {
+          sim.renderer.setSize((document.getElementById('threeMini').clientWidth||240), (document.getElementById('threeMini').clientHeight||180));
+        }
         var kappaBox = document.getElementById('kappaEditor');
         if (kappaBox && typeof kappaBox._updateKappaLayout === 'function') {
           requestAnimationFrame(() => kappaBox._updateKappaLayout());
         }
-      };
-    }
+      }
+      function setCollapsed(collapsed){
+        app.classList.toggle('collapsed', !!collapsed);
+        toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+        toggleBtn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
+        toggleBtn.textContent = collapsed ? '>>' : '<<';
+        postResize();
+      }
+      setCollapsed(mq.matches);
+      var onChange = function(e){ if(!userLocked) setCollapsed(e.matches); };
+      mq.addEventListener?.('change', onChange);
+      mq.addListener?.(onChange);
+      toggleBtn.onclick = function(){ userLocked = true; setCollapsed(!app.classList.contains('collapsed')); };
+    })();
     document.getElementById('presetSingle').onclick = function(){
       params.nX=1; params.nY=1; params.ampStd=0; params.cbfMean=1; params.cbfStd=0; params.lengthMean=10; params.lengthStd=0; params.waveAmp=0; params.waveNoise=0; params.waveAngle=0; params.coverage=1; params.angleMean=0; params.angleStd=0;
       syncPanel(); replot();
