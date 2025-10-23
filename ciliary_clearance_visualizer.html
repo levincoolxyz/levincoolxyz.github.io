@@ -6,21 +6,45 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Ciliary Clearance Visualizer</title>
 <style>
-  :root{--bg:#0b0d12;--fg:#e8eaed;--muted:#9aa0a6;--acc:#8ab4f8;--panel:#0f131d;--border:#1f2937}
+  :root{
+    --bg:#0b0d12;--fg:#e8eaed;--muted:#9aa0a6;--acc:#8ab4f8;
+    --panel:#0f131d;--border:#1f2937;
+    --canvas-bg:#1c1f24;--cell-cil:rgba(210,210,210,.18);--cell-non:rgba(140,140,140,.12);--cell-edge:rgba(0,0,0,.65);
+    --track:rgba(120,200,255,.85);--tracer:#e8eaed;--arrow:#ff5050;
+  }
+  body.light{
+    --bg:#f6f7f9;--fg:#0b0d12;--muted:#475569;--acc:#0d47a1;
+    /* keep sidebar/header dark; only canvas/light elements switch */
+    --panel:#0f131d;--border:#1f2937;
+    --canvas-bg:#ebedef;--cell-cil:rgba(80,80,80,.12);--cell-non:rgba(120,120,120,.08);--cell-edge:rgba(30,30,30,.5);
+    --track:rgba(30,90,160,.85);--tracer:#0b0d12;--arrow:#d64545;
+  }
   html,body{height:100%;margin:0}
   body{background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .app{display:grid;grid-template-columns:minmax(260px,360px) 1fr;grid-template-rows:auto 1fr;height:100%}
   .app>*{min-width:0;min-height:0}
-  header{grid-column:1 / -1;padding:8px 12px;border-bottom:1px solid var(--border);background:#0f1113}
+  header{grid-column:1 / -1;padding:8px 12px;border-bottom:1px solid var(--border);background:#0f1113;color:#e5e7eb}
   header .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  header h1{font-size:16px;margin:0 12px 0 0;color:var(--fg)}
-  header small{color:var(--muted)}
-  .panel{background:var(--panel);border-right:1px solid var(--border);padding:12px;overflow:auto}
-  .btn-toggle{background:#10192a;color:var(--fg);border:1px solid #2c3a4d;padding:6px;border-radius:8px;cursor:pointer;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center}
+  header h1{font-size:16px;margin:0 12px 0 0;color:#e5e7eb}
+  header small{color:#9aa0a6}
+  .panel{background:#0f131d;color:#e5e7eb;border-right:1px solid #1f2937;padding:12px;overflow:auto}
+  body.light .panel{background:#0f131d;color:#e5e7eb;border-right:1px solid #1f2937}
+  body.light header{background:#0f1113;color:#e5e7eb}
+  .panel label, .panel .hint{color:#9aa0a6}
+  /* Force dark theme text inside sidebar in both modes */
+  body.light .panel * { color: inherit; }
+  body.light .panel .row label, .panel .row label { color:#9aa0a6 !important; }
+  body.light .panel h2, .panel h2 { color:#e5e7eb; }
+  body.light .panel select, .panel select,
+  body.light .panel input[type=number], .panel input[type=number],
+  body.light .panel input[type=text], .panel input[type=text] { color:#e5e7eb; background:#111827; }
+  body.light .panel select option, .panel select option { color:#e5e7eb; background:#111827; }
+  body.light .panel a, .panel a { color:#8ab4f8; }
+  .btn-toggle{background:#10192a;color:#e5e7eb;border:1px solid #2c3a4d;padding:6px;border-radius:8px;cursor:pointer;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center}
   .btn-toggle:hover{background:#162236}
   .app.collapsed{grid-template-columns:0 1fr}
   .app.collapsed .panel{padding:0;overflow:hidden;pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
-  main.canvas-wrap{position:relative;display:flex;align-items:center;justify-content:center;background:#0f1113}
+  main.canvas-wrap{position:relative;display:flex;align-items:center;justify-content:center;background:var(--panel)}
   #view{position:relative;flex:1;width:100%;height:100%;min-height:clamp(280px,60vh,740px);display:flex;align-items:center;justify-content:center}
   #view canvas{display:block;max-width:100%;max-height:100%}
   .panel h2{margin:0 0 8px 0;font-size:15px}
@@ -28,7 +52,7 @@
   .row{display:grid;grid-template-columns:1fr minmax(120px,160px);gap:8px;align-items:center;margin:6px 0}
   .row label{font-size:12px;color:var(--muted)}
   .row input[type=range]{width:100%}
-  .row input[type=number], .row select{width:100%;background:#111827;color:var(--fg);border:1px solid #2f3847;border-radius:8px;padding:6px}
+  .row input[type=number], .row select{width:100%;background:#111827;color:#e5e7eb;border:1px solid #2f3847;border-radius:8px;padding:6px}
   .hint{font-size:12px;color:var(--muted);margin-top:4px}
   .btn{background:#10192a;color:#fff;border:0;border-radius:10px;padding:8px 10px;cursor:pointer}
   .btn:disabled{opacity:.6;cursor:not-allowed}
@@ -60,6 +84,8 @@
       <h1>Ciliary Clearance Visualizer</h1>
       <button id="playPause" class="btn">Pause</button>
       <button id="reset" class="btn">Reset tracers</button>
+      <button id="toggleCilia" class="btn">no animated cilia</button>
+      <button id="toggleTheme" class="btn">light mode</button>
       <small>Regularized stokeslets with wall</small>
     </div>
   </header>
@@ -79,47 +105,47 @@
             <option value="example6" title="dense, aligned, disordered">Example 6 — dense, aligned, disordered</option>
             <option value="example7" title="sparse, misaligned, disordered">Example 7 — sparse, misaligned, disordered</option>
             <option value="example8" title="dense, misaligned, disordered">Example 8 — dense, misaligned, disordered</option>
-            <option value="human_avg">human_avg</option>
-            <option value="human_max">human_max</option>
-            <option value="human_min">human_min</option>
-            <option value="rat_avg">rat_avg</option>
-            <option value="rat_max">rat_max</option>
-            <option value="rat_min">rat_min</option>
-            <option value="bd_avg">bd_avg</option>
-            <option value="bd_max">bd_max</option>
-            <option value="bd_min">bd_min</option>
-            <option value="mair_avg">mair_avg</option>
-            <option value="mair_max">mair_max</option>
-            <option value="mair_min">mair_min</option>
-            <option value="pc_avg">pc_avg</option>
-            <option value="pc_max">pc_max</option>
-            <option value="pc_min">pc_min</option>
-            <option value="pcs_avg">pcs_avg</option>
-            <option value="pcs_max">pcs_max</option>
-            <option value="pcs_min">pcs_min</option>
-            <option value="sagm_avg">sagm_avg</option>
-            <option value="sagm_max">sagm_max</option>
-            <option value="sagm_min">sagm_min</option>
-            <option value="pc_atp">pc_atp</option>
-            <option value="pc_atp_max">pc_atp_max</option>
-            <option value="pc_atp_min">pc_atp_min</option>
-            <option value="pcs_atp">pcs_atp</option>
-            <option value="pcs_atp_max">pcs_atp_max</option>
-            <option value="pcs_atp_min">pcs_atp_min</option>
-            <option value="pc_muc">pc_muc</option>
-            <option value="pc_muc_max">pc_muc_max</option>
-            <option value="pc_muc_min">pc_muc_min</option>
-            <option value="pcs_muc">pcs_muc</option>
-            <option value="pcs_muc_max">pcs_muc_max</option>
-            <option value="pcs_muc_min">pcs_muc_min</option>
-            <option value="pc_D37">pc_D37</option>
+            <option value="human_avg">human (average)</option>
+            <option value="human_max">human (max clearance)</option>
+            <option value="human_min">human (min clearance)</option>
+            <option value="rat_avg">rat (average)</option>
+            <option value="rat_max">rat (max clearance)</option>
+            <option value="rat_min">rat (min clearance)</option>
+            <option value="bd_avg">BD culture (average)</option>
+            <option value="bd_max">BD culture (max clearance)</option>
+            <option value="bd_min">BD culture (min clearance)</option>
+            <option value="mair_avg">mAir culture (average)</option>
+            <option value="mair_max">mAir culture (max clearance)</option>
+            <option value="mair_min">mAir culture (min clearance)</option>
+            <option value="pc_avg">PC culture (average)</option>
+            <option value="pc_max">PC culture (max clearance)</option>
+            <option value="pc_min">PC culture (min clearance)</option>
+            <option value="pcs_avg">PCS culture (average)</option>
+            <option value="pcs_max">PCS culture (max clearance)</option>
+            <option value="pcs_min">PCS culture (min clearance)</option>
+            <option value="sagm_avg">SAGM culture (average)</option>
+            <option value="sagm_max">SAGM culture (max clearance)</option>
+            <option value="sagm_min">SAGM culture (min clearance)</option>
+            <option value="pc_atp">PC with ATP</option>
+            <option value="pc_atp_max">PC with ATP (max)</option>
+            <option value="pc_atp_min">PC with ATP (min)</option>
+            <option value="pcs_atp">PCS with ATP</option>
+            <option value="pcs_atp_max">PCS with ATP (max)</option>
+            <option value="pcs_atp_min">PCS with ATP (min)</option>
+            <option value="pc_muc">PC with mucus</option>
+            <option value="pc_muc_max">PC with mucus (max)</option>
+            <option value="pc_muc_min">PC with mucus (min)</option>
+            <option value="pcs_muc">PCS with mucus</option>
+            <option value="pcs_muc_max">PCS with mucus (max)</option>
+            <option value="pcs_muc_min">PCS with mucus (min)</option>
+            <option value="pc_D37">PC at 37°C diffusion</option>
           </select>
         </div>
       </div>
       <div class="hint" style="grid-column:1 / -1">Examples vary: coverage (sparse↔dense), alignment (aligned↔misaligned), patches (regular↔disordered).</div>
     </div>
     <div class="group">
-      <div class="row"><label>Modifier</label>
+      <div class="row"><label>Modifier (human benchmark)</label>
         <div>
           <select id="mod">
             <option value="none">(none)</option>
@@ -136,34 +162,27 @@
       </div>
     </div>
     <div class="group">
-      <div class="row"><label>Grid size X</label><input id="nX" type="range" min="6" max="40" step="1" value="21"></div>
-      <div class="row"><label>Grid size Y</label><input id="nY" type="range" min="6" max="40" step="1" value="21"></div>
-      <div class="row"><label>Grid spacing</label><input id="spacing" type="range" min="0.5" max="2.0" step="0.01" value="1.0"></div>
+      <div class="row"><label>Cells across X</label><input id="nX" type="range" min="6" max="40" step="1" value="21"></div>
+      <div class="row"><label>Cells across Y</label><input id="nY" type="range" min="6" max="40" step="1" value="21"></div>
+      
     </div>
     <div class="group">
-      <div class="row"><label>Coverage</label><input id="coverage" type="range" min="0" max="1" step="0.01" value="0.5"></div>
-      <div class="row"><label>Patch length (λ/size)</label><input id="patchlength" type="range" min="0.05" max="1.0" step="0.01" value="0.6"></div>
-      <div class="row"><label>Crystalline jitter</label><input id="crystalline" type="range" min="0" max="2" step="0.01" value="1.06"></div>
-      <div class="row"><label>Patch order</label><input id="patchorder" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+      <div class="row"><label>Ciliated coverage</label><input id="coverage" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+      <div class="row"><label>Patch wavelength fraction (λ/domain)</label><input id="patchlength" type="range" min="0.05" max="1.0" step="0.01" value="0.6"></div>
+      <div class="row"><label>Patch randomness (disorder)</label><input id="crystalline" type="range" min="0" max="2" step="0.01" value="1.06"></div>
     </div>
     <div class="group">
-      <div class="row"><label>Angle std (deg)</label><input id="angleStd" type="range" min="0" max="90" step="1" value="11"></div>
-      <div class="row"><label>Cilia height h [au]</label><input id="ciliaH" type="range" min="0.2" max="2.0" step="0.01" value="1.0"></div>
-      <div class="row"><label>Beat amplitude a [au]</label><input id="amp" type="range" min="0.1" max="2.0" step="0.01" value="1.0"></div>
-      <div class="row"><label>Regularisation ε</label><input id="eps" type="range" min="0.02" max="0.8" step="0.01" value="0.10"></div>
-      <div class="row"><label>Diffusion D</label><input id="diff" type="range" min="0" max="0.2" step="0.001" value="0.01"></div>
-      <div class="row"><label>dt</label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
+      <div class="row"><label>Orientation order (OOP)</label><input id="oop" type="range" min="0" max="1" step="0.01" value="0.90"></div>
+      <div class="row"><label>Cilium layer height [×L0]</label><input id="ciliaH" type="range" min="0.2" max="2.0" step="0.01" value="1.0"></div>
+      <div class="row"><label>Beat amplitude [×L0]</label><input id="amp" type="range" min="0.1" max="2.0" step="0.01" value="1.0"></div>
+      <div class="row"><label>Tracer diffusion (dimensionless)</label><input id="diff" type="range" min="0" max="0.2" step="0.001" value="0.01"></div>
+      <div class="row"><label>Time step</label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
     </div>
     <div class="group">
       <div class="row"><label>Tracer count</label><input id="nTracer" type="range" min="10" max="500" step="1" value="60"></div>
       <div class="row"><label>Trail length (frames)</label><input id="trail" type="range" min="5" max="300" step="1" value="120"></div>
     </div>
-    <div class="group">
-      <div class="row"><label>Scale bar [μm]</label><input id="barum" type="range" min="1" max="50" step="1" value="10"></div>
-      <div class="row"><label>Animated ciliated cells</label>
-        <div><input id="showCilia" type="checkbox"></div>
-      </div>
-    </div>
+    
   </aside>
 
   <main class="canvas-wrap">
@@ -191,17 +210,29 @@ function clamp(v,a,b){ return Math.min(b, Math.max(a, v)); }
 function wrapCenter(r, r0, size){ // wrap r centered around r0 +/- size/2
   return ((r - r0 - size/2) % size + size) % size + r0 - size/2;
 }
-// presence and patching (ported from cilia_bundle_tracer_visualizer)
+// presence and patching (closer to MATLAB):
+// - x,y are normalized to [-1,1] before dividing by patchlength
+// - 'crystalline' (o) jitters the coordinates passed to the square wave field
 function shape1d(x,a){ const m = ((x+1)%2+2)%2; return (m <= 2*a) ? (m/a - 1) : (1 - (m-2*a)/(1-a)); }
-function presence(cx, cy, coverage, patchlength, crystalline, patchorder, nCols, nRows, dX, dY){
+function presence(cx, cy, coverage, patchlength, disorder, patchorder, nCols, nRows, dX, dY){
   const n = cx.length; const out = new Array(n);
-  function seedAt(x,y){ const px = Math.floor((x + (nCols-1)*dX/2) / dX); const py = Math.floor((y + (nRows-1)*dY/2) / dY); const s = Math.sin(px*12.9898 + py*78.233)*43758.5453; return s - Math.floor(s); }
+  const xSize = Math.max(1e-6, (nCols-1)*dX), ySize = Math.max(1e-6, (nRows-1)*dY);
+  function seedAt(x,y){
+    const px = Math.floor((x + xSize/2) / dX);
+    const py = Math.floor((y + ySize/2) / dY);
+    const s = Math.sin(px*12.9898 + py*78.233)*43758.5453; return s - Math.floor(s);
+  }
   for (let i=0;i<n;i++){
-    const seed = seedAt(cx[i]+(Math.random()-0.5)*crystalline, cy[i]+(Math.random()-0.5)*crystalline);
-    let a = (seed-0.5)*patchorder + 0.5; a = clamp(a, 0.01, 0.99);
+    // Gaussian-like jitter via Box–Muller for x,y before pattern lookup
+    const jx = cx[i] + randn() * disorder;
+    const jy = cy[i] + randn() * disorder;
+    // normalized to [-1, 1]
+    const xn = (2*jx)/xSize, yn = (2*jy)/ySize;
+    // patch width parameter around 0.5 with spatial seed
+    let a = (seedAt(cx[i], cy[i]) - 0.5) * patchorder + 0.5; a = clamp(a, 0.01, 0.99);
     const pot = Math.min(
-      shape1d(cx[i]/Math.max(1,(nCols-1)*dX)/patchlength, a),
-      shape1d(cy[i]/Math.max(1,(nRows-1)*dY)/patchlength, a)
+      shape1d(xn/Math.max(1e-6,patchlength), a),
+      shape1d(yn/Math.max(1e-6,patchlength), a)
     );
     out[i] = (pot >= (1 - 2*coverage));
   }
@@ -271,12 +302,17 @@ function stokesletWithWall(Xq, X, F, eps){
 
 // ===== App state =====
 const params = {
-  nX:21, nY:21, spacing:1.0,
-  coverage:0.5, patchlength:0.6, crystalline:1.06, patchorder:0.5,
-  angleStdDeg:11, ciliaH:1.0, amp:1.0, eps:0.10, diff:0.01, dt:0.05,
+  nX:21, nY:21,
+  coverage:0.5, patchlength:0.6, crystalline:1.06, patchorder:0,
+  oop:0.90, ciliaH:1.0, amp:1.0, diff:0.01, dt:0.05,
   nTracer:60, trail:120,
-  barum:10, // scale bar (um)
-  showCilia:false, // animated cilia sticks
+  showCilia:true, // animated cilia sticks default ON
+  centerJitter:0.5, // cell center randomness (original randness)
+  // animated cilia variability
+  corrLen:1.0,           // decorrelation length (×L0)
+  phaseJitter:0.3,      // per-cell phase variation (fraction of cycle)
+  ampJitterPct:10,       // per-cell amplitude variation (±%)
+  angleJitter:5,        // per-cell angle variation (degrees)
 };
 
 const sim = {
@@ -301,15 +337,28 @@ function connect(){
   byId('togglePanel')?.addEventListener('click', ()=>{ document.querySelector('.app')?.classList.toggle('collapsed'); });
   byId('playPause')?.addEventListener('click', ()=>{ sim.playing=!sim.playing; byId('playPause').textContent = sim.playing? 'Pause':'Play'; });
   byId('reset')?.addEventListener('click', ()=>{ seedTracers(); });
+  const tog = byId('toggleCilia'); if (tog){ tog.addEventListener('click', ()=>{ params.showCilia = !params.showCilia; tog.textContent = params.showCilia ? 'no animated cilia' : 'animate cilia motion'; draw(); }); tog.textContent = params.showCilia ? 'no animated cilia' : 'animate cilia motion'; }
+  const themeBtn = byId('toggleTheme'); if (themeBtn){ themeBtn.addEventListener('click', ()=>{ const isLight=document.body.classList.toggle('light'); themeBtn.textContent = isLight ? 'dark mode' : 'light mode'; draw(); }); themeBtn.textContent='light mode'; }
   byId('preset')?.addEventListener('change', ()=>{ const name = byId('preset').value; if (name !== 'custom'){ applyPreset(name); syncUIFromParams(); rebuild(); } });
   byId('mod')?.addEventListener('change', ()=>{ const name = byId('mod').value; if (name && name!=='none'){ applyMod(name); syncUIFromParams(); rebuild(); } });
   const map = [
-    ['nX','nX'],['nY','nY'],['spacing','spacing'],
-    ['coverage','coverage'],['patchlength','patchlength'],['crystalline','crystalline'],['patchorder','patchorder'],
-    ['angleStd','angleStdDeg'],['ciliaH','ciliaH'],['amp','amp'],['eps','eps'],['diff','diff'],['dt','dt'],
-    ['nTracer','nTracer'],['trail','trail'], ['barum','barum']
+    ['nX','nX'],['nY','nY'],
+    ['coverage','coverage'],['patchlength','patchlength'],['crystalline','crystalline'],
+    ['oop','oop'],['ciliaH','ciliaH'],['amp','amp'],['diff','diff'],['dt','dt'],
+    ['nTracer','nTracer'],['trail','trail']
   ];
-  for (const [id,key] of map){ const el=byId(id); if (!el) continue; el.addEventListener('input', ()=>{ const v=Number(el.value); params[key] = v; if(['nX','nY','spacing','coverage','patchlength','crystalline','patchorder','ciliaH','amp','angleStdDeg','eps'].includes(key)){ rebuild(); } }); }
+  const gridKeys = ['nX','nY'];
+  const patternKeys = ['coverage','patchlength','crystalline'];
+  for (const [id,key] of map){
+    const el=byId(id); if (!el) continue;
+    el.addEventListener('input', ()=>{
+      const v=Number(el.value); params[key] = v;
+      if (gridKeys.includes(key)) { rebuild(); }
+      else if (patternKeys.includes(key)) { recomputePattern(); }
+      else if (key === 'oop') { updateAnglesOnly(); }
+      else { updateNonGrid(); }
+    });
+  }
   const sc = byId('showCilia'); if (sc){ sc.checked = params.showCilia; sc.addEventListener('change', ()=>{ params.showCilia = !!sc.checked; }); }
 }
 
@@ -317,9 +366,10 @@ function connect(){
 function generateGrid(){
   const nX = Math.max(2, Math.floor(params.nX));
   const nY = Math.max(2, Math.floor(params.nY));
-  const dX = Math.max(0.2, Number(params.spacing));
-  const dY = dX;
+  const dX = 1.0;
+  const dY = 1.0;
   sim.dX = dX; sim.dY = dY;
+  sim.nX = nX; sim.nY = nY;
   const xSize = (nX-1)*dX, ySize = (nY-1)*dY; sim.xSize=xSize; sim.ySize=ySize;
   const coordx = new Array(nX), coordy=new Array(nY);
   for(let i=0;i<nX;i++){ coordx[i] = -xSize/2 + (nX>1 ? i*(xSize/(nX-1)) : 0); }
@@ -327,26 +377,96 @@ function generateGrid(){
   const cx=[], cy=[], cz=[];
   for(let j=0;j<nY;j++){
     for(let i=0;i<nX;i++){
-      const jitter = params.crystalline;
+      const jitter = params.centerJitter || 0;
       cx.push(coordx[i] + (Math.random()-0.5)*jitter);
       cy.push(coordy[j] + (Math.random()-0.5)*jitter);
       cz.push(params.ciliaH);
     }
   }
   sim.cx = Float64Array.from(cx); sim.cy=Float64Array.from(cy); sim.cz=Float64Array.from(cz); sim.total = nX*nY;
-  sim.isCiliated = presence(sim.cx, sim.cy, params.coverage, params.patchlength, params.crystalline, params.patchorder, nX, nY, dX, dY).map(b=>!!b);
+  sim.isCiliated = presence(sim.cx, sim.cy, params.coverage, params.patchlength, params.crystalline, 0, nX, nY, dX, dY).map(b=>!!b);
   sim.totalCiliated = sim.isCiliated.reduce((a,b)=>a+(b?1:0),0);
+}
+
+function recomputePattern(){
+  const nX = sim.nX || Math.round(Math.sqrt(sim.total));
+  const nY = sim.nY || Math.round(Math.sqrt(sim.total));
+  sim.isCiliated = presence(sim.cx, sim.cy, params.coverage, params.patchlength, params.crystalline, 0, nX, nY, sim.dX, sim.dY).map(b=>!!b);
+  // keep totalCiliated in sync with pattern changes
+  sim.totalCiliated = 0; for (let i=0;i<sim.total;i++){ if (sim.isCiliated[i]) sim.totalCiliated++; }
+  // Rebuild cilia seeds to reflect changed ciliated identities
+  if (sim.vor && sim.vor.polys){ initCiliaSeeds(sim.vor.polys); }
+  // Physics reset: sources depend on ciliation and angles/amplitudes
+  buildSources();
+  // Restart simulation time and tracer trajectories (MATLAB-style fresh run)
+  sim.time = 0;
+  seedTracers();
+  draw(); stats();
+}
+
+function updateNonGrid(){
+  // Update fields that don't change cell positions
+  // Update cilia height array
+  if (sim.total > 0){
+    if (!sim.cz || sim.cz.length !== sim.total){ sim.cz = new Float64Array(sim.total); }
+    for (let i=0;i<sim.total;i++){ sim.cz[i] = params.ciliaH; }
+  }
+  // do not reseed angles here; angles remain unless OOP changes
+  buildSources();
+  // Restart simulation dynamics so physics changes (amp, height, D, dt) take effect cleanly
+  sim.time = 0;
+  seedTracers();
+  // Seeds stay; Voronoi stays; pattern stays unless explicitly changed
+  draw(); stats(); updateScaleBar();
+}
+
+function updateAnglesOnly(){
+  // Recompute angle distribution from OOP without touching positions or pattern
+  const n = sim.total; if (n<=0) return;
+  const oop = Math.max(0, Math.min(1, Number(params.oop) || 0));
+  const s = Math.sqrt(Math.max(0, -Math.log(Math.max(1e-6, oop))/2));
+  sim.ang = new Float64Array(n); for (let i=0;i<n;i++){ sim.ang[i] = s>0? s*randn() : 0; }
+  buildSources();
+  // Restart time and tracers to mirror MATLAB rerun behavior
+  sim.time = 0;
+  seedTracers();
+  draw(); stats();
 }
 
 function reseedAngles(){
   const n = sim.total; sim.ang = new Float64Array(n);
-  const s = (params.angleStdDeg||0) * Math.PI/180;
+  const oop = Math.max(0, Math.min(1, Number(params.oop) || 0));
+  const s = Math.sqrt(Math.max(0, -Math.log(Math.max(1e-6, oop))/2)); // radians
   for(let i=0;i<n;i++){ sim.ang[i] = s>0? s*randn() : 0; }
+  // correlated fields: phase (cycle fraction) and amplitude scaling (±) with decorrelation ~ corrLen×spacing
+  const R = 1.0; // ~ L0 since spacing=1
+  const phaseAmp = 0.05; // ~5% of cycle
+  const ampAmp = 0.10;   // ±10%
+  sim.cellPhase = correlatedField(sim.cx, sim.cy, R, phaseAmp);
+  sim.cellAmp   = correlatedField(sim.cx, sim.cy, R, ampAmp);
+}
+
+function correlatedField(cx, cy, R, sigma){
+  const n = cx.length; const out = new Float64Array(n);
+  if (n === 0) return out;
+  const w = new Float64Array(n); for (let i=0;i<n;i++) w[i] = randn();
+  for (let i=0;i<n;i++){
+    let num=0, den=0;
+    for (let j=0;j<n;j++){
+      const dx=cx[i]-cx[j], dy=cy[i]-cy[j]; const d=Math.hypot(dx,dy);
+      const k = Math.exp(-d/Math.max(1e-6,R));
+      num += k * w[j]; den += k;
+    }
+    const v = (den>0)? num/den : 0; out[i] = sigma * v;
+  }
+  return out;
 }
 
 function buildSources(){
   // Build source arrays X: [z; x; y] and F: [Fz; Fx; Fy] for ciliated cells only
-  const N = sim.totalCiliated;
+  // Derive N from current pattern to avoid stale values
+  let N = 0; for (let i=0;i<sim.total;i++){ if (sim.isCiliated && sim.isCiliated[i]) N++; }
+  sim.totalCiliated = N;
   const X = new Float64Array(N*3);
   const F = new Float64Array(N*3);
   let k=0;
@@ -354,8 +474,9 @@ function buildSources(){
     if (!sim.isCiliated[i]) continue;
     const z = sim.cz[i];
     const ang = sim.ang[i] || 0; // around x-y plane
-    const fx = Math.cos(ang) * params.amp;
-    const fy = Math.sin(ang) * params.amp;
+    const ampScale = 1 + (sim.cellAmp ? sim.cellAmp[i] : 0);
+    const fx = Math.cos(ang) * params.amp * ampScale;
+    const fy = Math.sin(ang) * params.amp * ampScale;
     X[k] = z; // wall at 0, height z
     X[k+N] = sim.cx[i];
     X[k+2*N] = sim.cy[i];
@@ -450,10 +571,18 @@ function pointInPoly(poly, x, y){
 function initCiliaSeeds(polys){
   const seedsPerCellMin = 100, seedsPerCellMax = 150;
   const out = new Array(sim.total);
+  // Build spatially correlated samplers for per‑seed phase and amplitude
+  const R = 0.3; // fraction of L0 to ensure variation inside a cell
+  const phaseAmp = Number(params.phaseJitter) || 0; // fraction of cycle
+  const ampAmp = (Number(params.ampJitterPct) || 0) / 100; // ±fraction
+  const angAmp = (Number(params.angleJitter) || 0) * Math.PI/180; // radians
+  const phaseSampler = makeCorrelatedSampler(R, phaseAmp);
+  const ampSampler   = makeCorrelatedSampler(R, ampAmp);
+  const angleSampler = makeCorrelatedSampler(R, angAmp);
+
   for (let i=0;i<sim.total;i++){
     if (!sim.isCiliated[i]){ out[i]=null; continue; }
     const poly = polys[i]; if (!poly || poly.length<3){ out[i]=null; continue; }
-    const pCell = Math.random();
     let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
     for (const p of poly){ if (p[0]<minx) minx=p[0]; if (p[0]>maxx) maxx=p[0]; if (p[1]<miny) miny=p[1]; if (p[1]>maxy) maxy=p[1]; }
     const want = seedsPerCellMin + Math.floor(Math.random()*(seedsPerCellMax-seedsPerCellMin+1));
@@ -462,11 +591,40 @@ function initCiliaSeeds(polys){
       tries++;
       const rx = minx + Math.random()*(maxx-minx);
       const ry = miny + Math.random()*(maxy-miny);
-      if (pointInPoly(poly, rx, ry)) seeds.push({x:rx,y:ry,p:pCell});
+      if (pointInPoly(poly, rx, ry)){
+        seeds.push({ x:rx, y:ry, dphi: phaseSampler(rx,ry), damp: ampSampler(rx,ry), dang: angleSampler(rx,ry) });
+      }
     }
     out[i]=seeds;
   }
   sim.ciliaSeeds = out;
+}
+
+// Efficient correlated noise sampler: sample random values on a coarse grid and bilinearly interpolate
+function makeCorrelatedSampler(R, sigma){
+  const s = Math.max(0.01, sigma||0);
+  if (s === 0) return ()=>0;
+  const gx = Math.max(2, Math.ceil(sim.xSize / R) + 3);
+  const gy = Math.max(2, Math.ceil(sim.ySize / R) + 3);
+  const dx = sim.xSize / (gx-3);
+  const dy = sim.ySize / (gy-3);
+  const grid = new Float32Array(gx*gy);
+  for (let j=0;j<gy;j++){
+    for (let i=0;i<gx;i++){
+      grid[j*gx+i] = randn();
+    }
+  }
+  return function(x,y){
+    const X = (x + sim.xSize/2) / Math.max(1e-6, dx) + 1;
+    const Y = (y + sim.ySize/2) / Math.max(1e-6, dy) + 1;
+    const i0 = Math.floor(X), j0 = Math.floor(Y);
+    const tx = X - i0, ty = Y - j0;
+    function g(i,j){ const ii=Math.max(0,Math.min(gx-1,i)); const jj=Math.max(0,Math.min(gy-1,j)); return grid[jj*gx+ii]; }
+    const v00=g(i0,j0), v10=g(i0+1,j0), v01=g(i0,j0+1), v11=g(i0+1,j0+1);
+    const vx0 = v00*(1-tx) + v10*tx; const vx1 = v01*(1-tx) + v11*tx;
+    const v = vx0*(1-ty) + vx1*ty;
+    return s * v;
+  };
 }
 
 // ===== Tracers =====
@@ -486,7 +644,7 @@ let Xwrap=null; // per-particle wrapped sources buffer
 function step(dt){
   if (!sim.tracers || sim.tracers.length===0) return;
   const N = sim.totalCiliated; if (N<=0) return;
-  const eps = Math.max(1e-6, Number(params.eps));
+  const eps = 0.1; // bd = spacing/10 with spacing=1
   if (!Xwrap || Xwrap.length !== sim.XsrcFull.length) Xwrap = new Float64Array(sim.XsrcFull.length);
   const periodX = sim.xSize + sim.dX;
   const periodY = sim.ySize + sim.dY;
@@ -534,8 +692,10 @@ function draw(){
   const pad = 40; const sx = (W - 2*pad) / Math.max(1e-6, sim.xSize); const sy = (H - 2*pad) / Math.max(1e-6, sim.ySize); const s = Math.min(sx, sy); sim.scale = s;
   const cx0 = W/2, cy0 = H/2;
   function toXY(x,y){ return [cx0 + x*s, cy0 + y*s]; }
-  // background (dark gray)
-  ctx.fillStyle = '#1c1f24'; ctx.fillRect(0,0,W,H);
+  // background from theme
+  const css = getComputedStyle(document.body);
+  const canvasBg = css.getPropertyValue('--canvas-bg').trim() || '#1c1f24';
+  ctx.fillStyle = canvasBg; ctx.fillRect(0,0,W,H);
   // faint fundamental domain box only
   const [bx0, by0] = toXY(-sim.xSize/2, -sim.ySize/2);
   ctx.strokeStyle = 'rgba(230,230,230,.15)'; ctx.lineWidth = 2; ctx.strokeRect(bx0, by0, sim.xSize*s, sim.ySize*s);
@@ -550,9 +710,12 @@ function draw(){
         if (j===0) octx.moveTo(px, py); else octx.lineTo(px, py);
       }
       octx.closePath();
-      octx.fillStyle = sim.isCiliated[i] ? 'rgba(210,210,210,0.18)' : 'rgba(140,140,140,0.12)';
+      const fillCil = css.getPropertyValue('--cell-cil').trim() || 'rgba(210,210,210,0.18)';
+      const fillNon = css.getPropertyValue('--cell-non').trim() || 'rgba(140,140,140,0.12)';
+      octx.fillStyle = sim.isCiliated[i] ? fillCil : fillNon;
       octx.fill();
-      octx.strokeStyle = 'rgba(0,0,0,.65)'; octx.lineWidth = 1; octx.stroke();
+      const edge = css.getPropertyValue('--cell-edge').trim() || 'rgba(0,0,0,.65)';
+      octx.strokeStyle = edge; octx.lineWidth = 1; octx.stroke();
     }
   }
   // arrows and optional cilia on overlay
@@ -566,15 +729,18 @@ function draw(){
     octx.beginPath(); octx.moveTo(x0,y0); octx.lineTo(sx1,sy1); octx.stroke();
     octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(sx1+(headWidth/2)*pxp, sy1+(headWidth/2)*pyp); octx.lineTo(sx1-(headWidth/2)*pxp, sy1-(headWidth/2)*pyp); octx.closePath(); octx.fill();
     if (params.showCilia && sim.ciliaSeeds && sim.ciliaSeeds[i]){
-      const amp = Math.max(0, params.amp) * s; octx.lineWidth = 2;
+      const baseAmp = Math.max(0, params.amp) * (1 + (sim.cellAmp? sim.cellAmp[i] : 0)) * s; octx.lineWidth = 2;
       const seeds = sim.ciliaSeeds[i];
       for (let k=0;k<seeds.length;k++){
-        const seed = seeds[k]; const tcyc = (sim.time + seed.p) % 1; let dir=1, len=0;
-        if (tcyc < 0.2){ const u=tcyc/0.2; len=0.9*amp*Math.sin(0.5*Math.PI*u); dir=1; }
-        else if (tcyc < 0.6){ const u=(tcyc-0.2)/0.4; len=0.9*amp*(1-Math.sin(0.5*Math.PI*u)); dir=1; }
-        else if (tcyc < 0.7){ const u=(tcyc-0.6)/0.1; len=0.1*amp*Math.sin(0.5*Math.PI*u); dir=-1; }
-        else if (tcyc < 0.9){ const u=(tcyc-0.7)/0.2; len=0.1*amp*(1-Math.sin(0.5*Math.PI*u)); dir=-1; }
-        const dxs=Math.cos(ang)*len*dir, dys=Math.sin(ang)*len*dir; const [sx,sy]=toXY(seed.x,seed.y);
+        const seed = seeds[k]; const localAmp = baseAmp * (1 + (seed.damp || 0));
+        const tcyc = (sim.time + (sim.cellPhase? sim.cellPhase[i] : 0) + (seed.dphi || 0)) % 1; let dir=1, len=0;
+        // Nonzero minima: forward ~100%, backward ~35%, smooth sinusoidal transitions
+        if (tcyc < 0.3){ const u=tcyc/0.3; len = (0.35 + 0.65*Math.sin(0.5*Math.PI*u)) * localAmp; dir=1; }
+        else if (tcyc < 0.6){ const u=(tcyc-0.3)/0.3; len = (1.0 - 0.65*Math.sin(0.5*Math.PI*u)) * localAmp; dir=1; }
+        else if (tcyc < 0.8){ const u=(tcyc-0.6)/0.2; len = (0.35 + 0.15*Math.sin(0.5*Math.PI*u)) * localAmp; dir=-1; }
+        else { const u=(tcyc-0.8)/0.2; len = (0.50 - 0.15*Math.sin(0.5*Math.PI*u)) * localAmp; dir=-1; }
+        const aLocal = ang + (seed.dang || 0);
+        const dxs=Math.cos(aLocal)*len*dir, dys=Math.sin(aLocal)*len*dir; const [sx,sy]=toXY(seed.x,seed.y);
         octx.beginPath(); octx.moveTo(sx-0.2*dxs, sy-0.2*dys); octx.lineTo(sx+0.8*dxs, sy+0.8*dys); octx.stroke();
       }
       octx.lineWidth = 1.5;
@@ -584,10 +750,18 @@ function draw(){
   else { ctx.drawImage(sim.overlayCanvas,0,0); }
   // draw tracer trails and particles (respect periodic boundaries by breaking long chords)
   ctx.filter = 'none';
+  // soften trail corners to avoid sharp miter artifacts at random-walk turns
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.miterLimit = 2;
+  const css2 = getComputedStyle(document.body);
+  const trackCol = (css2.getPropertyValue('--track').trim() || 'rgba(120,200,255,.85)');
+  const tracerCol = (css2.getPropertyValue('--tracer').trim() || '#e8eaed');
   for (let p=0;p<sim.tracers.length;p++){
     const tr = sim.trails[p];
     if (tr.length>1){
-      ctx.strokeStyle='rgba(120,200,255,.8)';
+      ctx.strokeStyle=trackCol;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       let [sxPrev, syPrev] = toXY(tr[0].x, tr[0].y);
       ctx.moveTo(sxPrev, syPrev);
@@ -607,7 +781,7 @@ function draw(){
       }
       ctx.stroke();
     }
-    const t = sim.tracers[p]; const [sx2, sy2] = toXY(t.x, t.y); ctx.fillStyle='#e8eaed'; ctx.beginPath(); ctx.arc(sx2, sy2, 2.0, 0, Math.PI*2); ctx.fill();
+    const t = sim.tracers[p]; const [sx2, sy2] = toXY(t.x, t.y); ctx.fillStyle=tracerCol; ctx.beginPath(); ctx.arc(sx2, sy2, 2.0, 0, Math.PI*2); ctx.fill();
   }
 }
 
@@ -617,7 +791,16 @@ function stats(){
 }
 
 // ===== Lifecycle =====
-function rebuild(){ generateGrid(); reseedAngles(); buildSources(); updateVoronoi(); seedTracers(); draw(); stats(); updateScaleBar(); }
+function rebuild(){
+  generateGrid();
+  reseedAngles();
+  buildSources();
+  updateVoronoi();
+  // Restart simulation like MATLAB fresh run
+  sim.time = 0;
+  seedTracers();
+  draw(); stats(); updateScaleBar();
+}
 function loop(){ if (sim.playing){ sim.time += params.dt; step(params.dt); draw(); stats(); updateScaleBar(); } requestAnimationFrame(loop); }
 
 // boot
@@ -805,8 +988,8 @@ function applyExamplePreset({cov, sig, pr}){
 // ===== Scale bar =====
 function updateScaleBar(){
   const bar = document.getElementById('bar'); const label = document.getElementById('barlabel'); if (!bar||!label) return;
-  const um = Math.max(0.5, Number(params.barum) || 10);
-  const world = um / L0; // convert μm to world units
+  const um = L0; // show L0 = 10 μm constantly
+  const world = um / L0; // =1 world unit
   const px = world * sim.scale;
   bar.style.width = `${Math.max(4, px)}px`;
   label.textContent = `${um.toFixed(0)} μm`;
@@ -842,7 +1025,86 @@ function applyMod(name){
 </html>
 
 
-<!-- %% characteristic scales 
+<!-- 
+% Regularized Stokeslet-based Simulation of Mucociliary clearance.
+%
+% For usage see supplemental document accompanying "STRUCTURE-FUNCTION RELATIONSHIPS
+% OF MUCOCILIARY CLEARANCE IN HUMAN AIRWAYS"
+% 
+% Copyright (c) <2023> <2024> <Feng Ling> <Janna C. Nawroth>
+% 
+% Permission is hereby granted, free of charge, to any person obtaining a copy
+% of this software and associated documentation files (the "Software"), to deal
+% in the Software without restriction, including without limitation the rights
+% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+% copies of the Software, and to permit persons to whom the Software is
+% furnished to do so, subject to the following conditions:
+% 
+% The above copyright notice and this permission notice shall be included in all
+% copies or substantial portions of the Software.
+% 
+% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+% SOFTWARE.
+
+clear; close all;
+%% program parameters
+dataFolder = './'; dataFolder0 = dataFolder; % output folder for results
+figFolder = './Figures/'; mkdir(figFolder); % output folder for figures
+movFolder = './Movies/'; mkdir(movFolder); % output folder for movies
+
+% makeMovie = false;
+makeMovie = true;
+
+% saveMovie = false;
+saveMovie = true;
+
+saveData = false;
+% saveData = true;
+
+%% set simulation scenario
+caseList = {'example'}; % Demo case; Supplemental Figure S7
+
+% ex vivo model predictions; Figure 3e
+% caseList = {'human_avg','human_max','human_min','rat_avg','rat_max','rat_min'};
+
+% in vitro model predictions; Figure 5c top panels
+% caseList = {'bd_avg','mair_avg','pc_avg','pcs_avg','sagm_avg'};
+% caseList = {'bd_max','mair_max','pc_max','pcs_max','sagm_max'};
+% caseList = {'bd_min','mair_min','pc_min','pcs_min','sagm_min'};
+
+% controlled variations; Supplemental Figure S8 and S15
+% variation in cilia length, beat amplitude, beat OP, crystalline OP, and effective diffusion
+% caseList = {'hVar','aVar','kVar','pVar','diffVar'};
+
+% in vitro with atp/mucus predictions; Supplemental Figure S14
+% caseList = {'pc_atp','pc_atp_max','pc_atp_min','pcs_atp','pcs_atp_max','pcs_atp_min'};
+% caseList = {'pc_muc','pc_muc_max','pc_muc_min','pcs_muc','pcs_muc_max','pcs_muc_min'};
+
+modList = {''}; % DEFAULT option - no modifications
+
+% in vitro model prediction alterations; Figure 5c bottom bar charts
+% modList = {'human_h','human_ap','human_oop','human_diff'};
+% modList = {'human_not_h','human_not_ap','human_not_oop','human_not_diff'};
+
+for modi = 1:numel(modList)
+
+if ~isempty(modList{modi})
+  dataFolder = [dataFolder0 modList{modi} '/'];
+  mkdir(dataFolder)
+else
+  dataFolder = dataFolder0;
+end
+  
+for cni = 1:numel(caseList)
+caseName = caseList{cni};
+clear trajData EulFlow
+
+%% characteristic scales 
 mu = 1; % dimensionless viscosity (characteristic 'force' scale)
 CBF = 1; % dimensionless CBF (characteristic time scale)
 spacing = 1; % dimensionless distance between cells (characteristic length scale)
@@ -1031,6 +1293,44 @@ randness = 1/2; % dimensionless rectangular grid perturbation
 bd = spacing/10; % dimensionless regularization parameter
 dragCoeff = mu*CBF*spacing; % effective dimensionless drag per cell per beat
 
+% percent ciliated cell
+% pCilia = 0.1:.1:1; % takes extra time to run
+pCilia = 0.2:.1:1;
+
+% Monte Carto #
+Ntrial = 1;
+% Ntrial = 3;
+% Ntrial = 5; % DEFAULT!!!
+% Ntrial = 20;
+
+% Brownian particle #
+% Npar = 256;
+Npar = 5e2; % DEFAULT!!!
+% Npar = 1e3;
+% Npar = 5e3;
+
+hpar = 0; % initial particle seed height in addition to cilia length
+
+track3D = false; % assume particles do not convect in z
+% track3D = true;
+
+% random walk step 
+% dt = 1;
+% dt = 0.1;
+dt = 0.05; % DEFAULT!!!
+% dt = 0.04;
+% dt = 0.02;
+% dt = 0.01; 
+
+% Nt = 20;
+% Nt = 50;
+% Nt = 100;
+% Nt = 200;
+Nt = 500; % DEFAULT!!!
+% Nt = 1000;
+% Nt = 5000;
+% Nt = 1e4;
+% Nt = 2e4;
 
 switch caseName
   case 'example'
@@ -1333,6 +1633,7 @@ switch caseName
     error('invalid case study name!!!');
 end
 
+fprintf(['calculating for case ' caseName '...\n']);
 
 %%
 switch modList{modi}
@@ -1380,5 +1681,495 @@ switch modList{modi}
   otherwise
     error('invalid modifier option!!!');
 end
+  
+%% Generate cell locations (randomized rectangular grid + Voronoi diagram)
+xSize = (nX-1)*spacing;
+ySize = (nY-1)*spacing;
+coordx = linspace(-xSize/2,xSize/2,nX);
+coordy = linspace(-ySize/2,ySize/2,nY);
+[x,y] = meshgrid(coordx,coordy);
+cx = x(:) + rand(nCell,1)*randness;
+cy = y(:) + rand(nCell,1)*randness;
+DT = delaunayTriangulation(cx,cy);
+[Vor,C] = voronoiDiagram(DT);
+Vor(1,:) = nan;
+B = cellfun('length',C);
+C = cellfun(@(v,n)[v,nan(1,max(B)-n)],C,num2cell(B),'UniformOutput',false);
+C = vertcat(C{:});
 
+%% patch distribution function (see Kanale, Ling, et al., PNAS 2022)
+shape1d = @(x,a) (mod(x+1,2)<=2*a).*(mod(x+1,2)./a-1)+(mod(x+1,2)>2*a).*(1-(mod(x+1,2)-2*a)./(1-a));
+shape2d = @(x,y,p,pd) min(shape1d(x/max(x(:))/p,(pds(p,x,y,nX,nY,spacing)-1/2)*pd+.5),...
+  shape1d(y/max(y(:))/p,(pds(p,x,y,nX,nY,spacing)-1/2)*pd+.5));
+
+potential = @(x,y,c,p,o,pd) shape2d((x+randn(size(x))*o),(y+randn(size(y))*o),p,pd);
+presence = @(x,y,c,p,o,pd) (potential(x,y,c,p,o,pd)>=(1-2*c))*1; % assumes x,y centered around 0
+
+%% Monte Carlo simulation loop
+Nparam = numel(pCilia)*numel(pRand)*numel(sigma)*numel(h)*numel(ap)*numel(D);
+
+meanDisplace = zeros(Nparam,Ntrial);
+trajDirect = zeros(Nparam,Ntrial);
+vDirect = zeros(Nparam,Ntrial);
+angAvg = zeros(Nparam,Ntrial);
+angOOP = zeros(Nparam,Ntrial);
+coverage = zeros(Nparam,Ntrial);
+crystalline = zeros(Nparam,Ntrial);
+
+trajData(Nparam,Ntrial) = struct();
+EulFlow(Nparam,Ntrial) = struct();
+
+fprintf(['coverage, \trandomness, \tangle std, \theight, \tamplitude, \tdiffusion' ...
+  '\t=>\tCPB, \tdirectionality\n'])
+
+for trial = 1:Ntrial
+  for k = Nparam:-1:1
+    [ck,rk,sk,hk,ak,dk] = ind2sub([numel(pCilia),numel(pRand),...
+      numel(sigma),numel(h),numel(ap),numel(D)],k);
+
+    % iterate over all possible combination of the input parameters
+    pc = pCilia(ck); % ciliation coverage
+    pr = pRand(rk); % ciliation randomness
+    pk = sigma(sk); % beat angle standard deviation
+    ph = h(hk); % cilia layer height
+    pa = ap(ak); % cilia beat amplitude
+    dd = D(dk); % effective diffusion / Peclet number
+    
+    fprintf('\t%3.2f,\t%8.6f,\t%8.6f,\t%8.6f,\t%8.6f,\t%8.6f',[pc pr pk ph pa dd])
+
+    isCiliated = presence(cx, cy, pc, lambda/nX, pr, 0);
+    nC = sum(isCiliated); % number of ciliated spots
+    cf(k) = nC/nY/nX; % coverage by cell
+    
+    % get prakash crystalline order
+    crystalline(k,Ntrial) = 1-pr/lambda*sqrt(2);
+    
+    angDist = zeros(nY*nX,1); % initialize perfect alignment
+    if ~isinf(pk) % otherwise impose perfect alignment
+      allang = wncov(cx,cy,lambda,0,pk);
+      angDist(logical(isCiliated)) = allang(logical(isCiliated));
+    end
+    angOOP(k,trial) = abs(mean(exp(2i*angDist(logical(isCiliated)))));
+    angAvg(k,trial) = angle(mean(exp(1i*angDist(logical(isCiliated)))));
+    
+    % stokeslet per cell
+    ciliatedX = cx;
+    ciliatedY = cy;
+    ciliatedZ = ph*ones(size(cx));
+    
+    fX = cos(angDist)*pa*dragCoeff;
+    fY = sin(angDist)*pa*dragCoeff;
+    fZ = zeros(size(fX))*dragCoeff;
+    
+    ciliatedX(~isCiliated) = [];
+    ciliatedY(~isCiliated) = [];
+    ciliatedZ(~isCiliated) = [];
+    
+    fX(~isCiliated) = [];
+    fY(~isCiliated) = [];
+    fZ(~isCiliated) = [];
+
+    % tracer particle seeding
+    px = [rand(Npar,1)*nX-nX/2, nan(Npar, Nt)];
+    py = [rand(Npar,1)*nY-nY/2, nan(Npar, Nt)];
+    pz = [ones(Npar,1)*ph+hpar, nan(Npar, Nt)];
+
+    %% particle trajectory (Euler Maruyama with gaussian noise)
+    vp = [];
+    for ti = 1:Nt/pc % simulate longer trajectories for fewer cilia/slower flow
+%       parfor j = 1:Npar % requires parallel toolbox, replaces next line
+      for j = 1:Npar
+        vp(j,:) = stokesletWithWall([pz(j,ti);px(j,ti);py(j,ti)],...
+                  [ciliatedZ(:);makeCenter(ciliatedX(:),px(j,ti),xSize+1);
+                  makeCenter(ciliatedY(:),py(j,ti),ySize+1)],[fZ;fX;fY],bd);
+      end
+      vp(:,[3 1 2]) = vp;
+      dp = vp*dt;
+      px(:,ti+1) = px(:,ti) + dp(:,1) + randn(Npar,1)*sqrt(2*dd*dt);
+      py(:,ti+1) = py(:,ti) + dp(:,2) + randn(Npar,1)*sqrt(2*dd*dt);
+      if track3D
+        pz_tmp = pz(:,ti) + dp(:,3) + randn(Npar,1)*sqrt(2*dd*dt);
+        invalid = pz_tmp<0 | pz_tmp>ph*2;
+        pz_tmp(invalid) = nan; % absorbing out of focus BC
+        pz(:,ti+1) = pz_tmp;
+        px(isnan(pz_tmp),ti+1) = nan;
+        py(isnan(pz_tmp),ti+1) = nan;
+      else
+        pz(:,ti+1) = pz(:,ti);
+      end
+      if sum(isnan(px(:,ti+1))) == Npar
+        break
+      end
+    end
+    
+    %% visualize tracer trajectories
+    if makeMovie
+      figure('position',[200 200 800 800],'color',[1 1 1]*.8,'menubar','none'); hold all;
+      xlim([-xSize/2,xSize/2]); ylim([-ySize/2,ySize/2]);
+      axis square; axis off; box on;
+      cph = patch('faces',C,'vertices',Vor,'facevertexcdata',isCiliated,'facecolor','flat');
+      colormap([.8 .8 .8;.7 .7 .7]);
+      text(-12,12,['cilia coverage, patch randomness, beat angle STD' ...
+        ', cilia length, beat amplitude, diffusion coefficient']);
+      text(-12,11,num2str([pc pr pk ph pa dd],['%g,   %g,   %g,   %g,   %g,   %g' ... 
+        '   [in dimensionless unit]']));
+
+
+      quiver(cx(logical(isCiliated))-.4*cos(angDist(logical(isCiliated))),...
+        cy(logical(isCiliated))-.4*sin(angDist(logical(isCiliated))),...
+        .7*cos(angDist(logical(isCiliated))),.7*sin(angDist(logical(isCiliated))),0,'r');
+      
+      phdl = plot(Inf,Inf,'w.','markersize',20);
+      
+      if saveMovie
+        movName = ['mccSim_' num2str(k,'case%02d')];
+        v = VideoWriter([movFolder movName]);
+        open(v);
+      end
+      
+      for ti = 1:2:Nt
+        xx = makeCenter(px(:,1:ti),0,xSize+1);
+        yy = makeCenter(py(:,1:ti),0,ySize+1);
+        set(phdl,'xdata',xx(:),'ydata',yy(:));
+        if saveMovie
+          writeVideo(v,getframe(gcf));
+        else
+          drawnow;
+        end
+      end
+      
+      if saveMovie
+        close(v);
+        hgexport(gcf,num2str(k,[movFolder 'case%02d.png']),...
+          hgexport('factorystyle'), 'Format', 'png');
+      end
+    end
+    
+    %% compute trajectory statistics
+    tmpx = px-px(:,1);
+    tmpy = py-py(:,1);
+    tmpz = pz-pz(:,1);
+    
+    % compute end time assuming unequal track length padded with nan
+    tiend = (size(px,2) - sum(isnan(px), 2));
+    tt = tiend*dt;
+    
+    tmpx(isnan(tmpx)) = 0;
+    tmpy(isnan(tmpy)) = 0;
+    tmpz(isnan(tmpz)) = 0;
+    
+    pathLength = sum(sqrt((tmpx(:,2:end)-tmpx(:,1:end-1)).^2+...
+      (tmpy(:,2:end)-tmpy(:,1:end-1)).^2+(tmpz(:,2:end)-tmpz(:,1:end-1)).^2),2);
+    % transport along mean angle
+    clearance = diag(tmpx(:,tiend))*cos(angAvg(k,trial)) +...
+      diag(tmpy(:,tiend))*sin(angAvg(k,trial));
+
+    meanDisplace(k,trial) = mean(clearance./tt);
+    trajDirect(k,trial) = mean(clearance./pathLength);
+    
+    trajData(k,trial).px = px;
+    trajData(k,trial).py = py;
+    trajData(k,trial).pz = pz;
+    trajData(k,trial).dt = dt;
+    trajData(k,trial).tt = tt;
+  
+    %% simulated PTV: generate average velocity vector fields from tracks
+    %generate average (and potentially sparse) vector fields from simulated trajectories
+    
+    sf = 4; % assuming 4px/um (~1 to 6)
+
+    xdim = xSize*L0*sf; ydim = xSize*L0*sf;
+    
+    u_N= NaN(xdim, ydim);
+    v_N= NaN(xdim, ydim);
+    xcoordsN= NaN(xdim, ydim);
+    ycoordsN= NaN(xdim, ydim);
+    
+    vx = gradient(px,dt);
+    vy = gradient(py,dt);
+
+    for kpar=1:Npar
+        xpix{kpar}= floor(  mod(px(kpar,:),xSize)/xSize*xdim)+1;
+        ypix{kpar}= floor(  mod(py(kpar,:),ySize)/ySize*ydim)+1;
+        xpix{kpar}(isnan(xpix{kpar})) = [];
+        ypix{kpar}(isnan(ypix{kpar})) = [];
+        idx=sub2ind(size(u_N), xpix{kpar}, ypix{kpar});
+        %add new entries and take average if a value is already present
+        u_N(idx(:))= mean([u_N(idx)'    vx(kpar,1:numel(idx))'],2,'omitnan');
+        v_N(idx(:))= mean([v_N(idx)'    vy(kpar,1:numel(idx))'],2,'omitnan');
+        xcoordsN(idx(:))= xpix{kpar};
+        ycoordsN(idx(:))= ypix{kpar};
+    end
+    
+    Mag_N = sqrt(u_N.^2 + v_N.^2);
+
+    % Store the vector fields
+    EulFlow(k,trial).u= u_N;
+    EulFlow(k,trial).v= v_N;
+    EulFlow(k,trial).Mag= Mag_N;
+    EulFlow(k,trial).x= xcoordsN;
+    EulFlow(k,trial).y= ycoordsN;
+    EulFlow(k,trial).um2pix= 1/sf;
+    
+    %% compute Eulerian directionality metric. Assumes that NaNs are zeros
+    %%% compute magnitude-weighted polarity (directedness),  E = |<V>| / <|V|>,
+    %%% with vector field V = (u,v) as a function of window size using blockproc:
+    %%% The image is divides into block of equal size that are processed (no sliding!). 
+    
+    w=0;
+    blocks = [sf 10*sf 50*sf 80*sf 100*sf 125*sf 250*sf];
+    for n=blocks
+        w=w+1;
+
+        blockSize = [n n];
+
+        % for each window, compute denominator <|V|>, i.e. the average value of the mxn magnitude scalar field
+        % Define the function that we will apply to each block.
+        % for each block there will be one output number
+        MeanFunction = @(block_struct) myFilter1(block_struct, blockSize);
+
+        Denom = blockproc(Mag_N, blockSize, MeanFunction);
+        mu_q= blockproc(u_N, blockSize, MeanFunction);
+        mv_q= blockproc(v_N, blockSize, MeanFunction);
+
+        % find magnitude of each average u,v vector and divide by the average magnitude
+        E1 = sqrt(mu_q(:).^2+mv_q(:).^2)./Denom(:);
+        %store window size in um
+        wsize(w)=n*1/sf;
+        % Compute average and std of E for this window size
+        E(w)= mean(E1, 'omitnan');
+        Estd(w)= std(E1, 'omitnan');
+
+    end
+
+    % store data
+    EulFlow(k,trial).efficiency = E;
+    EulFlow(k,trial).efficiency_R = wsize;
+    
+    [~,wIdx] = min(abs(wsize-80)); % pick efficiency output only at R=80um
+    vDirect(k,trial) = E(wIdx);
+    
+%     fprintf('\t=>\t%g, \t%g\n',[meanDisplace(k,trial), trajDirect(k,trial)]);
+    fprintf('\t=>\t%g, \t%g\n',[meanDisplace(k,trial), vDirect(k,trial)]);
+  end
+end
+
+%% visualize trial result
+relDisp = meanDisplace/1;
+figR = figure('position',[100 100 800 800]); box on; hold all; axis square
+% errorbar(cf,mean(trajDirect,2),mean(trajDirect,2)-min(trajDirect,[],2),max(trajDirect,[],2)-mean(trajDirect,2),'k-');
+% errorbar(cf,mean(vDirect,2),mean(vDirect,2)-min(vDirect,[],2),max(vDirect,[],2)-mean(vDirect,2),'r-');
+% errorbar(cf,mean(relDisp,2),mean(relDisp,2)-min(relDisp,[],2),max(relDisp,[],2)-mean(relDisp,2),'b-');
+% plot(cf,mean(trajDirect,2),'r-');
+plot(cf,mean(vDirect,2),'k-');
+plot(cf,mean(relDisp,2),'b-');
+legend('mean clearance directionality','clearance per beat [10um/beat]','location','best');
+xlabel('Cilia Coverage (%)');
+xlim([0 1]);
+ylim([0 1]);
+if max(relDisp)>1
+  ylim([0 2]);
+end
+
+%% save outputs
+if saveData
+dataName = num2str([min(sigma),max(sigma),...
+  min(pRand),max(pRand),min(h),max(h),min(ap),max(ap),Ntrial,nX,nY,Npar,dt],...
+  'k%g-%g_c%g-%g_h%g-%g_a%g-%g_N%g_%gx%g_Np%g_dt%g');
+
+hgexport(figR,[figFolder '/mapping_' dataName '_' caseName '.eps'],...
+  hgexport('factorystyle'), 'Format', 'eps');
+
+save([dataFolder dataName '_' caseName '.mat'], 'dataName','caseName',...
+  'angOOP','crystalline','Nt','Npar','Ntrial','dt','h','ap','nX','nY',...
+  'angAvg','meanDisplace','vDirect','trajDirect',...
+  'CBF','spacing','mu','D','hpar','bd','sigma',...
+  'pCilia','pRand','cf','trajData','EulFlow','L0','xSize','ySize', '-v7.3');
+end
+
+end
+end
+%% external function
+function dXp = stokesletWithWall(Xq,X,F,e)
+% function [dXp] = stokesletWithWall(Xq,X,F,e)
+% 
+%  Vectorized calculation of fluid velocities due to 3D Stokeslets with a no-slip wall at x=0
+%  c.f., Ainley et al., 2008
+% 
+%  INPUT
+%  Xq  - [3nPhase x 1] vector of velocity query positions
+%  X   - [3N x 1] vector of Stokeslets positions
+%  F   - [3N x 1] vector of Stokeslets strengths
+%  e   - [3N x 1] vector of regularization parameters - or scalar regularization parameter
+% 
+%  OUTPUT
+%  dXp - [3nPhase x 1] vector of velocity at Xp
+%
+% Copyright (c) <2016> <Hanliang Guo> <2020> <Feng Ling>
+%
+
+  N = numel(X)/3;
+  nPhase = numel(Xq)/3;
+
+  % forces
+  Fx = F(1:N);
+  Fy = F(N+1:2*N);
+  Fz = F(2*N+1:3*N);
+
+  % query positions
+  Xq1 = Xq(1:nPhase);
+  Xq2 = Xq(nPhase+1:2*nPhase);
+  Xq3 = Xq(2*nPhase+1:end);
+
+  % original stokeslets
+  Xo1 = X(1:N);
+  Xo2 = X(N+1:2*N);
+  Xo3 = X(2*N+1:3*N);
+
+  % image stokeslets
+  Xi1 = -Xo1;
+  Xi2 = Xo2;
+  Xi3 = Xo3;
+
+  % higher order singularities
+  Xs1 = Xq1' - Xo1;
+  Xs2 = Xq2' - Xo2;
+  Xs3 = Xq3' - Xo3;
+
+  X1 = Xq1' - Xi1;
+  X2 = Xq2' - Xi2;
+  X3 = Xq3' - Xi3;
+
+  H = Xo1;
+  Hsq = H.*H;
+
+  Rs2 = Xs1.^2 + Xs2.^2 + Xs3.^2;
+  R2 = X1.^2 + X2.^2 + X3.^2;
+
+  e2 = e.^2;
+  Rser = sqrt(Rs2 + e2);
+  Rser3 = Rser.*Rser.*Rser;
+  Rer = sqrt(R2 + e2);
+  Rer3 = Rer.*Rer.*Rer;
+  Rer5 = Rer3.*Rer.*Rer;
+
+  H1s = (1./Rser + e2./Rser3)/8/pi;
+  H2s = 1./Rser3/8/pi;
+
+  H1 = (1./Rer + e2./Rer3)/8/pi;
+  H2 = 1./Rer3/8/pi;
+
+  H1pr = (-1./Rer3 - 3*e2./Rer5)/8/pi;
+  H2pr = -3./Rer5/8/pi;
+
+  D1 = (1./Rer3 - 3*e2./Rer5)/4/pi;
+  D2 = -3./Rer5/4/pi;
+
+  Gx = Fx;
+  Gy = -Fy;
+  Gz = -Fz;
+  GrotP = Gx.*X1 + Gy.*X2 + Gz.*X3;
+
+  Fxs = Fx.*Xs1 + Fy.*Xs2 + Fz.*Xs3;
+  FrotP = Fx.*X1 + Fy.*X2 + Fz.*X3;
+
+  LCx1 = Fz.*X3 + Fy.*X2;
+  LCx2 = -Fy.*X1;
+  LCx3 = -Fz.*X1;
+
+  Xscoeff = Fxs.*H2s;
+  Lcoeff = 2*H.*(H1pr + H2);
+  Xcoeff = 2*H.*(Gx.*H2 + X1.*GrotP.*H2pr) - FrotP.*H2 - Hsq.*GrotP.*D2;
+  Fcoeff = H1s - H1;
+  Gcoeff = 2*H.*X1.*H2 - Hsq.*D1;
+
+  u = Fcoeff.*Fx + Xscoeff.*Xs1 + Xcoeff.*X1 + ...
+    Lcoeff.*LCx1 + Gcoeff.*Gx + 2.*H.*GrotP.*H1pr;
+
+  v = (H1s-H1).*Fy + Xscoeff.*Xs2 + Xcoeff.*X2 + ...
+    Lcoeff.*LCx2 + Gcoeff.*Gy;
+
+  w = (H1s-H1).*Fz + Xscoeff.*Xs3 + Xcoeff.*X3 + ...
+    Lcoeff.*LCx3 + Gcoeff.*Gz;
+
+  dXp = [sum(u,1) sum(v,1) sum(w,1)]';
+end
+
+function out = pds(p,x,y,nCols,nRows,d)
+% patch displacement random seed wrapper
+if nargin < 6 || isempty(d), d = 1; end
+
+  xSize = (nCols-1)*d;
+  ySize = (nRows-1)*d;
+  
+  p1d = [flip(0:-p:-1) p:p:1]';
+  p_x = reshape(repmat(p1d',numel(p1d),1),[],1)*nCols;
+  p_y = reshape(repmat(p1d,1,numel(p1d)),[],1)*nRows;
+  
+  seed_all = rand(numel(p1d)^2,1);
+  [~,~,ic] = unique([mod(p_x + xSize/2,nCols) mod(p_y + ySize/2,nRows)],'rows');
+  seed_periodic = seed_all(ic);
+  
+  s = scatteredInterpolant(p_x,p_y,seed_periodic,'nearest');
+  out = s(x,y);
+end
+
+function out = makeCenter(r,r0,size)
+% wrap r centered around r0+/-size/2
+out = mod(r-r0-size/2,size)+r0-size/2;
+end
+
+
+% internal functions for block processing
+% Takes one block of image data, processes it, and
+% returns a single value for the relative flow strength/density
+function e = myFilter1(blockStruct, blockSize)
+
+% Assign default value.
+% Will be used near sides of image (due to boundary effects),
+% or in the case of errors, etc.
+e = NaN;
+
+% Make sure block size is at least 70% of desired size
+if any(blockStruct.blockSize < 0.7*blockSize(1))
+    % If any of the dimensions don't match.
+    % You'll get here near the edges,
+    % if the image is not a multiple of the block size.
+    % warndlg('block size does not match kernel size');
+    return;
+end
+% Size matches if we get here, so we're okay.
+
+
+% Do the processing
+e = mean(mean(blockStruct.data,'omitnan'),'omitnan');
+
+
+return;
+end
+
+function angles = wncov(x,y,R,mu,sigma)
+% x,y - 2D spatial coordinate/grid
+% R - characteristic distance of autocorrelation function
+% mu,sigma - mean and std of desired wrap normal distribution
+
+n = numel(x);
+
+% Compute distances between all pairs of points
+D = sqrt((x(:)-x(:)').^2 + (y(:)-y(:)').^2);
+
+% Apply the spatial autocorrelation function
+Rho = exp(-D/R);
+% Rho = exp(-D/R)*.3+.7;
+Rho(isnan(Rho)) = 1;
+
+% Assuming a base variance for the process
+sigma2 = sigma^2; % Variance
+CovMatrix = sigma2 * Rho; % Covariance matrix
+
+% Sample from the multivariate normal distribution
+meanVector = ones(1, n)*mu;
+nsamples = mvnrnd(meanVector, CovMatrix); % unit normal
+angles = mod(nsamples,2*pi); % wrapped normal
+end
 -->
