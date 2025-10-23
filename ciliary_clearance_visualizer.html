@@ -149,14 +149,14 @@
         <div>
           <select id="mod">
             <option value="none">(none)</option>
-            <option value="human_h">human_h</option>
-            <option value="human_ap">human_ap</option>
-            <option value="human_oop">human_oop</option>
-            <option value="human_diff">human_diff</option>
-            <option value="human_not_h">human_not_h</option>
-            <option value="human_not_ap">human_not_ap</option>
-            <option value="human_not_oop">human_not_oop</option>
-            <option value="human_not_diff">human_not_diff</option>
+            <option value="human_h">human cilia length</option>
+            <option value="human_ap">human beat amplitude</option>
+            <option value="human_oop">human orientation op</option>
+            <option value="human_diff">human diffusion constant</option>
+            <option value="human_not_h">human except cilia length</option>
+            <option value="human_not_ap">human except beat amplitude</option>
+            <option value="human_not_oop">human except orientation op</option>
+            <option value="human_not_diff">human except diffusion const</option>
           </select>
         </div>
       </div>
@@ -328,6 +328,8 @@ const sim = {
   ciliaSeeds:null,
   overlayCanvas:null,
   overlayCtx:null,
+  ciliaCanvas:null,
+  ciliaCtx:null,
 };
 
 // ===== UI wiring =====
@@ -685,6 +687,9 @@ function resizeCanvas(){
   if (!sim.overlayCanvas){ sim.overlayCanvas = document.createElement('canvas'); }
   sim.overlayCanvas.width = w; sim.overlayCanvas.height = h;
   sim.overlayCtx = sim.overlayCanvas.getContext('2d', { alpha:true });
+  if (!sim.ciliaCanvas){ sim.ciliaCanvas = document.createElement('canvas'); }
+  sim.ciliaCanvas.width = w; sim.ciliaCanvas.height = h;
+  sim.ciliaCtx = sim.ciliaCanvas.getContext('2d', { alpha:true });
 }
 function draw(){
   const ctx = sim.ctx; const W=sim.W, H=sim.H; ctx.clearRect(0,0,W,H);
@@ -699,7 +704,7 @@ function draw(){
   // faint fundamental domain box only
   const [bx0, by0] = toXY(-sim.xSize/2, -sim.ySize/2);
   ctx.strokeStyle = 'rgba(230,230,230,.15)'; ctx.lineWidth = 2; ctx.strokeRect(bx0, by0, sim.xSize*s, sim.ySize*s);
-  // Offscreen overlay: cells + arrows + cilia
+  // Offscreen overlay: cells + (optional) arrows
   const octx = sim.overlayCtx; octx.clearRect(0,0,W,H);
   if (sim.vor && sim.vor.polys){
     for (let i=0;i<sim.total;i++){
@@ -718,36 +723,45 @@ function draw(){
       octx.strokeStyle = edge; octx.lineWidth = 1; octx.stroke();
     }
   }
-  // arrows and optional cilia on overlay
+  // arrows on overlay (hide when cilia animation is ON)
   octx.lineWidth = 1.5; octx.strokeStyle = '#ff5050'; octx.fillStyle = '#ff5050';
-  for (let i=0;i<sim.total;i++){
-    if (!sim.isCiliated[i]) continue;
-    const ang = sim.ang[i] || 0; const x = sim.cx[i], y = sim.cy[i]; const [sx0, sy0] = toXY(x,y);
-    const L = 1.0 * s; const ux = Math.cos(ang), uy = Math.sin(ang);
-    const tail=-0.4*L, vlen=0.7*L; const x0=sx0+tail*ux, y0=sy0+tail*uy; const x1=x0+vlen*ux, y1=y0+vlen*uy;
-    const headLen=0.12*L, headWidth=0.10*L; const sx1=x1-headLen*ux, sy1=y1-headLen*uy; const pxp=-uy, pyp=ux;
-    octx.beginPath(); octx.moveTo(x0,y0); octx.lineTo(sx1,sy1); octx.stroke();
-    octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(sx1+(headWidth/2)*pxp, sy1+(headWidth/2)*pyp); octx.lineTo(sx1-(headWidth/2)*pxp, sy1-(headWidth/2)*pyp); octx.closePath(); octx.fill();
-    if (params.showCilia && sim.ciliaSeeds && sim.ciliaSeeds[i]){
-      const baseAmp = Math.max(0, params.amp) * (1 + (sim.cellAmp? sim.cellAmp[i] : 0)) * s; octx.lineWidth = 2;
-      const seeds = sim.ciliaSeeds[i];
+  if (!params.showCilia){
+    for (let i=0;i<sim.total;i++){
+      if (!sim.isCiliated[i]) continue;
+      const ang = sim.ang[i] || 0; const x = sim.cx[i], y = sim.cy[i]; const [sx0, sy0] = toXY(x,y);
+      const L = 1.0 * s; const ux = Math.cos(ang), uy = Math.sin(ang);
+      const tail=-0.4*L, vlen=0.7*L; const x0=sx0+tail*ux, y0=sy0+tail*uy; const x1=x0+vlen*ux, y1=y0+vlen*uy;
+      const headLen=0.12*L, headWidth=0.10*L; const sx1=x1-headLen*ux, sy1=y1-headLen*uy; const pxp=-uy, pyp=ux;
+      octx.beginPath(); octx.moveTo(x0,y0); octx.lineTo(sx1,sy1); octx.stroke();
+      octx.beginPath(); octx.moveTo(x1,y1); octx.lineTo(sx1+(headWidth/2)*pxp, sy1+(headWidth/2)*pyp); octx.lineTo(sx1-(headWidth/2)*pxp, sy1-(headWidth/2)*pyp); octx.closePath(); octx.fill();
+    }
+  }
+  // Draw base overlay (cells + optional arrows) with no blur
+  ctx.drawImage(sim.overlayCanvas,0,0);
+  // Draw cilia on separate layer with blur only affecting cilia
+  if (params.showCilia){
+    const cctx = sim.ciliaCtx; cctx.clearRect(0,0,W,H); cctx.lineWidth = 2; cctx.strokeStyle = '#ff5050';
+    for (let i=0;i<sim.total;i++){
+      if (!sim.isCiliated[i]) continue;
+      if (!sim.ciliaSeeds || !sim.ciliaSeeds[i]) continue;
+      const ang = sim.ang[i] || 0; const seeds = sim.ciliaSeeds[i];
+      const baseAmp = Math.max(0, params.amp) * (1 + (sim.cellAmp? sim.cellAmp[i] : 0)) * s;
       for (let k=0;k<seeds.length;k++){
         const seed = seeds[k]; const localAmp = baseAmp * (1 + (seed.damp || 0));
         const tcyc = (sim.time + (sim.cellPhase? sim.cellPhase[i] : 0) + (seed.dphi || 0)) % 1; let dir=1, len=0;
-        // Nonzero minima: forward ~100%, backward ~35%, smooth sinusoidal transitions
         if (tcyc < 0.3){ const u=tcyc/0.3; len = (0.35 + 0.65*Math.sin(0.5*Math.PI*u)) * localAmp; dir=1; }
         else if (tcyc < 0.6){ const u=(tcyc-0.3)/0.3; len = (1.0 - 0.65*Math.sin(0.5*Math.PI*u)) * localAmp; dir=1; }
         else if (tcyc < 0.8){ const u=(tcyc-0.6)/0.2; len = (0.35 + 0.15*Math.sin(0.5*Math.PI*u)) * localAmp; dir=-1; }
         else { const u=(tcyc-0.8)/0.2; len = (0.50 - 0.15*Math.sin(0.5*Math.PI*u)) * localAmp; dir=-1; }
         const aLocal = ang + (seed.dang || 0);
         const dxs=Math.cos(aLocal)*len*dir, dys=Math.sin(aLocal)*len*dir; const [sx,sy]=toXY(seed.x,seed.y);
-        octx.beginPath(); octx.moveTo(sx-0.2*dxs, sy-0.2*dys); octx.lineTo(sx+0.8*dxs, sy+0.8*dys); octx.stroke();
+        cctx.beginPath(); cctx.moveTo(sx-0.2*dxs, sy-0.2*dys); cctx.lineTo(sx+0.8*dxs, sy+0.8*dys); cctx.stroke();
       }
-      octx.lineWidth = 1.5;
     }
+    ctx.filter='blur(2px)';
+    ctx.drawImage(sim.ciliaCanvas,0,0);
+    ctx.filter='none';
   }
-  if (params.showCilia){ ctx.filter='blur(0.6px)'; ctx.drawImage(sim.overlayCanvas,0,0); ctx.filter='none'; }
-  else { ctx.drawImage(sim.overlayCanvas,0,0); }
   // draw tracer trails and particles (respect periodic boundaries by breaking long chords)
   ctx.filter = 'none';
   // soften trail corners to avoid sharp miter artifacts at random-walk turns
