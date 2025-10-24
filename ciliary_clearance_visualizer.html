@@ -802,17 +802,29 @@ function draw(){
   const css = getComputedStyle(document.body);
   const canvasBg = css.getPropertyValue('--canvas-bg').trim() || '#1c1f24';
   ctx.fillStyle = canvasBg; ctx.fillRect(0,0,W,H);
-  // faint fundamental domain box only
-  const [bx0, by0] = toXY(-sim.xSize/2, -sim.ySize/2);
-  ctx.strokeStyle = 'rgba(230,230,230,.15)'; ctx.lineWidth = 2; ctx.strokeRect(bx0, by0, sim.xSize*s, sim.ySize*s);
   // Build tile-sized offscreen layers (no pan inside tiles)
-  // Use ceil to avoid subpixel gap accumulation between tiles.
-  const tileW = Math.max(1, Math.ceil(sim.xSize * s));
-  const tileH = Math.max(1, Math.ceil(sim.ySize * s));
+  // Use integer-sized tiles so repeated placement has no fractional drift.
+  // Rounding avoids systematic overdraw that can create 1px seams when overlapped.
+  const tileW = Math.max(1, Math.round(sim.xSize * s));
+  const tileH = Math.max(1, Math.round(sim.ySize * s));
   if (sim.overlayCanvas.width !== tileW || sim.overlayCanvas.height !== tileH){ sim.overlayCanvas.width = tileW; sim.overlayCanvas.height = tileH; sim.overlayCtx = sim.overlayCanvas.getContext('2d', {alpha:true}); }
   if (sim.ciliaCanvas.width !== tileW || sim.ciliaCanvas.height !== tileH){ sim.ciliaCanvas.width = tileW; sim.ciliaCanvas.height = tileH; sim.ciliaCtx = sim.ciliaCanvas.getContext('2d', {alpha:true}); }
+  // Compute anchor for tiling and use it to draw a crisp domain outline aligned to tiles.
+  const pxW = tileW, pyH = tileH;
+  const nx = Math.ceil(W/pxW)+2, ny = Math.ceil(H/pyH)+2;
+  const anchorX = Math.round(cx0 + (-sim.xSize/2 - sim.panX)*s);
+  const anchorY = Math.round(cy0 + (-sim.ySize/2 - sim.panY)*s);
+  // Crisp 1px outline aligned to the tile grid prevents vertical/horizontal seams
+  ctx.strokeStyle = 'rgba(230,230,230,.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(anchorX + 0.5, anchorY + 0.5, tileW - 1, tileH - 1);
   const octx = sim.overlayCtx; octx.clearRect(0,0,tileW,tileH);
-  function toXYt(x,y){ return [ (x + sim.xSize/2) * s, (y + sim.ySize/2) * s ]; }
+  // Use tile-locked scale so geometry exactly fills the tile canvas,
+  // preventing subpixel clipping at tile edges.
+  const stx = tileW / Math.max(1e-6, sim.xSize);
+  const sty = tileH / Math.max(1e-6, sim.ySize);
+  const st = Math.min(stx, sty);
+  function toXYt(x,y){ return [ (x + sim.xSize/2) * stx, (y + sim.ySize/2) * sty ]; }
   if (sim.vor && sim.vor.polys){
     const fillCil = css.getPropertyValue('--cell-cil').trim() || 'rgba(210,210,210,0.18)';
     const fillNon = css.getPropertyValue('--cell-non').trim() || 'rgba(140,140,140,0.12)';
@@ -854,20 +866,16 @@ function draw(){
       if (!seg) continue; const [ax,ay] = toXYt(seg.x0,seg.y0); const [bx,by] = toXYt(seg.x1,seg.y1);
       octx.beginPath(); octx.moveTo(ax,ay); octx.lineTo(bx,by); octx.stroke();
       const vx = seg.x1 - seg.x0, vy = seg.y1 - seg.y0; const vlen = Math.hypot(vx,vy)||1e-6; const ux2=vx/vlen, uy2=vy/vlen;
-      const headLen=0.12*s, headWidth=0.10*s; const sx1=bx - headLen*ux2, sy1=by - headLen*uy2; const pxp=-uy2, pyp=ux2;
+      const headLen=0.12*st, headWidth=0.10*st; const sx1=bx - headLen*ux2, sy1=by - headLen*uy2; const pxp=-uy2, pyp=ux2;
       octx.beginPath(); octx.moveTo(bx,by); octx.lineTo(sx1+(headWidth/2)*pxp, sy1+(headWidth/2)*pyp); octx.lineTo(sx1-(headWidth/2)*pxp, sy1-(headWidth/2)*pyp); octx.closePath(); octx.fill();
     }
   }
   // Tile overlay to main canvas based on pan
-  const pxW = tileW, pyH = tileH;
-  const nx = Math.ceil(W/pxW)+2, ny = Math.ceil(H/pyH)+2;
-  // Anchor to nearest pixel to reduce subpixel sampling seams
-  const anchorX = Math.round(cx0 + (-sim.xSize/2 - sim.panX)*s);
-  const anchorY = Math.round(cy0 + (-sim.ySize/2 - sim.panY)*s);
+  // Anchor tiles to integer pixel grid to avoid subpixel sampling gaps.
   for (let ix=-nx; ix<=nx; ix++){
     for (let iy=-ny; iy<=ny; iy++){
-      // Slightly overlap tiles by 1px to avoid gap from rounding
-      ctx.drawImage(sim.overlayCanvas, anchorX + ix*pxW - 1, anchorY + iy*pyH - 1, pxW+2, pyH+2);
+      // Draw without overlap; integer tile sizes + integer anchoring prevents gaps
+      ctx.drawImage(sim.overlayCanvas, anchorX + ix*pxW, anchorY + iy*pyH, pxW, pyH);
     }
   }
   // Cilia tile layer with blur
@@ -928,7 +936,8 @@ function draw(){
     bctx.filter='none';
     for (let ix=-nx; ix<=nx; ix++){
       for (let iy=-ny; iy<=ny; iy++){
-        ctx.drawImage(sim.ciliaBlurCanvas, anchorX + ix*pxW - 1, anchorY + iy*pyH - 1, pxW+2, pyH+2);
+        // No overlap for blurred layer either to avoid double-dark seams
+        ctx.drawImage(sim.ciliaBlurCanvas, anchorX + ix*pxW, anchorY + iy*pyH, pxW, pyH);
       }
     }
   }
@@ -1038,7 +1047,7 @@ function stats(){
     Esum += e; Ecount++;
   }
   const E80 = Ecount>0 ? (Esum / Ecount) : 0;
-  byId('stats').textContent = `cells: ${sim.total}  ciliated: ${sim.totalCiliated}\ntracers: ${sim.tracers.length}  clearance per beat: ${cpb_um.toFixed(2)} um/beat  directionality (80um): ${E80.toFixed(2)}`;
+  byId('stats').textContent = `cells: ${sim.total}  ciliated: ${sim.totalCiliated} tracers: ${sim.tracers.length}\nclearance per beat: ${cpb_um.toFixed(2)} μm/beat  directionality (80μm): ${E80.toFixed(2)}`;
 }
 
 // ===== Lifecycle =====
