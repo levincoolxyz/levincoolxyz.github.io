@@ -31,7 +31,7 @@
   #kappaEditor { position:absolute; right:12px; bottom:var(--kappa-bottom, 200px); width:200px; height:120px; border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.45); display:flex; flex-direction:column; z-index:3 }
   .app.collapsed #kappaEditor { display:none; }
   #kappaEditor .title { font-size:12px; color:#cbd5e1; padding:4px 4px; border-bottom:1px solid rgba(255,255,255,.08); }
-  #kappaCanvas { flex:1; display:block; width:95%; height:95%; }
+  #kappaCanvas { flex:1; display:block; width:95%; height:95%; touch-action:none; }
   /* improve mobile pointer interactions */
   #threeMini, #threeMini canvas { touch-action:none; }
   .hud { position:absolute; left:10px; bottom:64px; font-size:12px; color:#cbd5e1;
@@ -72,6 +72,8 @@
   /* improve mobile pointer interactions on minimap */
   #threeMini, #threeMini canvas { touch-action: none; }
   #bfcanvas { touch-action:none; }
+  /* prevent double-tap zoom/scroll interfering with profile editor */
+  #kappaEditor, #kappaEditor canvas { touch-action:none; }
   /* simple D-pad overlay for BF panning */
   #dpad { position:absolute; right:16px; top:16px; display:grid; grid-template-columns:28px 28px 28px; grid-template-rows:28px 28px 28px; gap:6px; user-select:none; z-index:2 }
   #dpad button { width:28px; height:28px; border-radius:6px; border:1px solid #374151; background:#0b1220; color:#e5e7eb; cursor:pointer; }
@@ -945,7 +947,7 @@
       start = {s: profile.edit[dragIdx].s, v: profile.edit[dragIdx].v};
       dragging=true; try{ canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);}catch(_){ }
       e.preventDefault(); draw();
-    });
+    }, { passive:false });
     canvas.addEventListener('pointermove', function(e){
       if(!dragging) return; const rect=canvas.getBoundingClientRect(); const dpr = canvas.width/rect.width;
       const x=(e.clientX-rect.left)*dpr, y=(e.clientY-rect.top)*dpr; const r=plotRect();
@@ -961,7 +963,7 @@
         cps[dragIdx].s = sv.s; cps[dragIdx].v = sv.v;
       }
       draw(); e.preventDefault();
-    });
+    }, { passive:false });
     canvas.addEventListener('pointerup', function(e){
       if(!dragging) return; const rect=canvas.getBoundingClientRect(); const dpr = canvas.width/rect.width;
       const x=(e.clientX-rect.left)*dpr, y=(e.clientY-rect.top)*dpr; const r=plotRect();
@@ -988,7 +990,7 @@
       draw();
       // apply to simulation (update both views now)
       renderCoherent(); updateMinimapLines();
-    });
+    }, { passive:false });
 
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();

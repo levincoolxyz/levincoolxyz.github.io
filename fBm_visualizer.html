@@ -34,6 +34,8 @@
   main.canvas-wrap{grid-column:2 / -1;position:relative;background:#05070c;display:flex;align-items:center;justify-content:center;min-height:0;padding:0}
   #view{position:relative;flex:1;width:100%;height:100%;min-height:clamp(280px,60vh,720px);display:flex;align-items:center;justify-content:center}
   #view canvas{display:block;max-width:100%;max-height:100%}
+  /* prevent double-tap zoom/scroll on the render canvas */
+  #view, #view canvas { touch-action:none; }
   #stats{position:absolute;left:8px;bottom:8px;font:12px ui-monospace;color:#cbd5e1;background:rgba(0,0,0,.45);padding:6px 8px;border-radius:8px;white-space:pre}
   #tests{position:absolute;left:8px;top:8px;font:12px ui-monospace;color:#cbe7cb;background:rgba(0,0,0,.45);padding:6px 8px;border-radius:8px;white-space:pre;display:none}
   #scalebar{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
