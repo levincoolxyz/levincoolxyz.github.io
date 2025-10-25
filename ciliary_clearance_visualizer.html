@@ -71,6 +71,7 @@
   .tutorial-note header strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#9aa0a6}
   .tutorial-note button[data-close]{background:transparent;border:1px solid rgba(148,163,184,.4);color:#9aa0a6;border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
   .tutorial-note button[data-close]:hover{background:rgba(148,163,184,.08);color:#cbd5e1}
+  .tutorial-note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
   a{color:var(--acc)}
   @media (max-width:900px){
     .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
@@ -99,8 +100,8 @@
       <button id="reset" class="btn">Reset tracers</button>
       <button id="toggle3D" class="btn" title="Toggle 3D advection and diffusion for tracers">3D tracer motion: off</button>
       <button id="togglePBC" class="btn" title="Toggle periodic boundary condition for force computation">PBC: on</button>
-      <button id="toggleCilia" class="btn">cilia animation: on</button>
-      <button id="toggleTheme" class="btn">display: dark</button>
+      <button id="toggleCilia" class="btn" title="Toggle lectin-stain inspired cilia beating animation">cilia animation: on</button>
+      <button id="toggleTheme" class="btn" title="Toggle color scheme">display: dark</button>
       <button id="modeFate" class="btn mode" aria-pressed="false" title="Paint ciliation. Single‑click+hold = ciliated; double‑click+hold = not ciliated">edit: cell fate</button>
       <button id="modeBeatDir" class="btn mode" aria-pressed="false" title="Paint ciliated cell beat direction by dragging">edit: beat direction</button>
       <small>Regularized stokeslets with wall</small>
@@ -215,7 +216,7 @@
         <ul>
           <li>Play/Pause button to halt or resume animation; Reset tracers reseeds particles uniformly randomly.</li>
           <li>Pan the view by dragging pointers; on mobile use pinch to zoom and two-finger pan.</li>
-          <li>Toggle “cilia animation” to switch between animated cilia and static effective direction arrows.</li>
+          <li>Toggle top bar buttons to switch between cilia animation, tracer movement restriction, and periodic boundary conditions.</li>
           <li>Edit cell fate — single tap or click then hold paints ciliated cells; double tap / click erase ciliation.</li>
           <li>Edit beat direction — tap / click then drag to set local beat direction for ciliated cells.</li>
         </ul>
