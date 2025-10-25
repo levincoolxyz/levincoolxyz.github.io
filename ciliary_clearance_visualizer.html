@@ -65,6 +65,12 @@
   #bar{height:3px;background:#e5e7eb;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.35) inset}
   #barlabel{font:12px ui-monospace;color:#e5e7eb;text-shadow:0 1px 0 rgba(0,0,0,.6)}
   #err{position:fixed;right:12px;bottom:12px;max-width:44ch;background:#2b1b1b;color:#ffdcdc;border:1px solid #a55;padding:8px 10px;border-radius:10px;font:12px ui-monospace;display:none;white-space:pre-wrap;z-index:100}
+  /* Tutorial tip overlay (matches other visualizers) */
+  .tutorial-note{position:absolute;right:16px;top:120px;width:min(280px,90vw);padding:12px 14px;background:rgba(15,23,42,.78);border:1px solid rgba(148,163,184,.35);border-radius:12px;color:#e5e7eb;font:12px/1.5 system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;z-index:5;box-shadow:0 14px 38px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+  .tutorial-note header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+  .tutorial-note header strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#9aa0a6}
+  .tutorial-note button[data-close]{background:transparent;border:1px solid rgba(148,163,184,.4);color:#9aa0a6;border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+  .tutorial-note button[data-close]:hover{background:rgba(148,163,184,.08);color:#cbd5e1}
   a{color:var(--acc)}
   @media (max-width:900px){
     .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
@@ -197,7 +203,22 @@
   </aside>
 
   <main class="canvas-wrap">
-    <div id="view"><canvas id="canvas"></canvas></div>
+    <div id="view">
+      <canvas id="canvas"></canvas>
+      <div class="tutorial-note" id="ccNavNote">
+        <header>
+          <strong>Navigation tips</strong>
+          <button type="button" data-close aria-label="Hide navigation tips">×</button>
+        </header>
+        <ul>
+          <li>Play/Pause button to halt or resume animation; Reset tracers reseeds particles uniformly randomly.</li>
+          <li>Pan the view by dragging pointers; on mobile use pinch to zoom and two-finger pan.</li>
+          <li>Toggle “cilia animation” to switch between animated cilia and static effective direction arrows.</li>
+          <li>Edit cell fate — single tap or click then hold paints ciliated cells; double tap / click erase ciliation.</li>
+          <li>Edit beat direction — tap / click then drag to set local beat direction for ciliated cells.</li>
+        </ul>
+      </div>
+    </div>
     <div id="stats">—</div>
     <div id="scalebar"><div id="bar"></div><div id="barlabel"></div></div>
     <div id="err"></div>
@@ -884,13 +905,6 @@ function restartFromCurrentTracers(clearTrails){
     // ensure inside domain in case domain changed
     t.x = wrapCenter(t.x, 0, sim.xSize);
     t.y = wrapCenter(t.y, 0, sim.ySize);
-    if (params.allow3D){
-      const h = Math.max(1e-6, params.ciliaH);
-      // preserve prior z but clamp within physical window used by the stepper
-      t.z = clamp(t.z || h, 1e-6, 3*h);
-    } else {
-      t.z = params.ciliaH;
-    }
     t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0;
     t.t0 = 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
     if (clearTrails){ if (!sim.trails) sim.trails = new Array(n); sim.trails[i] = []; }
@@ -946,7 +960,7 @@ function step(dt){
   const allow3D = !!params.allow3D;
   const h = Math.max(1e-6, params.ciliaH);
   const zFreeze = 0.1 * h;          // near-wall buffer considered "no-slip"
-  const zMax = 100.0 * h;              // drop threshold above cilia height
+  const zMax = 5.0 * h;              // drop threshold above cilia height
   for (let p=0;p<sim.tracers.length;p++){
     const t = sim.tracers[p];
     const ox = t.x, oy = t.y, oz = t.z; // previous position before integrating
@@ -1025,9 +1039,9 @@ function resizeCanvas(){
 function tracerColorForZ(z){
   const hue = 130; // GFP-like green
   const zMin = 0.0;
-  const zMax = Math.max(1e-6, 3 * Math.max(1e-6, params.ciliaH));
+  const zMax = Math.max(1e-6, 5 * Math.max(1e-6, params.ciliaH));
   const sat01 = clamp((z - zMin) / (zMax - zMin), 0, 1);
-  const sPct = Math.round(20 + 80 * sat01); // 20% near wall → 100% at zMax
+  const sPct = Math.round(100 - 100 * sat01); // 100% near wall → 0% at zMax
   const isLight = document.body.classList.contains('light');
   const lPct = isLight ? 40 : 60; // darker in light mode for contrast
   return `hsl(${hue}, ${sPct}%, ${lPct}%)`;
@@ -1464,6 +1478,13 @@ sim.canvas.addEventListener('pointercancel', onPointerUp, {passive:false});
 // Wheel/trackpad panning for infinite scroll
 function onWheel(e){ e.preventDefault(); const dm=e.deltaMode; const unit = dm===1?16:(dm===2?100:1); const dx=(e.deltaX||0)/unit/Math.max(1e-6,sim.scale); const dy=(e.deltaY||0)/unit/Math.max(1e-6,sim.scale); sim.panX += dx; sim.panY += dy; normalizePan(); draw(); }
 viewEl.addEventListener('wheel', onWheel, {passive:false});
+
+// Tutorial note dismiss
+const ccNote = document.getElementById('ccNavNote');
+if (ccNote){
+  const closeBtn = ccNote.querySelector('[data-close]');
+  closeBtn?.addEventListener('click', () => ccNote.remove());
+}
 
 // ===== Preset mapping (derived from MATLAB script) =====
 // Physical constants for D (same as MATLAB)
