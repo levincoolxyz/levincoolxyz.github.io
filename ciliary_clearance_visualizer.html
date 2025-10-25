@@ -46,8 +46,8 @@
   .app.collapsed{grid-template-columns:0 1fr}
   .app.collapsed .panel{padding:0;overflow:hidden;pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
   main.canvas-wrap{position:relative;display:flex;align-items:center;justify-content:center;background:var(--panel)}
-  #view{position:relative;flex:1;width:100%;height:100%;min-height:clamp(280px,60vh,740px);display:flex;align-items:center;justify-content:center}
-  #view canvas{display:block;max-width:100%;max-height:100%}
+  #view{position:relative;flex:1;width:100%;height:100%;min-height:clamp(280px,60vh,740px);display:flex;align-items:center;justify-content:center;touch-action:none}
+  #view canvas{display:block;max-width:100%;max-height:100%;touch-action:none}
   .panel h2{margin:0 0 8px 0;font-size:15px}
   .group{margin:8px 0 14px}
   .row{display:grid;grid-template-columns:1fr minmax(120px,160px);gap:8px;align-items:center;margin:6px 0}
@@ -91,6 +91,7 @@
       <h1>Ciliary Clearance Visualizer</h1>
       <button id="playPause" class="btn">Pause</button>
       <button id="reset" class="btn">Reset tracers</button>
+      <button id="toggle3D" class="btn" title="Toggle 3D advection and diffusion for tracers">3D motion: off</button>
       <button id="toggleCilia" class="btn">cilia animation : on</button>
       <button id="toggleTheme" class="btn">display: dark</button>
       <button id="modeFate" class="btn mode" aria-pressed="false" title="Paint ciliation by dragging. Single‑click+hold = ciliated; double‑click+hold = not ciliated">edit: cell fate</button>
@@ -181,7 +182,7 @@
       <div class="row"><label>Cilia length/height [×L0]</label><input id="ciliaH" type="range" min="0.2" max="2.0" step="0.01" value="1.0"></div>
     </div>
     <div class="group">
-      <div class="row"><label>Tracer diffusion (2D) [×L0^2/T0]</label><input id="diff" type="range" min="0" max="0.2" step="0.001" value="0.01"></div>
+      <div class="row"><label>Diffusion coefficient [×L0^2/T0]</label><input id="diff" type="range" min="0" max="0.2" step="0.001" value="0.01"></div>
       <div class="row"><label>Step size [×T0]</label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
       <div class="row"><label>Trail length [×step]</label><input id="trail" type="range" min="0" max="300" step="1" value="0"></div>
       <div class="row"><label>Tracer count</label><input id="nTracer" type="range" min="10" max="500" step="1" value="100"></div>
@@ -342,6 +343,7 @@ const params = {
   oop:0.90, ciliaH:1.0, amp:1.0, diff:0.01, dt:0.05,
   nTracer:100, trail:0,
   showCilia:true, // animated cilia sticks default ON
+  allow3D:false, // 3D advection + diffusion for tracers
   centerJitter:0.5, // cell center randomness (original randness)
   // animated cilia variability
   corrLen:1.0,           // decorrelation length (×L0)
@@ -366,13 +368,15 @@ const sim = {
   ciliaCanvas:null,
   ciliaCtx:null,
   panX:0, panY:0,
+  // zoom factor (1 = fit-to-view)
+  zoom:1,
   // pan state
   dragging:false, dragPX:0, dragPY:0,
   // edit tools
   editMode:'none', // 'none' | 'fate' | 'dir'
   painting:false,
   fateErase:false,
-  lastTapTime:0,
+  lastTapTime:0, lastTapX:0, lastTapY:0, tapMoved:false,
   paintWX:0, paintWY:0, // last world pos during painting
   changedCells:null,
   _lastBuildTime:0,
@@ -425,6 +429,11 @@ function connect(){
   });
   byId('playPause')?.addEventListener('click', ()=>{ sim.playing=!sim.playing; byId('playPause').textContent = sim.playing? 'Pause':'Play'; });
   byId('reset')?.addEventListener('click', ()=>{ seedTracers(); });
+  const t3d = byId('toggle3D'); if (t3d){
+    const sync = ()=>{ t3d.textContent = params.allow3D ? '3D motion: on' : '3D motion: off'; };
+    t3d.addEventListener('click', ()=>{ params.allow3D = !params.allow3D; sync(); });
+    sync();
+  }
   const tog = byId('toggleCilia'); if (tog){ tog.addEventListener('click', ()=>{ params.showCilia = !params.showCilia; tog.textContent = params.showCilia ? 'cilia animation: on' : 'cilia animation: off'; draw(); }); tog.textContent = params.showCilia ? 'cilia animation: on' : 'cilia animation: off'; }
   const themeBtn = byId('toggleTheme'); if (themeBtn){ themeBtn.addEventListener('click', ()=>{ const isLight=document.body.classList.toggle('light'); themeBtn.textContent = isLight ? 'display: light' : 'display: dark'; draw(); }); themeBtn.textContent='display: dark'; }
   byId('preset')?.addEventListener('change', ()=>{ const name = byId('preset').value; if (name !== 'custom'){ applyPreset(name); syncUIFromParams(); rebuild(); } });
@@ -868,7 +877,6 @@ function seedTracers(){
 // Restart advection–diffusion from current tracer positions without reseeding.
 function restartFromCurrentTracers(clearTrails){
   if (!sim.tracers) return;
-  sim.time = 0;
   sim.dirGrid = null; // reset accumulated directionality statistics
   const n = sim.tracers.length;
   for (let i=0;i<n;i++){
@@ -876,7 +884,13 @@ function restartFromCurrentTracers(clearTrails){
     // ensure inside domain in case domain changed
     t.x = wrapCenter(t.x, 0, sim.xSize);
     t.y = wrapCenter(t.y, 0, sim.ySize);
-    t.z = params.ciliaH;
+    if (params.allow3D){
+      const h = Math.max(1e-6, params.ciliaH);
+      // preserve prior z but clamp within physical window used by the stepper
+      t.z = clamp(t.z || h, 1e-6, 3*h);
+    } else {
+      t.z = params.ciliaH;
+    }
     t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0;
     t.t0 = 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
     if (clearTrails){ if (!sim.trails) sim.trails = new Array(n); sim.trails[i] = []; }
@@ -929,9 +943,13 @@ function step(dt){
   if (N>0 && (!Xwrap || Xwrap.length !== sim.XsrcFull.length)) Xwrap = new Float64Array(sim.XsrcFull.length);
   const periodX = sim.xSize;
   const periodY = sim.ySize;
+  const allow3D = !!params.allow3D;
+  const h = Math.max(1e-6, params.ciliaH);
+  const zFreeze = 0.1 * h;          // near-wall buffer considered "no-slip"
+  const zMax = 100.0 * h;              // drop threshold above cilia height
   for (let p=0;p<sim.tracers.length;p++){
     const t = sim.tracers[p];
-    const ox = t.x, oy = t.y; // previous position before integrating
+    const ox = t.x, oy = t.y, oz = t.z; // previous position before integrating
     let vx = 0, vy = 0, vz = 0;
     if (N>0){
       // Build wrapped source positions for this tracer (minimum image convention per axis)
@@ -950,20 +968,41 @@ function step(dt){
     // Euler–Maruyama update with diffusion
     const D = Math.max(0, Number(params.diff));
     t.vx = vx; t.vy = vy; t.vz = vz;
-    t.x += vx*dt + Math.sqrt(2*D*dt) * randn();
-    t.y += vy*dt + Math.sqrt(2*D*dt) * randn();
-    t.z = params.ciliaH; // keep 2D plane at cilia height
-    // periodic wrap strictly to fundamental domain
-    t.x = wrapCenter(t.x, 0, sim.xSize);
-    t.y = wrapCenter(t.y, 0, sim.ySize);
-    // accumulate path length and net displacement using minimum-image deltas
+    const nx = ox + vx*dt + Math.sqrt(2*D*dt) * randn();
+    const ny = oy + vy*dt + Math.sqrt(2*D*dt) * randn();
+    const nz = allow3D ? (oz + vz*dt + Math.sqrt(2*D*dt) * randn()) : params.ciliaH;
+
+    if (allow3D){
+      if (nz <= zFreeze){
+        // Freeze at near-wall region: zero in-plane displacement and hold at buffer height
+        t.x = ox; t.y = oy; t.z = zFreeze; t.ivx = 0; t.ivy = 0; t.vx = 0; t.vy = 0; t.vz = 0; // no motion
+        t.age += dt;
+        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
+        continue;
+      }
+      if (nz > zMax){
+        // Drop particle: respawn at random position on cilia plane and clear trail
+        t.x = (Math.random()*sim.xSize - sim.xSize/2);
+        t.y = (Math.random()*sim.ySize - sim.ySize/2);
+        t.z = params.ciliaH;
+        t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0;
+        t.t0 = sim.time || 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
+        if (sim.trails && sim.trails[p]) sim.trails[p] = [];
+        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
+        continue;
+      }
+    }
+
+    // Accept move
+    t.x = wrapCenter(nx, 0, sim.xSize);
+    t.y = wrapCenter(ny, 0, sim.ySize);
+    t.z = allow3D ? Math.max(1e-6, nz) : params.ciliaH;
     const dxw = wrapCenter(t.x - ox, 0, sim.xSize);
     const dyw = wrapCenter(t.y - oy, 0, sim.ySize);
     t.sumX += dxw; t.sumY += dyw;
     t.pathLen += Math.hypot(dxw, dyw);
     t.ivx = dxw / dt; t.ivy = dyw / dt;
     t.age += dt;
-    // update trail
     const tr = sim.trails[p];
     tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
   }
@@ -981,10 +1020,25 @@ function resizeCanvas(){
   sim.ciliaCanvas.width = w; sim.ciliaCanvas.height = h;
   sim.ciliaCtx = sim.ciliaCanvas.getContext('2d', { alpha:true });
 }
+
+// Map z-depth to a fluorescent-green saturation for tracer dots
+function tracerColorForZ(z){
+  const hue = 130; // GFP-like green
+  const zMin = 0.0;
+  const zMax = Math.max(1e-6, 3 * Math.max(1e-6, params.ciliaH));
+  const sat01 = clamp((z - zMin) / (zMax - zMin), 0, 1);
+  const sPct = Math.round(20 + 80 * sat01); // 20% near wall → 100% at zMax
+  const isLight = document.body.classList.contains('light');
+  const lPct = isLight ? 40 : 60; // darker in light mode for contrast
+  return `hsl(${hue}, ${sPct}%, ${lPct}%)`;
+}
 function draw(){
   const ctx = sim.ctx; const W=sim.W, H=sim.H; ctx.clearRect(0,0,W,H);
-  // world -> screen transform (fit domain)
-  const pad = 40; const sx = (W - 2*pad) / Math.max(1e-6, sim.xSize); const sy = (H - 2*pad) / Math.max(1e-6, sim.ySize); const s = Math.min(sx, sy); sim.scale = s;
+  // world -> screen transform (fit domain) with zoom factor
+  const pad = 40; const sx = (W - 2*pad) / Math.max(1e-6, sim.xSize); const sy = (H - 2*pad) / Math.max(1e-6, sim.ySize);
+  const baseS = Math.min(sx, sy);
+  const s = baseS * Math.max(0.05, Math.min(20, sim.zoom||1));
+  sim.scale = s;
   const cx0 = W/2, cy0 = H/2;
   function toXY(x,y){ return [cx0 + (x - sim.panX)*s, cy0 + (y - sim.panY)*s]; }
   // background from theme
@@ -1170,7 +1224,13 @@ function draw(){
         const t = sim.tracers[p];
         if (t.x>=-sim.xSize/2 && t.x<=sim.xSize/2 && t.y>=-sim.ySize/2 && t.y<=sim.ySize/2){
           const [sx2,sy2]=toXY(t.x,t.y);
-          ctx.fillStyle=tracerCol; ctx.beginPath(); ctx.arc(sx2+offx, sy2+offy, 2.0, 0, Math.PI*2); ctx.fill();
+          const col = tracerColorForZ(t.z);
+          ctx.fillStyle=col; ctx.beginPath(); ctx.arc(sx2+offx, sy2+offy, 2.0, 0, Math.PI*2); ctx.fill();
+          // add a subtle outline to improve visibility, especially in light mode
+          const isLight = document.body.classList.contains('light');
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.25)';
+          ctx.stroke();
         }
       }
     }
@@ -1269,23 +1329,59 @@ boot();
 // Example: params.showCentersDebug=true; params.centerPadRing=2; redraw();
 window.sim = sim; window.params = params; window.redraw = draw;
 
-// ===== Pan/drag to scroll the domain (infinite) =====
+// ===== Pan/drag to scroll the domain (infinite) + pinch zoom =====
 const viewEl = document.getElementById('view');
 function normalizePan(){ if (!isFinite(sim.xSize)||!isFinite(sim.ySize)||sim.xSize<=0||sim.ySize<=0) return; sim.panX = wrapCenter(sim.panX, 0, sim.xSize); sim.panY = wrapCenter(sim.panY, 0, sim.ySize); }
-let activeId = 0;
+// Track multiple active pointers for reliable pinch-zoom and two-finger pan
+const activePointers = new Map(); // id -> {clientX, clientY}
+let pinchLastDist = 0;
+let isPinching = false;
+let twoPanLastMidWorld = null;
+function zoomAtClient(clientX, clientY, factor){
+  if (!isFinite(factor) || factor <= 0) return;
+  const minZ = 0.3, maxZ = 8;
+  const before = worldFromClient(clientX, clientY);
+  sim.zoom = Math.max(minZ, Math.min(maxZ, (sim.zoom||1) * factor));
+  const after = worldFromClient(clientX, clientY);
+  // Adjust pan so the same world point stays under the finger
+  sim.panX += (before[0] - after[0]);
+  sim.panY += (before[1] - after[1]);
+  normalizePan();
+  draw();
+}
 function onPointerDown(e){
-  activeId = e.pointerId||1;
-  viewEl.setPointerCapture && viewEl.setPointerCapture(activeId);
+  // Track this pointer
+  activePointers.set(e.pointerId, {clientX:e.clientX, clientY:e.clientY});
+  pinchLastDist = 0; // reset pinch baseline on fresh down
+  try { sim.canvas.setPointerCapture(e.pointerId); } catch {}
+  // If two or more pointers: begin pinch/2‑finger pan
+  if (activePointers.size >= 2){
+    const it = activePointers.values();
+    const p1 = it.next().value; const p2 = it.next().value;
+    if (p1 && p2){
+      const midX = (p1.clientX + p2.clientX)/2;
+      const midY = (p1.clientY + p2.clientY)/2;
+      twoPanLastMidWorld = worldFromClient(midX, midY);
+      isPinching = true;
+    }
+    e.preventDefault();
+    return;
+  }
+  // Single pointer: either edit-paint or pan
   const [wx, wy] = worldFromClient(e.clientX, e.clientY);
   sim.paintWX = wx; sim.paintWY = wy;
   if (sim.editMode === 'fate' || sim.editMode === 'dir'){
     e.preventDefault();
-    sim.painting = true; sim.changedCells = new Set();
+    sim.painting = true; sim.changedCells = new Set(); sim.tapMoved = false;
+    // Single vs double tap detection with position tolerance
     if (sim.editMode === 'fate'){
       const now = Date.now();
-      const isDouble = (now - (sim.lastTapTime||0)) < 300;
-      sim.lastTapTime = now;
-      sim.fateErase = isDouble; // double = erase (not ciliated), single = make ciliated
+      const dx = e.clientX - (sim.lastTapX||0);
+      const dy = e.clientY - (sim.lastTapY||0);
+      const dist2 = dx*dx + dy*dy;
+      const isDouble = (now - (sim.lastTapTime||0)) < 350 && dist2 < (30*30);
+      sim.lastTapTime = now; sim.lastTapX = e.clientX; sim.lastTapY = e.clientY;
+      sim.fateErase = isDouble; // double = erase, single = paint ciliated
       // Apply immediately to the starting cell as feedback
       paintFateSegment(wx, wy, wx, wy, !sim.fateErase);
       flushPaintUpdates(true);
@@ -1296,6 +1392,36 @@ function onPointerDown(e){
   }
 }
 function onPointerMove(e){
+  // Update tracked pointer position
+  if (activePointers.has(e.pointerId)){
+    activePointers.set(e.pointerId, {clientX:e.clientX, clientY:e.clientY});
+  }
+  // Handle pinch-zoom / two-finger pan
+  if (activePointers.size >= 2){
+    const it = activePointers.values();
+    const p1 = it.next().value; const p2 = it.next().value;
+    if (p1 && p2){
+      const dx = p2.clientX - p1.clientX; const dy = p2.clientY - p1.clientY;
+      const dist = Math.hypot(dx, dy);
+      const midX = (p1.clientX + p2.clientX)/2; const midY = (p1.clientY + p2.clientY)/2;
+      const beforeWorld = twoPanLastMidWorld || worldFromClient(midX, midY);
+      if (pinchLastDist > 0){
+        const scale = dist / pinchLastDist;
+        zoomAtClient(midX, midY, scale);
+      }
+      const afterWorld = worldFromClient(midX, midY);
+      sim.panX += (beforeWorld[0] - afterWorld[0]);
+      sim.panY += (beforeWorld[1] - afterWorld[1]);
+      normalizePan();
+      twoPanLastMidWorld = worldFromClient(midX, midY);
+      pinchLastDist = dist;
+      isPinching = true;
+      e.preventDefault();
+      draw();
+      return;
+    }
+  }
+  // Painting
   if (sim.painting){
     const [wx, wy] = worldFromClient(e.clientX, e.clientY);
     if (sim.editMode === 'fate'){
@@ -1303,22 +1429,38 @@ function onPointerMove(e){
     } else if (sim.editMode === 'dir'){
       paintDirSegment(sim.paintWX, sim.paintWY, wx, wy);
     }
+    // mark tap moved if user drags beyond small threshold (for diagnostics)
+    const dxs = (e.clientX - (sim.lastTapX||e.clientX));
+    const dys = (e.clientY - (sim.lastTapY||e.clientY));
+    if ((dxs*dxs + dys*dys) > (6*6)) sim.tapMoved = true;
     sim.paintWX = wx; sim.paintWY = wy;
     flushPaintUpdates(false);
+    e.preventDefault();
     return;
   }
+  // One-finger pan when not editing
   if(!sim.dragging) return;
-  const dx=(e.clientX - sim.dragPX)/sim.scale; const dy=(e.clientY - sim.dragPY)/sim.scale; sim.dragPX=e.clientX; sim.dragPY=e.clientY; sim.panX -= dx; sim.panY -= dy; normalizePan(); draw();
+  const dx=(e.clientX - sim.dragPX)/Math.max(1e-6,sim.scale);
+  const dy=(e.clientY - sim.dragPY)/Math.max(1e-6,sim.scale);
+  sim.dragPX=e.clientX; sim.dragPY=e.clientY;
+  sim.panX -= dx; sim.panY -= dy; normalizePan(); draw();
+  e.preventDefault();
 }
 function onPointerUp(e){
+  activePointers.delete(e.pointerId);
+  try { sim.canvas.releasePointerCapture(e.pointerId); } catch {}
+  isPinching = activePointers.size >= 2;
+  if (activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
   if (sim.painting){
     sim.painting=false; sim.changedCells = null; flushPaintUpdates(true);
   }
-  sim.dragging=false; viewEl.releasePointerCapture && viewEl.releasePointerCapture(activeId);
+  sim.dragging=false;
 }
-viewEl.addEventListener('pointerdown', onPointerDown, {passive:false});
-viewEl.addEventListener('pointermove', onPointerMove, {passive:false});
-viewEl.addEventListener('pointerup', onPointerUp, {passive:false});
+// Bind to canvas for reliable capture and to avoid bubbling quirks on mobile
+sim.canvas.addEventListener('pointerdown', onPointerDown, {passive:false});
+sim.canvas.addEventListener('pointermove', onPointerMove, {passive:false});
+sim.canvas.addEventListener('pointerup', onPointerUp, {passive:false});
+sim.canvas.addEventListener('pointercancel', onPointerUp, {passive:false});
 // Wheel/trackpad panning for infinite scroll
 function onWheel(e){ e.preventDefault(); const dm=e.deltaMode; const unit = dm===1?16:(dm===2?100:1); const dx=(e.deltaX||0)/unit/Math.max(1e-6,sim.scale); const dy=(e.deltaY||0)/unit/Math.max(1e-6,sim.scale); sim.panX += dx; sim.panY += dy; normalizePan(); draw(); }
 viewEl.addEventListener('wheel', onWheel, {passive:false});
