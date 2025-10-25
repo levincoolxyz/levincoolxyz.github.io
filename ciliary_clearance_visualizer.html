@@ -57,6 +57,9 @@
   .hint{font-size:12px;color:var(--muted);margin-top:4px}
   .btn{background:#10192a;color:#fff;border:0;border-radius:10px;padding:8px 10px;cursor:pointer}
   .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn.mode{background:#0e1a2c;border:1px solid #2c3a4d}
+  .btn.mode.active{background:#153054;border-color:#3a4e6a}
+  .btn.mode[aria-pressed="true"]{background:#153054;border-color:#3a4e6a}
   #stats{position:absolute;left:8px;bottom:8px;font:12px ui-monospace;color:#cbd5e1;background:rgba(0,0,0,.45);padding:6px 8px;border-radius:8px;white-space:pre}
   #scalebar{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;z-index:2}
   #bar{height:3px;background:#e5e7eb;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.35) inset}
@@ -90,6 +93,8 @@
       <button id="reset" class="btn">Reset tracers</button>
       <button id="toggleCilia" class="btn">cilia animation : on</button>
       <button id="toggleTheme" class="btn">display: dark</button>
+      <button id="modeFate" class="btn mode" aria-pressed="false" title="Paint ciliation by dragging. Single‑click+hold = ciliated; double‑click+hold = not ciliated">edit: cell fate</button>
+      <button id="modeBeatDir" class="btn mode" aria-pressed="false" title="Paint beat direction by dragging across cells">edit: beat direction</button>
       <small>Regularized stokeslets with wall</small>
     </div>
   </header>
@@ -361,7 +366,16 @@ const sim = {
   ciliaCanvas:null,
   ciliaCtx:null,
   panX:0, panY:0,
+  // pan state
   dragging:false, dragPX:0, dragPY:0,
+  // edit tools
+  editMode:'none', // 'none' | 'fate' | 'dir'
+  painting:false,
+  fateErase:false,
+  lastTapTime:0,
+  paintWX:0, paintWY:0, // last world pos during painting
+  changedCells:null,
+  _lastBuildTime:0,
 };
 
 // ===== UI wiring =====
@@ -436,6 +450,18 @@ function connect(){
     });
   }
   const sc = byId('showCilia'); if (sc){ sc.checked = params.showCilia; sc.addEventListener('change', ()=>{ params.showCilia = !!sc.checked; }); }
+
+  // Editing mode toggles
+  const btnFate = byId('modeFate');
+  const btnDir  = byId('modeBeatDir');
+  function setMode(m){
+    sim.editMode = m;
+    const isF = (m==='fate'), isD=(m==='dir');
+    if (btnFate){ btnFate.classList.toggle('active', isF); btnFate.setAttribute('aria-pressed', String(isF)); btnFate.textContent = isF? 'edit: cell fate (on)' : 'edit: cell fate'; }
+    if (btnDir){  btnDir.classList.toggle('active',  isD); btnDir.setAttribute('aria-pressed',  String(isD)); btnDir.textContent  = isD? 'edit: beat direction (on)' : 'edit: beat direction'; }
+  }
+  btnFate?.addEventListener('click', ()=>{ setMode(sim.editMode==='fate' ? 'none' : 'fate'); });
+  btnDir?.addEventListener('click',  ()=>{ setMode(sim.editMode==='dir'  ? 'none' : 'dir');  });
 }
 
 // ===== Grid and sources =====
@@ -566,6 +592,113 @@ function buildSources(){
     k++;
   }
   sim.XsrcFull = X; sim.FsrcFull = F;
+}
+
+// ===== Edit helpers (cell fate / beat direction painting) =====
+function worldFromClient(clientX, clientY){
+  const rect = sim.canvas.getBoundingClientRect();
+  const px = clientX - rect.left;
+  const py = clientY - rect.top;
+  const s = Math.max(1e-9, sim.scale);
+  const cx0 = sim.W/2, cy0 = sim.H/2;
+  const x = (px - cx0)/s + sim.panX;
+  const y = (py - cy0)/s + sim.panY;
+  return [wrapCenter(x, 0, sim.xSize), wrapCenter(y, 0, sim.ySize)];
+}
+function nearestCellIndex(x, y){
+  // Periodic minimum‑image nearest neighbor among centers (Voronoi classifier)
+  let best = -1, bestD = Infinity;
+  for (let i=0;i<sim.total;i++){
+    const dx = wrapCenter(x - sim.cx[i], 0, sim.xSize);
+    const dy = wrapCenter(y - sim.cy[i], 0, sim.ySize);
+    const d2 = dx*dx + dy*dy;
+    if (d2 < bestD){ bestD = d2; best = i; }
+  }
+  return best;
+}
+function regenSeedsForIndex(i){
+  if (!sim.vor || !sim.vor.polys) return;
+  const polys = sim.vor.polys; const poly = polys[i];
+  if (!poly || !sim.isCiliated[i]){ if (!sim.ciliaSeeds) sim.ciliaSeeds=[]; sim.ciliaSeeds[i]=null; return; }
+  // Mirror per‑cell seeding from initCiliaSeeds
+  const seedsPerCellMin = 100, seedsPerCellMax = 150;
+  const R = 0.3;
+  const phaseAmp = Number(params.phaseJitter) || 0;
+  const ampAmp = (Number(params.ampJitterPct) || 0) / 100;
+  const angAmp = (Number(params.angleJitter) || 0) * Math.PI/180;
+  const phaseSampler = makeCorrelatedSampler(R, phaseAmp);
+  const ampSampler   = makeCorrelatedSampler(R, ampAmp);
+  const angleSampler = makeCorrelatedSampler(R, angAmp);
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  for (const p of poly){ if (p[0]<minx) minx=p[0]; if (p[0]>maxx) maxx=p[0]; if (p[1]<miny) miny=p[1]; if (p[1]>maxy) maxy=p[1]; }
+  const want = seedsPerCellMin + Math.floor(Math.random()*(seedsPerCellMax-seedsPerCellMin+1));
+  const seeds=[]; let tries=0;
+  while (seeds.length < want && tries < want*50){
+    tries++;
+    const rx = minx + Math.random()*(maxx-minx);
+    const ry = miny + Math.random()*(maxy-miny);
+    if (pointInPoly(poly, rx, ry)){
+      seeds.push({ x:rx, y:ry, dphi: phaseSampler(rx,ry), damp: ampSampler(rx,ry), dang: angleSampler(rx,ry) });
+    }
+  }
+  if (!sim.ciliaSeeds) sim.ciliaSeeds = new Array(sim.total);
+  sim.ciliaSeeds[i] = seeds;
+}
+function setCellFate(i, ciliated){
+  if (i<0 || i>=sim.total) return false;
+  const cur = !!sim.isCiliated[i];
+  const next = !!ciliated;
+  if (cur === next) return false;
+  sim.isCiliated[i] = next;
+  sim.totalCiliated += next ? 1 : -1;
+  regenSeedsForIndex(i);
+  return true;
+}
+function paintFateSegment(x0,y0,x1,y1, makeCiliated){
+  const dx = wrapCenter(x1 - x0, 0, sim.xSize);
+  const dy = wrapCenter(y1 - y0, 0, sim.ySize);
+  const dist = Math.hypot(dx,dy);
+  const step = Math.max(0.25, Math.min(0.6, 0.5)); // ~half cell size in world units
+  const n = Math.max(1, Math.ceil(dist/step));
+  for (let k=0;k<=n;k++){
+    const x = wrapCenter(x0 + dx*(k/n), 0, sim.xSize);
+    const y = wrapCenter(y0 + dy*(k/n), 0, sim.ySize);
+    const idx = nearestCellIndex(x,y);
+    if (setCellFate(idx, makeCiliated)){
+      if (!sim.changedCells) sim.changedCells = new Set();
+      sim.changedCells.add(idx);
+    }
+  }
+}
+function paintDirSegment(x0,y0,x1,y1){
+  const dx = wrapCenter(x1 - x0, 0, sim.xSize);
+  const dy = wrapCenter(y1 - y0, 0, sim.ySize);
+  const dist = Math.hypot(dx,dy) || 0;
+  if (dist <= 1e-9) return;
+  const ang = Math.atan2(dy, dx);
+  const step = Math.max(0.25, Math.min(0.6, 0.5));
+  const n = Math.max(1, Math.ceil(dist/step));
+  for (let k=0;k<=n;k++){
+    const x = wrapCenter(x0 + dx*(k/n), 0, sim.xSize);
+    const y = wrapCenter(y0 + dy*(k/n), 0, sim.ySize);
+    const idx = nearestCellIndex(x,y);
+    if (sim.isCiliated[idx]){
+      if (!sim.ang || sim.ang.length !== sim.total) sim.ang = new Float64Array(sim.total);
+      sim.ang[idx] = ang;
+      if (!sim.changedCells) sim.changedCells = new Set();
+      sim.changedCells.add(idx);
+    }
+  }
+}
+function flushPaintUpdates(force){
+  const now = performance.now ? performance.now() : Date.now();
+  if (!force && (now - sim._lastBuildTime) < 50) return; // throttle builds
+  sim._lastBuildTime = now;
+  // Rebuild source vectors since angles or fates may have changed
+  buildSources();
+  // Do not reseed tracers; keep dynamics continuous; just zero instantaneous velocities
+  restartFromCurrentTracers(false);
+  draw(); stats();
 }
 
 // ===== Voronoi patches (ESM with local snapshot fallback) =====
@@ -1140,9 +1273,49 @@ window.sim = sim; window.params = params; window.redraw = draw;
 const viewEl = document.getElementById('view');
 function normalizePan(){ if (!isFinite(sim.xSize)||!isFinite(sim.ySize)||sim.xSize<=0||sim.ySize<=0) return; sim.panX = wrapCenter(sim.panX, 0, sim.xSize); sim.panY = wrapCenter(sim.panY, 0, sim.ySize); }
 let activeId = 0;
-function onPointerDown(e){ activeId = e.pointerId||1; sim.dragging=true; sim.dragPX=e.clientX; sim.dragPY=e.clientY; viewEl.setPointerCapture && viewEl.setPointerCapture(activeId); }
-function onPointerMove(e){ if(!sim.dragging) return; const dx=(e.clientX - sim.dragPX)/sim.scale; const dy=(e.clientY - sim.dragPY)/sim.scale; sim.dragPX=e.clientX; sim.dragPY=e.clientY; sim.panX -= dx; sim.panY -= dy; normalizePan(); draw(); }
-function onPointerUp(e){ sim.dragging=false; viewEl.releasePointerCapture && viewEl.releasePointerCapture(activeId); }
+function onPointerDown(e){
+  activeId = e.pointerId||1;
+  viewEl.setPointerCapture && viewEl.setPointerCapture(activeId);
+  const [wx, wy] = worldFromClient(e.clientX, e.clientY);
+  sim.paintWX = wx; sim.paintWY = wy;
+  if (sim.editMode === 'fate' || sim.editMode === 'dir'){
+    e.preventDefault();
+    sim.painting = true; sim.changedCells = new Set();
+    if (sim.editMode === 'fate'){
+      const now = Date.now();
+      const isDouble = (now - (sim.lastTapTime||0)) < 300;
+      sim.lastTapTime = now;
+      sim.fateErase = isDouble; // double = erase (not ciliated), single = make ciliated
+      // Apply immediately to the starting cell as feedback
+      paintFateSegment(wx, wy, wx, wy, !sim.fateErase);
+      flushPaintUpdates(true);
+    }
+  } else {
+    // start panning
+    sim.dragging=true; sim.dragPX=e.clientX; sim.dragPY=e.clientY;
+  }
+}
+function onPointerMove(e){
+  if (sim.painting){
+    const [wx, wy] = worldFromClient(e.clientX, e.clientY);
+    if (sim.editMode === 'fate'){
+      paintFateSegment(sim.paintWX, sim.paintWY, wx, wy, !sim.fateErase);
+    } else if (sim.editMode === 'dir'){
+      paintDirSegment(sim.paintWX, sim.paintWY, wx, wy);
+    }
+    sim.paintWX = wx; sim.paintWY = wy;
+    flushPaintUpdates(false);
+    return;
+  }
+  if(!sim.dragging) return;
+  const dx=(e.clientX - sim.dragPX)/sim.scale; const dy=(e.clientY - sim.dragPY)/sim.scale; sim.dragPX=e.clientX; sim.dragPY=e.clientY; sim.panX -= dx; sim.panY -= dy; normalizePan(); draw();
+}
+function onPointerUp(e){
+  if (sim.painting){
+    sim.painting=false; sim.changedCells = null; flushPaintUpdates(true);
+  }
+  sim.dragging=false; viewEl.releasePointerCapture && viewEl.releasePointerCapture(activeId);
+}
 viewEl.addEventListener('pointerdown', onPointerDown, {passive:false});
 viewEl.addEventListener('pointermove', onPointerMove, {passive:false});
 viewEl.addEventListener('pointerup', onPointerUp, {passive:false});
