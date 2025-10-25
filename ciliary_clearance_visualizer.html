@@ -97,7 +97,8 @@
       <h1>Ciliary Clearance Visualizer</h1>
       <button id="playPause" class="btn">Pause</button>
       <button id="reset" class="btn">Reset tracers</button>
-      <button id="toggle3D" class="btn" title="Toggle 3D advection and diffusion for tracers">3D motion: off</button>
+      <button id="toggle3D" class="btn" title="Toggle 3D advection and diffusion for tracers">3D tracer motion: off</button>
+      <button id="togglePBC" class="btn" title="Toggle periodic boundary condition for force computation">PBC: on</button>
       <button id="toggleCilia" class="btn">cilia animation: on</button>
       <button id="toggleTheme" class="btn">display: dark</button>
       <button id="modeFate" class="btn mode" aria-pressed="false" title="Paint ciliation. Single‑click+hold = ciliated; double‑click+hold = not ciliated">edit: cell fate</button>
@@ -188,6 +189,7 @@
       <div class="row"><label>Cilia length/height [×L0]</label><input id="ciliaH" type="range" min="0.2" max="2.0" step="0.01" value="1.0"></div>
     </div>
     <div class="group">
+      <div class="row"><label>Focal z [×L0]</label><input id="focalZ" type="range" min="0.0" max="3.0" step="0.01" value="1.0"></div>
       <div class="row"><label>Diffusion coefficient [×L0^2/T0]</label><input id="diff" type="range" min="0" max="0.2" step="0.001" value="0.01"></div>
       <div class="row"><label>Step size [×T0]</label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
       <div class="row"><label>Trail length [×step]</label><input id="trail" type="range" min="0" max="300" step="1" value="0"></div>
@@ -244,6 +246,11 @@ async function loadScript(src){
 // Define base length scales up front so scale bar etc. can use them immediately
 const L0 = 10;      // [um] typical cell size
 const L0m = 10E-6;  // [m]  typical cell size
+// Global tuning knobs for tracer visualization/logic
+const FOCAL_SLIDER_MAX_L0 = 3.0;   // UI max for focal plane (×L0)
+const DROP_WINDOW_L0      = 1.0;   // |z - z_focal| window before respawn (×L0)
+const WALL_FREEZE_F       = 0.10;  // fraction of ciliaH considered near-wall freeze
+const TRACER_DIAMETER_UM  = 1.0;   // physical tracer diameter for drawing [um]
 function randn(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function clamp(v,a,b){ return Math.min(b, Math.max(a, v)); }
 function wrapCenter(r, r0, size){ // wrap r centered around r0 +/- size/2
@@ -364,7 +371,9 @@ const params = {
   oop:0.90, ciliaH:1.0, amp:1.0, diff:0.01, dt:0.05,
   nTracer:100, trail:0,
   showCilia:true, // animated cilia sticks default ON
-  allow3D:false, // 3D advection + diffusion for tracers
+  allow3D:true, // 3D advection + diffusion for tracers (default ON)
+  focalZ:1.0,   // focal plane height [×L0]
+  pbc:true,     // periodic boundary condition for force computation
   centerJitter:0.5, // cell center randomness (original randness)
   // animated cilia variability
   corrLen:1.0,           // decorrelation length (×L0)
@@ -451,8 +460,13 @@ function connect(){
   byId('playPause')?.addEventListener('click', ()=>{ sim.playing=!sim.playing; byId('playPause').textContent = sim.playing? 'Pause':'Play'; });
   byId('reset')?.addEventListener('click', ()=>{ seedTracers(); });
   const t3d = byId('toggle3D'); if (t3d){
-    const sync = ()=>{ t3d.textContent = params.allow3D ? '3D motion: on' : '3D motion: off'; };
+    const sync = ()=>{ t3d.textContent = params.allow3D ? '3D tracer motion: on' : '3D tracer motion: off'; };
     t3d.addEventListener('click', ()=>{ params.allow3D = !params.allow3D; sync(); });
+    sync();
+  }
+  const pbcBtn = byId('togglePBC'); if (pbcBtn){
+    const sync = ()=>{ pbcBtn.textContent = params.pbc ? 'PBC: on' : 'PBC: off'; };
+    pbcBtn.addEventListener('click', ()=>{ params.pbc = !params.pbc; sync(); });
     sync();
   }
   const tog = byId('toggleCilia'); if (tog){ tog.addEventListener('click', ()=>{ params.showCilia = !params.showCilia; tog.textContent = params.showCilia ? 'cilia animation: on' : 'cilia animation: off'; draw(); }); tog.textContent = params.showCilia ? 'cilia animation: on' : 'cilia animation: off'; }
@@ -462,7 +476,7 @@ function connect(){
   const map = [
     ['nX','nX'],['nY','nY'],
     ['coverage','coverage'],['patchlength','patchlength'],['crystalline','crystalline'],
-    ['oop','oop'],['ciliaH','ciliaH'],['amp','amp'],['diff','diff'],['dt','dt'],
+    ['oop','oop'],['ciliaH','ciliaH'],['amp','amp'],['diff','diff'],['dt','dt'],['focalZ','focalZ'],
     ['nTracer','nTracer'],['trail','trail']
   ];
   const gridKeys = ['nX','nY'];
@@ -476,6 +490,7 @@ function connect(){
       if (gridKeys.includes(key)) { rebuild(); }
       else if (patternKeys.includes(key)) { recomputePattern(); }
       else if (key === 'oop') { updateAnglesOnly(); }
+      else if (key === 'focalZ') { draw(); }
       else { updateNonGrid(key); }
     });
   }
@@ -959,8 +974,8 @@ function step(dt){
   const periodY = sim.ySize;
   const allow3D = !!params.allow3D;
   const h = Math.max(1e-6, params.ciliaH);
-  const zFreeze = 0.1 * h;          // near-wall buffer considered "no-slip"
-  const zMax = 5.0 * h;              // drop threshold above cilia height
+  const zFreeze = WALL_FREEZE_F * h; // near-wall buffer considered "no-slip"
+  const fz = Number(params.focalZ) || h;
   for (let p=0;p<sim.tracers.length;p++){
     const t = sim.tracers[p];
     const ox = t.x, oy = t.y, oz = t.z; // previous position before integrating
@@ -970,8 +985,8 @@ function step(dt){
       for (let i=0, k=0;i<sim.total;i++){
         if (!sim.isCiliated[i]) continue;
         const z = sim.cz[i];
-        const wx = wrapCenter(sim.cx[i], t.x, periodX);
-        const wy = wrapCenter(sim.cy[i], t.y, periodY);
+        const wx = params.pbc ? wrapCenter(sim.cx[i], t.x, periodX) : sim.cx[i];
+        const wy = params.pbc ? wrapCenter(sim.cy[i], t.y, periodY) : sim.cy[i];
         Xwrap[k] = z; Xwrap[k+N] = wx; Xwrap[k+2*N] = wy; k++;
       }
       Xq[0] = Math.max(1e-6, t.z); Xq[1] = t.x; Xq[2] = t.y;
@@ -987,29 +1002,30 @@ function step(dt){
     const nz = allow3D ? (oz + vz*dt + Math.sqrt(2*D*dt) * randn()) : params.ciliaH;
 
     if (allow3D){
-      if (nz <= zFreeze){
-        // Freeze at near-wall region: zero in-plane displacement and hold at buffer height
-        t.x = ox; t.y = oy; t.z = zFreeze; t.ivx = 0; t.ivy = 0; t.vx = 0; t.vy = 0; t.vz = 0; // no motion
-        t.age += dt;
-        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
-        continue;
-      }
-      if (nz > zMax){
-        // Drop particle: respawn at random position on cilia plane and clear trail
+      const defocus = Math.abs(nz - fz);
+      // Defocus drop: beyond ±1×L0 from focal plane → respawn uniformly at the focal plane
+      if (defocus > DROP_WINDOW_L0){
         t.x = (Math.random()*sim.xSize - sim.xSize/2);
         t.y = (Math.random()*sim.ySize - sim.ySize/2);
-        t.z = params.ciliaH;
+        t.z = fz;
         t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0;
         t.t0 = sim.time || 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
         if (sim.trails && sim.trails[p]) sim.trails[p] = [];
         const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
         continue;
       }
+      // Near-wall freeze
+      if (nz <= zFreeze){
+        t.x = ox; t.y = oy; t.z = zFreeze; t.ivx = 0; t.ivy = 0; t.vx = 0; t.vy = 0; t.vz = 0;
+        t.age += dt;
+        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
+        continue;
+      }
     }
 
-    // Accept move
-    t.x = wrapCenter(nx, 0, sim.xSize);
-    t.y = wrapCenter(ny, 0, sim.ySize);
+    // Accept move (wrap only when PBC is enabled)
+    t.x = params.pbc ? wrapCenter(nx, 0, sim.xSize) : nx;
+    t.y = params.pbc ? wrapCenter(ny, 0, sim.ySize) : ny;
     t.z = allow3D ? Math.max(1e-6, nz) : params.ciliaH;
     const dxw = wrapCenter(t.x - ox, 0, sim.xSize);
     const dyw = wrapCenter(t.y - oy, 0, sim.ySize);
@@ -1035,16 +1051,22 @@ function resizeCanvas(){
   sim.ciliaCtx = sim.ciliaCanvas.getContext('2d', { alpha:true });
 }
 
-// Map z-depth to a fluorescent-green saturation for tracer dots
+// Pixel radius for tracer disk so 1 μm diameter is respected regardless of zoom/window
+function tracerRadiusPx(){
+  const radiusWorld = (TRACER_DIAMETER_UM * 0.5) / L0; // world units
+  return Math.max(0, radiusWorld * Math.max(1e-6, sim.scale));
+}
+
+// Tracer color: at focal plane → no saturation; below focal (into screen) → green; above focal → blue.
 function tracerColorForZ(z){
-  const hue = 130; // GFP-like green
-  const zMin = 0.0;
-  const zMax = Math.max(1e-6, 5 * Math.max(1e-6, params.ciliaH));
-  const sat01 = clamp((z - zMin) / (zMax - zMin), 0, 1);
-  const sPct = Math.round(100 - 100 * sat01); // 100% near wall → 0% at zMax
+  const fz = Number(params.focalZ) || Math.max(1e-6, params.ciliaH);
+  const dz = (z||0) - fz; // positive = above (out of screen), negative = below (into screen)
+  const w = Math.min(1, Math.abs(dz) / DROP_WINDOW_L0); // 0..1 across the drop window
+  const sat = Math.round(90 * w); // saturation grows with |dz|
+  const hue = dz < 0 ? 130 : 210; // green vs blue
   const isLight = document.body.classList.contains('light');
-  const lPct = isLight ? 40 : 60; // darker in light mode for contrast
-  return `hsl(${hue}, ${sPct}%, ${lPct}%)`;
+  const lPct = isLight ? 40 : 60;
+  return `hsl(${hue}, ${sat}%, ${lPct}%)`;
 }
 function draw(){
   const ctx = sim.ctx; const W=sim.W, H=sim.H; ctx.clearRect(0,0,W,H);
@@ -1128,12 +1150,15 @@ function draw(){
     }
   }
   // Tile overlay to main canvas based on pan
-  // Anchor tiles to integer pixel grid to avoid subpixel sampling gaps.
-  for (let ix=-nx; ix<=nx; ix++){
-    for (let iy=-ny; iy<=ny; iy++){
-      // Draw without overlap; integer tile sizes + integer anchoring prevents gaps
-      ctx.drawImage(sim.overlayCanvas, anchorX + ix*pxW, anchorY + iy*pyH, pxW, pyH);
+  // When PBC is off, draw only the fundamental domain once without tiling.
+  if (params.pbc){
+    for (let ix=-nx; ix<=nx; ix++){
+      for (let iy=-ny; iy<=ny; iy++){
+        ctx.drawImage(sim.overlayCanvas, anchorX + ix*pxW, anchorY + iy*pyH, pxW, pyH);
+      }
     }
+  } else {
+    ctx.drawImage(sim.overlayCanvas, anchorX, anchorY, pxW, pyH);
   }
   // Cilia tile layer with blur
   if (params.showCilia){
@@ -1191,11 +1216,14 @@ function draw(){
     if (blurPx >= 0.25) { bctx.filter = `blur(${blurPx.toFixed(2)}px)`; }
     bctx.drawImage(sim.ciliaCanvas, 0, 0);
     bctx.filter='none';
-    for (let ix=-nx; ix<=nx; ix++){
-      for (let iy=-ny; iy<=ny; iy++){
-        // No overlap for blurred layer either to avoid double-dark seams
-        ctx.drawImage(sim.ciliaBlurCanvas, anchorX + ix*pxW, anchorY + iy*pyH, pxW, pyH);
+    if (params.pbc){
+      for (let ix=-nx; ix<=nx; ix++){
+        for (let iy=-ny; iy<=ny; iy++){
+          ctx.drawImage(sim.ciliaBlurCanvas, anchorX + ix*pxW, anchorY + iy*pyH, pxW, pyH);
+        }
       }
+    } else {
+      ctx.drawImage(sim.ciliaBlurCanvas, anchorX, anchorY, pxW, pyH);
     }
   }
   // draw tracer trails and particles (respect periodic boundaries by breaking long chords)
@@ -1210,43 +1238,59 @@ function draw(){
   // Precompute tile parameters for tiling trails/dots as well
   const nx2 = Math.ceil(W/pxW)+1, ny2 = Math.ceil(H/pyH)+1;
   for (let p=0;p<sim.tracers.length;p++){
-    // Build clipped central tile segments in screen coords
+    // Build segments in screen coords; clip to domain only when PBC is on
     const tr = sim.trails[p]; const segs=[];
     for (let i=1;i<tr.length;i++){
-      const dxw = tr[i].x - tr[i-1].x; const dyw = tr[i].y - tr[i-1].y;
-      if (Math.abs(dxw) > sim.xSize*0.5 || Math.abs(dyw) > sim.ySize*0.5) continue;
-      const seg = clipSegmentToRect(tr[i-1].x, tr[i-1].y, tr[i].x, tr[i].y, -sim.xSize/2, -sim.ySize/2, sim.xSize/2, sim.ySize/2);
-      if (!seg) continue; const [ax,ay] = toXY(seg.x0,seg.y0); const [bx,by] = toXY(seg.x1,seg.y1); segs.push([ax,ay,bx,by]);
+      if (params.pbc){
+        const dxw = tr[i].x - tr[i-1].x; const dyw = tr[i].y - tr[i-1].y;
+        if (Math.abs(dxw) > sim.xSize*0.5 || Math.abs(dyw) > sim.ySize*0.5) continue;
+        const seg = clipSegmentToRect(tr[i-1].x, tr[i-1].y, tr[i].x, tr[i].y, -sim.xSize/2, -sim.ySize/2, sim.xSize/2, sim.ySize/2);
+        if (!seg) continue; const [ax,ay] = toXY(seg.x0,seg.y0); const [bx,by] = toXY(seg.x1,seg.y1); segs.push([ax,ay,bx,by]);
+      } else {
+        const [ax,ay] = toXY(tr[i-1].x, tr[i-1].y); const [bx,by] = toXY(tr[i].x, tr[i].y); segs.push([ax,ay,bx,by]);
+      }
     }
-    // Draw segments for central and periodic image tiles
+    // Draw segments for central and (if PBC) periodic image tiles
     ctx.strokeStyle=trackCol; ctx.lineWidth = 1.5;
-    for (let ix=-nx2; ix<=nx2; ix++){
-      for (let iy=-ny2; iy<=ny2; iy++){
-        const offx = ix*pxW, offy = iy*pyH;
-        if (segs.length){
-          // Important: draw each segment separately so we don't
-          // connect disparate segments with straight chords.
-          ctx.beginPath();
-          for (const sgm of segs){
-            const ax=sgm[0]+offx, ay=sgm[1]+offy, bx=sgm[2]+offx, by=sgm[3]+offy;
-            ctx.moveTo(ax,ay);
-            ctx.lineTo(bx,by);
+    if (params.pbc){
+      for (let ix=-nx2; ix<=nx2; ix++){
+        for (let iy=-ny2; iy<=ny2; iy++){
+          const offx = ix*pxW, offy = iy*pyH;
+          if (segs.length){
+            ctx.beginPath();
+            for (const sgm of segs){
+              const ax=sgm[0]+offx, ay=sgm[1]+offy, bx=sgm[2]+offx, by=sgm[3]+offy;
+              ctx.moveTo(ax,ay);
+              ctx.lineTo(bx,by);
+            }
+            ctx.stroke();
           }
-          ctx.stroke();
-        }
-        // Draw tracer dot copies
-        const t = sim.tracers[p];
-        if (t.x>=-sim.xSize/2 && t.x<=sim.xSize/2 && t.y>=-sim.ySize/2 && t.y<=sim.ySize/2){
-          const [sx2,sy2]=toXY(t.x,t.y);
-          const col = tracerColorForZ(t.z);
-          ctx.fillStyle=col; ctx.beginPath(); ctx.arc(sx2+offx, sy2+offy, 2.0, 0, Math.PI*2); ctx.fill();
-          // add a subtle outline to improve visibility, especially in light mode
-          const isLight = document.body.classList.contains('light');
-          ctx.lineWidth = 1;
-          ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.25)';
-          ctx.stroke();
+          const t = sim.tracers[p];
+          if (t.x>=-sim.xSize/2 && t.x<=sim.xSize/2 && t.y>=-sim.ySize/2 && t.y<=sim.ySize/2){
+            const [sx2,sy2]=toXY(t.x,t.y);
+            const col = tracerColorForZ(t.z);
+            const rpx = tracerRadiusPx();
+            ctx.fillStyle=col; ctx.beginPath(); ctx.arc(sx2+offx, sy2+offy, rpx, 0, Math.PI*2); ctx.fill();
+            const isLight = document.body.classList.contains('light');
+            ctx.lineWidth = 1; ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.25)';
+            ctx.stroke();
+          }
         }
       }
+    } else {
+      if (segs.length){
+        ctx.beginPath();
+        for (const sgm of segs){ ctx.moveTo(sgm[0],sgm[1]); ctx.lineTo(sgm[2],sgm[3]); }
+        ctx.stroke();
+      }
+      const t = sim.tracers[p];
+      const [sx2,sy2]=toXY(t.x,t.y);
+      const col = tracerColorForZ(t.z);
+      const rpx = tracerRadiusPx();
+      ctx.fillStyle=col; ctx.beginPath(); ctx.arc(sx2, sy2, rpx, 0, Math.PI*2); ctx.fill();
+      const isLight = document.body.classList.contains('light');
+      ctx.lineWidth = 1; ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.25)';
+      ctx.stroke();
     }
   }
   // (centers debug overlay removed)
@@ -1345,7 +1389,13 @@ window.sim = sim; window.params = params; window.redraw = draw;
 
 // ===== Pan/drag to scroll the domain (infinite) + pinch zoom =====
 const viewEl = document.getElementById('view');
-function normalizePan(){ if (!isFinite(sim.xSize)||!isFinite(sim.ySize)||sim.xSize<=0||sim.ySize<=0) return; sim.panX = wrapCenter(sim.panX, 0, sim.xSize); sim.panY = wrapCenter(sim.panY, 0, sim.ySize); }
+function normalizePan(){
+  if (!isFinite(sim.xSize)||!isFinite(sim.ySize)||sim.xSize<=0||sim.ySize<=0) return;
+  if (params.pbc){
+    sim.panX = wrapCenter(sim.panX, 0, sim.xSize);
+    sim.panY = wrapCenter(sim.panY, 0, sim.ySize);
+  }
+}
 // Track multiple active pointers for reliable pinch-zoom and two-finger pan
 const activePointers = new Map(); // id -> {clientX, clientY}
 let pinchLastDist = 0;
@@ -1661,7 +1711,7 @@ function applyPreset(name){
 }
 
 function syncUIFromParams(){
-  const pairs = ['nX','nY','spacing','coverage','patchlength','crystalline','patchorder','angleStd','ciliaH','amp','eps','diff','dt','nTracer','trail'];
+  const pairs = ['nX','nY','spacing','coverage','patchlength','crystalline','patchorder','angleStd','ciliaH','amp','eps','diff','dt','focalZ','nTracer','trail'];
   for (const id of pairs){ const key = (id==='angleStd')? 'angleStdDeg' : id; setSlider(id, params[key]); }
 }
 
