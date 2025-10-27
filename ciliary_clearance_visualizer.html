@@ -187,10 +187,10 @@
     <div class="group">
       <div class="row"><label>Beat Orientational order (OOP)</label><input id="oop" type="range" min="0" max="1" step="0.01" value="0.90"></div>
       <div class="row"><label>Beat amplitude [×L0]</label><input id="amp" type="range" min="0.1" max="2.0" step="0.01" value="1.0"></div>
-      <div class="row"><label>Cilia length/height [×L0]</label><input id="ciliaH" type="range" min="0.2" max="2.0" step="0.01" value="1.0"></div>
+      <div class="row"><label>Cilia length/height [×L0]</label><input id="ciliaH" type="range" min="0.2" max="3.0" step="0.01" value="1.0"></div>
     </div>
     <div class="group">
-      <div class="row"><label>Focal z [×L0]</label><input id="focalZ" type="range" min="0.0" max="3.0" step="0.01" value="1.0"></div>
+      <div class="row"><label>Focal plane z [×L0]</label><input id="focalZ" type="range" min="0.2" max="3.0" step="0.01" value="1.0"></div>
       <div class="row"><label>Diffusion coefficient [×L0^2/T0]</label><input id="diff" type="range" min="0" max="0.2" step="0.001" value="0.01"></div>
       <div class="row"><label>Step size [×T0]</label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
       <div class="row"><label>Trail length [×step]</label><input id="trail" type="range" min="0" max="300" step="1" value="0"></div>
@@ -249,9 +249,9 @@ const L0 = 10;      // [um] typical cell size
 const L0m = 10E-6;  // [m]  typical cell size
 // Global tuning knobs for tracer visualization/logic
 const FOCAL_SLIDER_MAX_L0 = 3.0;   // UI max for focal plane (×L0)
-const DROP_WINDOW_L0      = 1.0;   // |z - z_focal| window before respawn (×L0)
-const WALL_FREEZE_F       = 0.10;  // fraction of ciliaH considered near-wall freeze
-const TRACER_DIAMETER_UM  = 1.0;   // physical tracer diameter for drawing [um]
+const DROP_WINDOW_L0      = 2.0;   // |z - z_focal| window before respawn (×L0)
+const TRACER_DIAMETER_UM  = 1.0;   // tracer diameter for drawing + physics [μm]
+const WALL_FREEZE_RADII   = 1.0;   // near-wall freeze buffer in bead radii (×R_bead)
 function randn(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function clamp(v,a,b){ return Math.min(b, Math.max(a, v)); }
 function wrapCenter(r, r0, size){ // wrap r centered around r0 +/- size/2
@@ -385,6 +385,8 @@ const params = {
 
 const sim = {
   playing:true,
+  // When auto-paused due to all tracers stuck, reseed only on next Play
+  reseedOnPlay:false,
   cx:null, cy:null, cz:null, isCiliated:null,
   xSize:0, ySize:0, dX:1, dY:1, total:0, totalCiliated:0,
   ang:null,
@@ -399,6 +401,8 @@ const sim = {
   ciliaCanvas:null,
   ciliaCtx:null,
   panX:0, panY:0,
+  // tracer dynamics start time (T0 units) — for elapsed stat since last reset/recalc
+  dynStartTime:0,
   // zoom factor (1 = fit-to-view)
   zoom:1,
   // pan state
@@ -458,8 +462,17 @@ function connect(){
     setCollapsed(collapsed);
     try { if (!collapsed) panelEl?.focus?.({preventScroll:true}); } catch(e) {}
   });
-  byId('playPause')?.addEventListener('click', ()=>{ sim.playing=!sim.playing; byId('playPause').textContent = sim.playing? 'Pause':'Play'; });
-  byId('reset')?.addEventListener('click', ()=>{ seedTracers(); });
+  byId('playPause')?.addEventListener('click', ()=>{
+    const nextState = !sim.playing;
+    sim.playing = nextState;
+    // If we auto-paused because all tracers were stuck, reseed only when user presses Play again.
+    if (sim.playing && sim.reseedOnPlay){
+      seedTracers();
+      sim.reseedOnPlay = false;
+    }
+    byId('playPause').textContent = sim.playing? 'Pause':'Play';
+  });
+  byId('reset')?.addEventListener('click', ()=>{ seedTracers(); sim.reseedOnPlay = false; });
   const t3d = byId('toggle3D'); if (t3d){
     const sync = ()=>{ t3d.textContent = params.allow3D ? '3D tracer motion: on' : '3D tracer motion: off'; };
     t3d.addEventListener('click', ()=>{ params.allow3D = !params.allow3D; sync(); });
@@ -480,6 +493,12 @@ function connect(){
     ['oop','oop'],['ciliaH','ciliaH'],['amp','amp'],['diff','diff'],['dt','dt'],['focalZ','focalZ'],
     ['nTracer','nTracer'],['trail','trail']
   ];
+  function markPresetCustom(){ const sel = byId('preset'); if (sel) sel.value = 'custom'; }
+  function markModNone(){ const sel = byId('mod'); if (sel) sel.value = 'none'; }
+  // Sliders whose changes imply a custom configuration (covered by presets)
+  const presetDriven = new Set(['coverage','patchlength','crystalline','oop','ciliaH','amp','diff']);
+  // Sliders affected by modifier presets; changing them should reset modifier to none
+  const modDriven = new Set(['oop','ciliaH','amp','diff']);
   const gridKeys = ['nX','nY'];
   const patternKeys = ['coverage','patchlength','crystalline'];
   for (const [id,key] of map){
@@ -488,6 +507,8 @@ function connect(){
       let v=Number(el.value);
       if (id==='patchlength'){ v = quantizePatchLength(v); el.value = String(v); }
       params[key] = v;
+      if (presetDriven.has(id)) markPresetCustom();
+      if (modDriven.has(id)) markModNone();
       if (gridKeys.includes(key)) { rebuild(); }
       else if (patternKeys.includes(key)) { recomputePattern(); }
       else if (key === 'oop') { updateAnglesOnly(); }
@@ -546,10 +567,9 @@ function recomputePattern(){
   sim.totalCiliated = 0; for (let i=0;i<sim.total;i++){ if (sim.isCiliated[i]) sim.totalCiliated++; }
   // Rebuild cilia seeds to reflect changed ciliated identities
   if (sim.vor && sim.vor.polys){ initCiliaSeeds(sim.vor.polys); }
-  // Physics reset: sources depend on ciliation and angles/amplitudes
+  // Physics: sources depend on ciliation and angles/amplitudes
+  // Do NOT reset tracer dynamics; let existing tracers continue under new field
   buildSources();
-  // Restart dynamics from current tracer positions (do not reseed)
-  restartFromCurrentTracers(true);
   draw(); stats();
 }
 
@@ -562,12 +582,10 @@ function updateNonGrid(changedKey){
   }
   // do not reseed angles here; angles remain unless OOP changes
   buildSources();
-  // Restart simulation dynamics so physics changes (amp, height, D, dt) take effect cleanly
+  // Do NOT reset tracer dynamics for non-tracer fields.
+  // Only adjust tracer array size when the tracer count changes.
   if (changedKey === 'nTracer'){
-    // Adjust tracer array in-place per requested policy
     adjustTracerCount(params.nTracer);
-  } else {
-    restartFromCurrentTracers(true);
   }
   // Seeds stay; Voronoi stays; pattern stays unless explicitly changed
   draw(); stats(); updateScaleBar();
@@ -580,8 +598,7 @@ function updateAnglesOnly(){
   const s = Math.sqrt(Math.max(0, -Math.log(Math.max(1e-6, oop))/2));
   sim.ang = new Float64Array(n); for (let i=0;i<n;i++){ sim.ang[i] = s>0? s*randn() : 0; }
   buildSources();
-  // Restart from current tracer positions (no reseed)
-  restartFromCurrentTracers(true);
+  // Do NOT reset tracer dynamics; keep trajectories and stats
   draw(); stats();
 }
 
@@ -889,6 +906,8 @@ function makeCorrelatedSampler(R, sigma){
 
 // ===== Tracers =====
 function seedTracers(){
+  // mark (re)start of tracer dynamics clock
+  sim.dynStartTime = sim.time || 0;
   const n = Math.max(1, Math.floor(params.nTracer));
   sim.tracers = new Array(n);
   sim.trails = new Array(n);
@@ -901,6 +920,7 @@ function seedTracers(){
       z: params.ciliaH,
       vx:0, vy:0, vz:0,
       ivx:0, ivy:0, // instantaneous velocity incl. diffusion (for directionality)
+      stuck:false,
       // bookkeeping for clearance + directionality
       t0: sim.time || 0,
       age: 0,
@@ -914,16 +934,25 @@ function seedTracers(){
 // Restart advection–diffusion from current tracer positions without reseeding.
 function restartFromCurrentTracers(clearTrails){
   if (!sim.tracers) return;
-  sim.dirGrid = null; // reset accumulated directionality statistics
   const n = sim.tracers.length;
+  if (clearTrails){
+    // Hard reset: restart elapsed clock and directionality accumulator
+    sim.dynStartTime = sim.time || 0;
+    sim.dirGrid = null;
+  }
   for (let i=0;i<n;i++){
     const t = sim.tracers[i]; if (!t) continue;
     // ensure inside domain in case domain changed
     t.x = wrapCenter(t.x, 0, sim.xSize);
     t.y = wrapCenter(t.y, 0, sim.ySize);
-    t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0;
-    t.t0 = 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
-    if (clearTrails){ if (!sim.trails) sim.trails = new Array(n); sim.trails[i] = []; }
+    // always clear instantaneous velocities
+    t.vx = 0; t.vy = 0; t.vz = 0; t.ivx = 0; t.ivy = 0;
+    if (clearTrails){
+      // hard reset path/time accumulators and trails; keep adhesion state
+      t.t0 = 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
+      if (!sim.trails) sim.trails = new Array(n);
+      sim.trails[i] = [];
+    }
   }
 }
 
@@ -936,6 +965,8 @@ function adjustTracerCount(nNew){
   if (!Array.isArray(sim.trails)) sim.trails = new Array(sim.tracers.length).fill(0).map(()=>[]);
   const nOld = sim.tracers.length;
   if (nNew === nOld) return;
+  // Changing tracer count restarts the elapsed dynamics clock
+  sim.dynStartTime = sim.time || 0;
   if (nNew < nOld){
     // Fisher–Yates shuffle indices, keep first nNew
     const idx = new Array(nOld); for (let i=0;i<nOld;i++) idx[i]=i;
@@ -953,6 +984,7 @@ function adjustTracerCount(nNew){
         z: params.ciliaH,
         vx:0, vy:0, vz:0,
         ivx:0, ivy:0,
+        stuck:false,
         t0: sim.time || 0,
         age: 0,
         sumX: 0, sumY: 0,
@@ -975,7 +1007,8 @@ function step(dt){
   const periodY = sim.ySize;
   const allow3D = !!params.allow3D;
   const h = Math.max(1e-6, params.ciliaH);
-  const zFreeze = WALL_FREEZE_F * h; // near-wall buffer considered "no-slip"
+  // near-wall buffer considered "no-slip" (world units ×L0), proportional to bead radius
+  const zFreeze = Math.max(1e-6, (WALL_FREEZE_RADII * 0.5 * TRACER_DIAMETER_UM) / L0);
   const fz = Number(params.focalZ) || h;
   for (let p=0;p<sim.tracers.length;p++){
     const t = sim.tracers[p];
@@ -1003,22 +1036,24 @@ function step(dt){
     const nz = allow3D ? (oz + vz*dt + Math.sqrt(2*D*dt) * randn()) : params.ciliaH;
 
     if (allow3D){
+      // enter adhesion layer: stick permanently and apply small lateral jitter
+      if (oz <= zFreeze){
+        t.stuck = true;
+        t.x = ox; t.y = oy; t.z = zFreeze; 
+        t.vx = 0; t.vy = 0; t.vz = 0; t.ivx = 0; t.ivy = 0;
+        t.age += dt; t.sumX += 0; t.sumY += 0; t.pathLen += 0;
+        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
+        continue;
+      }
+      // Only non-adhered beads reach this point → apply defocus respawn if needed
       const defocus = Math.abs(nz - fz);
-      // Defocus drop: beyond ±1×L0 from focal plane → respawn uniformly at the focal plane
       if (defocus > DROP_WINDOW_L0){
         t.x = (Math.random()*sim.xSize - sim.xSize/2);
         t.y = (Math.random()*sim.ySize - sim.ySize/2);
         t.z = fz;
-        t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0;
+        t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0; t.stuck = false;
         t.t0 = sim.time || 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
         if (sim.trails && sim.trails[p]) sim.trails[p] = [];
-        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
-        continue;
-      }
-      // Near-wall freeze
-      if (nz <= zFreeze){
-        t.x = ox; t.y = oy; t.z = zFreeze; t.ivx = 0; t.ivy = 0; t.vx = 0; t.vy = 0; t.vz = 0;
-        t.age += dt;
         const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
         continue;
       }
@@ -1068,6 +1103,18 @@ function tracerColorForZ(z){
   const isLight = document.body.classList.contains('light');
   const lPct = isLight ? 40 : 60;
   return `hsl(${hue}, ${sat}%, ${lPct}%)`;
+}
+
+// Draw a ring highlight around a tracer to indicate adhesion (stuck)
+function drawStuckRing(ctx, x, y, rpx, color){
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const ringW = Math.max(1.4, 1.2 * dpr);
+  const ringR = rpx + Math.max(0.6, 0.5 * dpr);
+  ctx.beginPath(); ctx.arc(x, y, ringR, 0, Math.PI*2);
+  const prev = ctx.lineWidth;
+  const prevCol = ctx.strokeStyle;
+  ctx.lineWidth = ringW; ctx.strokeStyle = color; ctx.stroke();
+  ctx.lineWidth = prev; ctx.strokeStyle = prevCol;
 }
 function draw(){
   const ctx = sim.ctx; const W=sim.W, H=sim.H; ctx.clearRect(0,0,W,H);
@@ -1275,6 +1322,10 @@ function draw(){
             const isLight = document.body.classList.contains('light');
             ctx.lineWidth = 1; ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.25)';
             ctx.stroke();
+            if (t.stuck){
+              // overlay subtle ring in same hue for adhesion
+              drawStuckRing(ctx, sx2+offx, sy2+offy, rpx, col);
+            }
           }
         }
       }
@@ -1292,6 +1343,9 @@ function draw(){
       const isLight = document.body.classList.contains('light');
       ctx.lineWidth = 1; ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.25)';
       ctx.stroke();
+      if (t.stuck){
+        drawStuckRing(ctx, sx2, sy2, rpx, col);
+      }
     }
   }
   // (centers debug overlay removed)
@@ -1355,7 +1409,16 @@ function stats(){
     Esum += e; Ecount++;
   }
   const E80 = Ecount>0 ? (Esum / Ecount) : 0;
-  byId('stats').textContent = `cells: ${sim.total}  ciliated: ${sim.totalCiliated} tracers: ${sim.tracers.length}\nclearance per beat: ${cpb_um.toFixed(2)} μm/beat  directionality (80μm): ${E80.toFixed(2)}`;
+  const trapped = Array.isArray(sim.tracers) ? sim.tracers.reduce((n, t)=> n + ((t && t.stuck) ? 1 : 0), 0) : 0;
+  if (trapped == nT && nT > 0){
+    sim.playing = false;
+    byId('playPause').textContent = sim.playing? 'Pause':'Play';
+    // Defer reseeding until user explicitly presses Play again
+    sim.reseedOnPlay = true;
+  }
+  const totalTr = Array.isArray(sim.tracers) ? sim.tracers.length : 0;
+  const elapsedT0 = Math.max(0, (sim.time || 0) - (sim.dynStartTime || 0));
+  byId('stats').textContent = `ciliated cells: ${sim.totalCiliated} / ${sim.total}  deposited tracers: ${trapped}/${totalTr}  elapsed T0: ${elapsedT0.toFixed(2)} \nclearance per beat (CPB): ${cpb_um.toFixed(2)} μm/beat  directionality (80μm): ${E80.toFixed(2)}`;
 }
 
 // ===== Lifecycle =====
@@ -1371,7 +1434,8 @@ function rebuild(){
   } else if (sim.tracers.length !== need){
     adjustTracerCount(need);
   } else {
-    restartFromCurrentTracers(true);
+    // Do not hard reset when rebuilding with same tracer count; wrap positions only
+    restartFromCurrentTracers(false);
   }
   draw(); stats(); updateScaleBar();
 }
