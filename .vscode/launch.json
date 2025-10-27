@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Jekyll: Launch (Chrome)",
             "type": "chrome",
@@ -18,6 +19,12 @@
             "request": "launch",
             "name": "Open Cilia Bundle Sim",
             "file": "./cilia_bundle_visualizer.html"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open ciliary carpet Sim",
+            "file": "./ciliary_clearance_visualizer.html"
         },
         {
             "type": "chrome",

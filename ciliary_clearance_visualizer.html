@@ -191,7 +191,7 @@
     </div>
     <div class="group">
       <div class="row"><label>Focal plane z [×L0]</label><input id="focalZ" type="range" min="0.2" max="3.0" step="0.01" value="1.0"></div>
-      <div class="row"><label>Diffusion coefficient [×L0^2/T0]</label><input id="diff" type="range" min="0" max="0.2" step="0.001" value="0.01"></div>
+      <div class="row"><label>Diffusion coefficient [×L0^2/T0]</label><input id="diff" type="range" min="0" max="0.1" step="0.0001" value="0.001"></div>
       <div class="row"><label>Step size [×T0]</label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
       <div class="row"><label>Trail length [×step]</label><input id="trail" type="range" min="0" max="300" step="1" value="0"></div>
       <div class="row"><label>Tracer count</label><input id="nTracer" type="range" min="10" max="500" step="1" value="100"></div>
@@ -214,9 +214,9 @@
           <button type="button" data-close aria-label="Hide navigation tips">×</button>
         </header>
         <ul>
-          <li>Play/Pause button to halt or resume animation; Reset tracers reseeds particles uniformly randomly.</li>
+          <li>Play/Pause button to halt or resume simulation; Reset tracers reseeds particles uniformly randomly.</li>
           <li>Pan the view by dragging pointers; on mobile use pinch to zoom and two-finger pan.</li>
-          <li>Toggle top bar buttons to switch between cilia animation, tracer movement restriction, and periodic boundary conditions.</li>
+          <li>Toggle top bar buttons to switch on/off cilia animation, 3D tracer movement, and periodic boundary conditions.</li>
           <li>Edit cell fate — single tap or click then hold paints ciliated cells; double tap / click erase ciliation.</li>
           <li>Edit beat direction — tap / click then drag to set local beat direction for ciliated cells.</li>
         </ul>
@@ -369,7 +369,7 @@ function stokesletWithWall(Xq, X, F, eps){
 const params = {
   nX:21, nY:21,
   coverage:0.5, patchlength:0.5, crystalline:1.06, patchorder:0,
-  oop:0.90, ciliaH:1.0, amp:1.0, diff:0.01, dt:0.05,
+  oop:0.90, ciliaH:1.0, amp:1.0, diff:0.001, dt:0.05,
   nTracer:100, trail:0,
   showCilia:true, // animated cilia sticks default ON
   allow3D:true, // 3D advection + diffusion for tracers (default ON)
@@ -1031,13 +1031,26 @@ function step(dt){
     // Euler–Maruyama update with diffusion
     const D = Math.max(0, Number(params.diff));
     t.vx = vx; t.vy = vy; t.vz = vz;
-    const nx = ox + vx*dt + Math.sqrt(2*D*dt) * randn();
-    const ny = oy + vy*dt + Math.sqrt(2*D*dt) * randn();
-    const nz = allow3D ? (oz + vz*dt + Math.sqrt(2*D*dt) * randn()) : params.ciliaH;
+    const r = (TRACER_DIAMETER_UM * 0.5) / L0;
+    const lambda = r/oz;
+    let Dxy=0, Dz=0;
+    // if (lambda < 0.6) {
+      // Brenner 1961, "The slow motion of a sphere through a viscous fluid towards a plane surface"
+      Dxy = D*(1 - 9/16*lambda + 1/8*(lambda)**3 - 45/256*(lambda)**4 - 1/16*(lambda)**5);
+      Dz = D*(1 - 9/8*lambda + 1/2*(lambda)**3 - 57/100*(lambda)**4 + 1/5*(lambda)**5);
+    // } else {
+    //   // use lubrication-approximate diffusion coefficient very close to wall [is the formula even correct]
+    //   Dxy = D*(8/15*Math.log(r/(oz-r))+0.9588)**(-1);
+    //   Dz = D*(4/15*Math.log(r/(oz-r))+0.2526)**(-1);
+    // }
+    const nx = ox + vx*dt + Math.sqrt(2*Dxy*dt) * randn();
+    const ny = oy + vy*dt + Math.sqrt(2*Dxy*dt) * randn();
+    const nz = allow3D ? (oz + vz*dt + Math.sqrt(2*Dz*dt) * randn()) : params.ciliaH;
 
     if (allow3D){
       // enter adhesion layer: stick permanently and apply small lateral jitter
       if (oz <= zFreeze){
+        // console.log('lambda:',lambda,'Dxy:', Dxy, 'Dz:', Dz);
         t.stuck = true;
         t.x = ox; t.y = oy; t.z = zFreeze; 
         t.vx = 0; t.vy = 0; t.vz = 0; t.ivx = 0; t.ivy = 0;
@@ -1607,8 +1620,8 @@ const C2K = 273.15; const kB = 1.380649E-23; // [m2 kg s-1 K-1]
 const mu20 = 1.0016E-3, mu25 = 0.89E-3, mu37 = 0.6913E-3; // [Pa s]
 // (L0, L0m) defined above for early availability
 const rTracer = 0.5E-6; // [m]
-function D_at_T(mu){ return kB*(C2K+20)/ (6*Math.PI*mu*rTracer); }
-const D20 = D_at_T(mu20), D25 = kB*(C2K+25)/(6*Math.PI*mu25*rTracer), D37 = kB*(C2K+37)/(6*Math.PI*mu37*rTracer);
+function D_at_T(mu,T){ return kB*(C2K+T)/ (6*Math.PI*mu*rTracer); }
+const D20 = D_at_T(mu20,20), D25 = D_at_T(mu20,25), D37 = D_at_T(mu37,37);
 
 // Measured CBF [Hz]
 const CBF_human = [2.743333333, 3.5, 2.683706];
