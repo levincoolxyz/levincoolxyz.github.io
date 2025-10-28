@@ -438,6 +438,12 @@ function fmt(id, v){
   if (['trail','nTracer','nX','nY'].includes(id)) return String(Math.round(n));
   return n.toFixed(2);
 }
+// Keep toggle button text in sync with params when state changes programmatically
+function syncToggles(){
+  const t3d = byId('toggle3D'); if (t3d){ t3d.textContent = params.allow3D ? '3D tracer motion: on' : '3D tracer motion: off'; }
+  const pbcBtn = byId('togglePBC'); if (pbcBtn){ pbcBtn.textContent = params.pbc ? 'PBC: on' : 'PBC: off'; }
+  const cil = byId('toggleCilia'); if (cil){ cil.textContent = params.showCilia ? 'cilia animation: on' : 'cilia animation: off'; }
+}
 function quantizePatchLength(v){
   // Only allow values where 1/λ_frac is an integer (i.e., λ/domain = 1/N)
   const vClamped = Math.max(0.05, Math.min(1.0, Number(v)||0.5));
@@ -1786,6 +1792,7 @@ function applyState(st){
     const selP = document.getElementById('preset'); if (selP) selP.value='custom';
     const selM = document.getElementById('mod'); if (selM) selM.value='none';
     if (typeof syncUIFromParams === 'function') syncUIFromParams();
+    if (typeof syncToggles === 'function') syncToggles();
   } catch(e){}
   draw(); stats(); updateScaleBar();
 }
@@ -2122,6 +2129,8 @@ function syncUIFromParams(){
     const key = (id==='angleStd')? 'angleStdDeg' : id;
     if (params[key] != null){ setSlider(id, params[key]); setLabelVal(id, fmt(id, params[key])); }
   }
+  // Also refresh toggle button labels for programmatic state updates
+  if (typeof syncToggles === 'function') syncToggles();
 }
 
 // Helper for example 1–8 from MATLAB comments
