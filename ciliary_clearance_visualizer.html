@@ -203,7 +203,7 @@
       <div class="row"><label>Focal plane z [×L0] <span class="val" id="focalZVal"></span></label><input id="focalZ" type="range" min="0.2" max="3.0" step="0.01" value="1.0"></div>
       <div class="row"><label>Diffusion coefficient [×L0^2/T0] <span class="val" id="diffVal"></span></label><input id="diff" type="range" min="0" max="0.1" step="0.0001" value="0.001"></div>
       <div class="row"><label>Step size [×T0] <span class="val" id="dtVal"></span></label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
-      <div class="row"><label>Trail length [×step] <span class="val" id="trailVal"></span></label><input id="trail" type="range" min="0" max="300" step="1" value="0"></div>
+      <div class="row"><label>Trail length [×step] <span class="val" id="trailVal"></span></label><input id="trail" type="range" min="0" max="1000" step="10" value="0"></div>
       <div class="row"><label>Tracer count <span class="val" id="nTracerVal"></span></label><input id="nTracer" type="range" min="10" max="500" step="1" value="100"></div>
     </div>
     <div class="group">
@@ -649,6 +649,15 @@ function updateNonGrid(changedKey){
   // Only adjust tracer array size when the tracer count changes.
   if (changedKey === 'nTracer'){
     adjustTracerCount(params.nTracer);
+  } else if (changedKey === 'trail'){
+    // Trim existing trail buffers down to new length immediately
+    const L = Math.max(0, Math.floor(params.trail||0));
+    if (Array.isArray(sim.trails)){
+      for (let i=0;i<sim.trails.length;i++){
+        const tr = sim.trails[i]; if (!Array.isArray(tr)) continue;
+        if (tr.length > L){ tr.splice(0, tr.length - L); }
+      }
+    }
   }
   // Seeds stay; Voronoi stays; pattern stays unless explicitly changed
   draw(); stats(); updateScaleBar();
@@ -1157,7 +1166,13 @@ function step(dt){
         t.x = ox; t.y = oy; t.z = zFreeze; 
         t.vx = 0; t.vy = 0; t.vz = 0; t.ivx = 0; t.ivy = 0;
         t.age += dt; t.sumX += 0; t.sumY += 0; t.pathLen += 0;
-        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
+        const tr = sim.trails[p];
+        // push with decimation (avoid sub‑pixel segments)
+        const minPix = 0.75, s = Math.max(1e-6, sim.scale); const minW = minPix/s; const minW2 = minW*minW;
+        let pushNow = true;
+        // find last finite point (skip sentinel)
+        for (let k=tr.length-1; k>=0; k--){ const lp=tr[k]; if (lp && isFinite(lp.x) && isFinite(lp.y)){ const dx=t.x-lp.x, dy=t.y-lp.y; if (dx*dx+dy*dy < minW2) pushNow=false; break; } }
+        if (pushNow){ tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > params.trail) tr.shift(); }
         continue;
       }
       // Only non-adhered beads reach this point → apply defocus respawn if needed
@@ -1169,14 +1184,17 @@ function step(dt){
         t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0; t.stuck = false;
         t.t0 = sim.time || 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
         if (sim.trails && sim.trails[p]) sim.trails[p] = [];
-        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
+        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > params.trail) tr.shift();
         continue;
       }
     }
 
-    // Accept move (wrap only when PBC is enabled)
-    t.x = params.pbc ? wrapCenter(nx, 0, sim.xSize) : nx;
-    t.y = params.pbc ? wrapCenter(ny, 0, sim.ySize) : ny;
+    // Accept move: always wrap tracer positions to retain positional periodicity
+    // even when force computation is non‑periodic. Detect wrap to break trails.
+    const hx = sim.xSize/2, hy = sim.ySize/2;
+    const didWrap = (nx < -hx) || (nx > hx) || (ny < -hy) || (ny > hy);
+    t.x = wrapCenter(nx, 0, sim.xSize);
+    t.y = wrapCenter(ny, 0, sim.ySize);
     t.z = allow3D ? Math.max(1e-6, nz) : params.focalZ;
     const dxw = wrapCenter(t.x - ox, 0, sim.xSize);
     const dyw = wrapCenter(t.y - oy, 0, sim.ySize);
@@ -1185,7 +1203,12 @@ function step(dt){
     t.ivx = dxw / dt; t.ivy = dyw / dt;
     t.age += dt;
     const tr = sim.trails[p];
-    tr.push({x:t.x, y:t.y}); if (tr.length > params.trail) tr.shift();
+    if (didWrap) { tr.push({x:NaN, y:NaN}); }
+    // Decimate: only append if moved at least ~0.75 px
+    const minPix = 0.75, s = Math.max(1e-6, sim.scale); const minW = minPix/s; const minW2 = minW*minW;
+    let pushNow = true;
+    for (let k=tr.length-1; k>=0; k--){ const lp=tr[k]; if (lp && isFinite(lp.x) && isFinite(lp.y)){ const dx=t.x-lp.x, dy=t.y-lp.y; if (dx*dx+dy*dy < minW2) pushNow=false; break; } }
+    if (pushNow){ tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > params.trail) tr.shift(); }
   }
 }
 
@@ -1401,16 +1424,21 @@ function draw(){
   // Precompute tile parameters for tiling trails/dots as well
   const nx2 = Math.ceil(W/pxW)+1, ny2 = Math.ceil(H/pyH)+1;
   for (let p=0;p<sim.tracers.length;p++){
-    // Build segments in screen coords; clip to domain only when PBC is on
+    // Build segments with per-segment depth info; clip to domain when needed
     const tr = sim.trails[p]; const segs=[];
     for (let i=1;i<tr.length;i++){
+      const a = tr[i-1], b = tr[i]; if (!a || !b) continue;
+      if (!isFinite(a.x) || !isFinite(a.y) || !isFinite(b.x) || !isFinite(b.y)) continue; // explicit break marker
+      const za = (a.z!=null)?a.z:sim.tracers[p].z; const zb = (b.z!=null)?b.z:sim.tracers[p].z;
       if (params.pbc){
-        const dxw = tr[i].x - tr[i-1].x; const dyw = tr[i].y - tr[i-1].y;
-        if (Math.abs(dxw) > sim.xSize*0.5 || Math.abs(dyw) > sim.ySize*0.5) continue;
-        const seg = clipSegmentToRect(tr[i-1].x, tr[i-1].y, tr[i].x, tr[i].y, -sim.xSize/2, -sim.ySize/2, sim.xSize/2, sim.ySize/2);
-        if (!seg) continue; const [ax,ay] = toXY(seg.x0,seg.y0); const [bx,by] = toXY(seg.x1,seg.y1); segs.push([ax,ay,bx,by]);
+        const dxw = b.x - a.x; const dyw = b.y - a.y;
+        if (Math.abs(dxw) > sim.xSize*0.5 || Math.abs(dyw) > sim.ySize*0.5) continue; // skip wrap chord
+        const seg = clipSegmentToRect(a.x, a.y, b.x, b.y, -sim.xSize/2, -sim.ySize/2, sim.xSize/2, sim.ySize/2);
+        if (!seg) continue; const [ax,ay] = toXY(seg.x0,seg.y0); const [bx,by] = toXY(seg.x1,seg.y1); segs.push([ax,ay,bx,by, (za+zb)/2]);
       } else {
-        const [ax,ay] = toXY(tr[i-1].x, tr[i-1].y); const [bx,by] = toXY(tr[i].x, tr[i].y); segs.push([ax,ay,bx,by]);
+        const dxw = b.x - a.x; const dyw = b.y - a.y;
+        if (Math.abs(dxw) > sim.xSize*0.5 || Math.abs(dyw) > sim.ySize*0.5) continue; // break across domain
+        const [ax,ay] = toXY(a.x, a.y); const [bx,by] = toXY(b.x, b.y); segs.push([ax,ay,bx,by, (za+zb)/2]);
       }
     }
     // Draw segments for central and (if PBC) periodic image tiles
@@ -1420,13 +1448,11 @@ function draw(){
         for (let iy=-ny2; iy<=ny2; iy++){
           const offx = ix*pxW, offy = iy*pyH;
           if (segs.length){
-            ctx.beginPath();
             for (const sgm of segs){
-              const ax=sgm[0]+offx, ay=sgm[1]+offy, bx=sgm[2]+offx, by=sgm[3]+offy;
-              ctx.moveTo(ax,ay);
-              ctx.lineTo(bx,by);
+              const ax=sgm[0]+offx, ay=sgm[1]+offy, bx=sgm[2]+offx, by=sgm[3]+offy; const zmid=sgm[4];
+              ctx.strokeStyle = tracerColorForZ(zmid);
+              ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
             }
-            ctx.stroke();
           }
           const t = sim.tracers[p];
           if (t.x>=-sim.xSize/2 && t.x<=sim.xSize/2 && t.y>=-sim.ySize/2 && t.y<=sim.ySize/2){
@@ -1446,9 +1472,10 @@ function draw(){
       }
     } else {
       if (segs.length){
-        ctx.beginPath();
-        for (const sgm of segs){ ctx.moveTo(sgm[0],sgm[1]); ctx.lineTo(sgm[2],sgm[3]); }
-        ctx.stroke();
+        for (const sgm of segs){
+          ctx.strokeStyle = tracerColorForZ(sgm[4]);
+          ctx.beginPath(); ctx.moveTo(sgm[0],sgm[1]); ctx.lineTo(sgm[2],sgm[3]); ctx.stroke();
+        }
       }
       const t = sim.tracers[p];
       const [sx2,sy2]=toXY(t.x,t.y);
@@ -1548,8 +1575,8 @@ function rebuild(){
 
   generateGrid();
 
-  // If we have previous fields, resample them bilinearly onto the new grid
-  if (prev.nX>0 && prev.nY>0){
+  // If we have previous fields and not explicitly skipping, resample onto new grid
+  if (!sim._skipResampleOnce && prev.nX>0 && prev.nY>0){
     const totPrev = prev.nX * prev.nY;
     if (prev.isC && prev.isC.length === totPrev){
       sim.isCiliated = resampleBoolField(prev.isC, prev.nX, prev.nY, sim.nX, sim.nY);
@@ -1597,6 +1624,8 @@ function rebuild(){
   }
 
   draw(); stats(); updateScaleBar();
+  // Clear one-shot flag after rebuild completes
+  sim._skipResampleOnce = false;
 }
 function loop(){ if (sim.playing){ sim.time += params.dt; step(params.dt); draw(); stats(); updateScaleBar(); } requestAnimationFrame(loop); }
 
@@ -1995,6 +2024,9 @@ function setPresetParams({h, ap, sigma, pr, lambda, D, coverage}){
 }
 
 function applyPreset(name){
+  // On preset, we want fresh pattern/angles from new parameters,
+  // not a resample of previous fields.
+  try { sim._skipResampleOnce = true; } catch(e) {}
   // Defaults shared
   const nX = Math.max(2, Math.floor(params.nX));
   if (name === 'example'){
@@ -2121,6 +2153,7 @@ const humanKaAvg = Math.sqrt(-Math.log((human_oop.reduce((a,b)=>a+b,0)/human_oop
 const human_pr = prFromCOPandLam(human_cop, human_lam.reduce((a,b)=>a+b,0)/human_lam.length);
 const human_lambda_avg = human_lam.reduce((a,b)=>a+b,0)/human_lam.length;
 function applyMod(name){
+  try { sim._skipResampleOnce = true; } catch(e) {}
   switch(name){
     case 'human_h':
       params.ciliaH = human_h.reduce((a,b)=>a+b,0)/human_h.length / L0; break;
