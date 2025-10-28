@@ -180,6 +180,15 @@
       </div>
     </div>
     <div class="group">
+      <div class="row"><label>State</label>
+        <div>
+          <button id="exportState" class="btn" title="Download current simulation state as JSON">Export</button>
+          <button id="importState" class="btn" title="Load simulation state from JSON">Import</button>
+          <input id="importFile" type="file" accept="application/json" style="display:none">
+        </div>
+      </div>
+    </div>
+    <div class="group">
       <div class="row"><label>Ciliated coverage</label><input id="coverage" type="range" min="0" max="1" step="0.01" value="0.5"></div>
       <div class="row"><label>Patch size / domain size</label><input id="patchlength" type="range" min="0.05" max="1.0" step="0.01" value="0.5"></div>
       <div class="row"><label>Patch disorder</label><input id="crystalline" type="range" min="0" max="2" step="0.01" value="1.06"></div>
@@ -518,6 +527,48 @@ function connect(){
   }
   const sc = byId('showCilia'); if (sc){ sc.checked = params.showCilia; sc.addEventListener('change', ()=>{ params.showCilia = !!sc.checked; }); }
 
+  // State export/import wiring
+  const expBtn = byId('exportState');
+  const impBtn = byId('importState');
+  const impFile = byId('importFile');
+  expBtn?.addEventListener('click', ()=>{
+    try {
+      const st = collectState();
+      // Download pretty JSON for archival
+      const blob = new Blob([JSON.stringify(st, null, 2)], {type:'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `cilia_state_${Date.now()}.json`; document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+      // Also copy compact representation to clipboard
+      const compactStr = encodeStateCompact(st);
+      if (navigator.clipboard?.writeText){ navigator.clipboard.writeText(compactStr).catch(()=>{}); }
+    } catch (err){ showErr('Export failed: '+(err&&err.message||err)); }
+  });
+  // Import: click=file chooser; Ctrl/⌘/Shift to import from clipboard
+  impBtn?.addEventListener('click', async (e)=>{
+    if (e && (e.ctrlKey || e.metaKey || e.shiftKey)){
+      try{
+        let text = '';
+        if (navigator.clipboard?.readText){ text = await navigator.clipboard.readText(); }
+        if (!text){ text = window.prompt('Paste state (compact or JSON)','') || ''; }
+        if (!text.trim()) return;
+        const st = tryDecodeState(text.trim());
+        applyState(st);
+      } catch (err){ showErr('Import (clipboard) failed: '+(err&&err.message||err)); }
+    } else {
+      impFile?.click();
+    }
+  });
+  impFile?.addEventListener('change', async ()=>{
+    const f = impFile.files && impFile.files[0]; if (!f) return;
+    try {
+      const text = await f.text();
+      const obj = tryDecodeState(text);
+      applyState(obj);
+    } catch (err){ showErr('Import failed: '+(err&&err.message||err)); }
+    finally { impFile.value = ''; }
+  });
+
   // Editing mode toggles
   const btnFate = byId('modeFate');
   const btnDir  = byId('modeBeatDir');
@@ -655,6 +706,43 @@ function buildSources(){
     k++;
   }
   sim.XsrcFull = X; sim.FsrcFull = F;
+}
+
+// ===== Field resampling (bilinear) =====
+function _valAt(arr, nx, ny, i, j){
+  const ii = ((i%nx)+nx)%nx; const jj = ((j%ny)+ny)%ny; return arr[jj*nx + ii];
+}
+function _resampleScalar(arr, nx, ny, NX, NY){
+  const out = new Array(NX*NY);
+  for (let J=0; J<NY; J++){
+    const y = (J + 0.5) / Math.max(1,NY) * ny - 0.5;
+    const j0 = Math.floor(y), v = y - j0, j1 = j0 + 1;
+    for (let I=0; I<NX; I++){
+      const x = (I + 0.5) / Math.max(1,NX) * nx - 0.5;
+      const i0 = Math.floor(x), u = x - i0, i1 = i0 + 1;
+      const f00 = _valAt(arr, nx, ny, i0, j0);
+      const f10 = _valAt(arr, nx, ny, i1, j0);
+      const f01 = _valAt(arr, nx, ny, i0, j1);
+      const f11 = _valAt(arr, nx, ny, i1, j1);
+      const f0 = f00*(1-u) + f10*u;
+      const f1 = f01*(1-u) + f11*u;
+      out[J*NX + I] = f0*(1-v) + f1*v;
+    }
+  }
+  return out;
+}
+function resampleBoolField(boolArr, nx, ny, NX, NY){
+  const scal = _resampleScalar(boolArr.map(b=>b?1:0), nx, ny, NX, NY);
+  return scal.map(v=> v>=0.5);
+}
+function resampleAngleField(angArr, nx, ny, NX, NY){
+  const c = angArr.map(a=>Math.cos(a||0));
+  const s = angArr.map(a=>Math.sin(a||0));
+  const C = _resampleScalar(c, nx, ny, NX, NY);
+  const S = _resampleScalar(s, nx, ny, NX, NY);
+  const out = new Array(NX*NY);
+  for (let k=0;k<out.length;k++) out[k] = Math.atan2(S[k], C[k]);
+  return out;
 }
 
 // ===== Edit helpers (cell fate / beat direction painting) =====
@@ -1031,21 +1119,23 @@ function step(dt){
     // Euler–Maruyama update with diffusion
     const D = Math.max(0, Number(params.diff));
     t.vx = vx; t.vy = vy; t.vz = vz;
-    const r = (TRACER_DIAMETER_UM * 0.5) / L0;
-    const lambda = r/oz;
+    const r = (TRACER_DIAMETER_UM * 0.5) / L0; // bead radius [world]
+    const ozEff = Math.max(oz, 1e-9);
+    const l = Math.min(0.99, r/ozEff); // λ = r/z
     let Dxy=0, Dz=0;
-    // if (lambda < 0.6) {
-      // Brenner 1961, "The slow motion of a sphere through a viscous fluid towards a plane surface"
-      Dxy = D*(1 - 9/16*lambda + 1/8*(lambda)**3 - 45/256*(lambda)**4 - 1/16*(lambda)**5);
-      Dz = D*(1 - 9/8*lambda + 1/2*(lambda)**3 - 57/100*(lambda)**4 + 1/5*(lambda)**5);
-    // } else {
-    //   // use lubrication-approximate diffusion coefficient very close to wall [is the formula even correct]
-    //   Dxy = D*(8/15*Math.log(r/(oz-r))+0.9588)**(-1);
-    //   Dz = D*(4/15*Math.log(r/(oz-r))+0.2526)**(-1);
-    // }
+    // Goldman–Cox–Brenner (far‑field) corrections for diffusion near a wall
+    Dxy = D*(1 - (9/16)*l + (1/8)*l**3 - (45/256)*l**4 - (1/16)*l**5);
+    Dz  = D*(1 - (9/8)*l  + (1/2)*l**3 - (57/100)*l**4 + (1/5)*l**5);
+    // Clamp to physical range to avoid negative/NaN at larger λ
+    Dxy = Math.max(0, Math.min(D, Dxy));
+    Dz  = Math.max(0, Math.min(D, Dz));
+    // Boundary‑induced thermal drift (Ito): v_spur,z = dDz/dz
+    const fPerpPrime = (-(9/8) + (3/2)*l**2 - (228/100)*l**3 + l**4); // d/dλ of fPerp
+    const dlam_dz = -l / ozEff; // dλ/dz = -λ/z
+    const v_spur_z = D * fPerpPrime * dlam_dz; // [world units/time]
     const nx = ox + vx*dt + Math.sqrt(2*Dxy*dt) * randn();
     const ny = oy + vy*dt + Math.sqrt(2*Dxy*dt) * randn();
-    const nz = allow3D ? (oz + vz*dt + Math.sqrt(2*Dz*dt) * randn()) : params.ciliaH;
+    const nz = allow3D ? (oz + (vz + v_spur_z)*dt + Math.sqrt(2*Dz*dt) * randn()) : params.focalZ;
 
     if (allow3D){
       // enter adhesion layer: stick permanently and apply small lateral jitter
@@ -1075,7 +1165,7 @@ function step(dt){
     // Accept move (wrap only when PBC is enabled)
     t.x = params.pbc ? wrapCenter(nx, 0, sim.xSize) : nx;
     t.y = params.pbc ? wrapCenter(ny, 0, sim.ySize) : ny;
-    t.z = allow3D ? Math.max(1e-6, nz) : params.ciliaH;
+    t.z = allow3D ? Math.max(1e-6, nz) : params.focalZ;
     const dxw = wrapCenter(t.x - ox, 0, sim.xSize);
     const dyw = wrapCenter(t.y - oy, 0, sim.ySize);
     t.sumX += dxw; t.sumY += dyw;
@@ -1436,20 +1526,64 @@ function stats(){
 
 // ===== Lifecycle =====
 function rebuild(){
+  // Snapshot previous per‑cell fields for interpolation
+  const prev = {
+    nX: sim.nX || 0,
+    nY: sim.nY || 0,
+    isC: Array.isArray(sim.isCiliated) ? sim.isCiliated.slice() : null,
+    ang: (sim.ang && sim.ang.length) ? Array.from(sim.ang) : null,
+  };
+
   generateGrid();
-  reseedAngles();
+
+  // If we have previous fields, resample them bilinearly onto the new grid
+  if (prev.nX>0 && prev.nY>0){
+    const totPrev = prev.nX * prev.nY;
+    if (prev.isC && prev.isC.length === totPrev){
+      sim.isCiliated = resampleBoolField(prev.isC, prev.nX, prev.nY, sim.nX, sim.nY);
+      sim.totalCiliated = sim.isCiliated.reduce((a,b)=>a+(b?1:0),0);
+    }
+    if (prev.ang && prev.ang.length === totPrev){
+      const angNew = resampleAngleField(prev.ang, prev.nX, prev.nY, sim.nX, sim.nY);
+      sim.ang = Float64Array.from(angNew);
+      // Refresh per‑cell phase/amplitude noise fields for the new grid size
+      const R = 1.0; const phaseAmp = 0.05; const ampAmp = 0.10;
+      sim.cellPhase = correlatedField(sim.cx, sim.cy, R, phaseAmp);
+      sim.cellAmp   = correlatedField(sim.cx, sim.cy, R, ampAmp);
+    } else {
+      reseedAngles();
+    }
+  } else {
+    reseedAngles();
+  }
+
   buildSources();
   updateVoronoi();
-  // Keep tracer positions unless tracer count changed or first run
+
+  // Keep tracer positions; only adjust population if changed
   const need = Math.max(1, Math.floor(params.nTracer));
   if (!sim.tracers){
     sim.time = 0; seedTracers();
   } else if (sim.tracers.length !== need){
     adjustTracerCount(need);
-  } else {
-    // Do not hard reset when rebuilding with same tracer count; wrap positions only
-    restartFromCurrentTracers(false);
   }
+
+  // Ensure existing tracers remain visible after domain size changes:
+  // wrap (PBC) or clamp (non‑PBC) positions into the new fundamental domain.
+  if (Array.isArray(sim.tracers) && sim.tracers.length){
+    const clampTo = (v, size)=> Math.min(size/2, Math.max(-size/2, v));
+    for (let i=0;i<sim.tracers.length;i++){
+      const t = sim.tracers[i]; if (!t) continue;
+      if (params.pbc){
+        t.x = wrapCenter(t.x, 0, sim.xSize);
+        t.y = wrapCenter(t.y, 0, sim.ySize);
+      } else {
+        t.x = clampTo(t.x, sim.xSize);
+        t.y = clampTo(t.y, sim.ySize);
+      }
+    }
+  }
+
   draw(); stats(); updateScaleBar();
 }
 function loop(){ if (sim.playing){ sim.time += params.dt; step(params.dt); draw(); stats(); updateScaleBar(); } requestAnimationFrame(loop); }
@@ -1464,6 +1598,156 @@ boot();
 // Expose internals for quick debugging from the console
 // Example: params.showCentersDebug=true; params.centerPadRing=2; redraw();
 window.sim = sim; window.params = params; window.redraw = draw;
+
+// ===== State export/import =====
+function showErr(msg){
+  const el = document.getElementById('err'); if (!el) { console.error(msg); return; }
+  el.textContent = String(msg||'Error'); el.style.display='block';
+  clearTimeout(showErr._t); showErr._t = setTimeout(()=>{ el.style.display='none'; }, 4000);
+}
+
+function collectState(){
+  const pkeys = ['nX','nY','coverage','patchlength','crystalline','patchorder','oop','ciliaH','amp','diff','dt','nTracer','trail','allow3D','showCilia','focalZ','pbc'];
+  const p = {}; for (const k of pkeys){ if (k in params) p[k]=params[k]; }
+  const grid = {
+    nX: sim.nX||params.nX, nY: sim.nY||params.nY,
+    dX: sim.dX, dY: sim.dY,
+    xSize: sim.xSize, ySize: sim.ySize,
+    cx: Array.from(sim.cx||[]), cy: Array.from(sim.cy||[]), cz: Array.from(sim.cz||[]),
+    isCiliated: Array.from((sim.isCiliated||[]), v=>!!v),
+    ang: Array.from(sim.ang||[]),
+  };
+  return { version:1, params: p, grid };
+}
+
+// Compact encoding helpers (minified JSON with short keys and packed booleans)
+function toFixedMaybe(n, dec){ const x = Number(n); if (!isFinite(x)) return 0; const s = x.toFixed(dec); return parseFloat(s); }
+function quantArray(arr, dec){ const out = new Array(arr.length); for (let i=0;i<arr.length;i++){ out[i] = toFixedMaybe(arr[i], dec); } return out; }
+function packBools(bools){
+  const n = bools.length; const bytes = [];
+  for (let i=0;i<n;i+=8){
+    let b=0; for (let k=0;k<8 && (i+k)<n;k++){ if (bools[i+k]) b |= (1<<k); }
+    bytes.push(String.fromCharCode(b));
+  }
+  try { return btoa(bytes.join('')); } catch { return bytes.map(c=>c.charCodeAt(0)).join(','); }
+}
+function unpackBools(data, n){
+  let raw='';
+  if (/^[A-Za-z0-9+/=]+$/.test(data)){
+    try { raw = atob(data); } catch { raw = ''; }
+  }
+  if (!raw){ raw = data.split(',').map(s=>String.fromCharCode(parseInt(s)||0)).join(''); }
+  const out = new Array(n).fill(false);
+  for (let i=0;i<out.length;i++){
+    const byte = raw.charCodeAt((i/8)|0) || 0; const bit = (byte >> (i%8)) & 1; out[i] = !!bit;
+  }
+  return out;
+}
+function encodeStateCompact(full){
+  const pk = ['nX','nY','coverage','patchlength','crystalline','patchorder','oop','ciliaH','amp','diff','dt','nTracer','trail','allow3D','showCilia','focalZ','pbc'];
+  const p = full.params||{}; const g = full.grid||{};
+  const pv = pk.map(k=> (typeof p[k]==='boolean') ? (p[k]?1:0) : toFixedMaybe(p[k], 4));
+  const nx = g.nX||0, ny = g.nY||0, total = (nx||0)*(ny||0);
+  const ic = Array.isArray(g.isCiliated)? g.isCiliated.map(Boolean) : new Array(total).fill(false);
+  const obj = {
+    v: 1,
+    p: { k: pk.join(','), v: pv },
+    g: {
+      nx: nx, ny: ny,
+      dx: toFixedMaybe(g.dX,4), dy: toFixedMaybe(g.dY,4),
+      xs: toFixedMaybe(g.xSize,4), ys: toFixedMaybe(g.ySize,4),
+      cx: quantArray(g.cx||[], 4),
+      cy: quantArray(g.cy||[], 4),
+      cz: quantArray(g.cz||[], 4),
+      ic: packBools(ic),
+      an: quantArray(g.ang||[], 4)
+    }
+  };
+  return JSON.stringify(obj);
+}
+function tryDecodeState(text){
+  let obj = null; try { obj = JSON.parse(text); } catch { obj = null; }
+  if (!obj) throw new Error('Invalid JSON');
+  if (obj && obj.p && obj.g){
+    // compact → expand to full shape expected by applyState
+    const pk = (obj.p.k||'').split(',').filter(Boolean);
+    const pv = obj.p.v||[]; const paramsOut = {};
+    for (let i=0;i<pk.length;i++){
+      const key = pk[i]; let val = pv[i]; if (key && val!=null){ if (key && (key==='allow3D'||key==='showCilia'||key==='pbc')) val = !!val; paramsOut[key]=val; }
+    }
+    const g = obj.g||{}; const nx = g.nx||0, ny = g.ny||0, total = nx*ny;
+    const isC = g.ic ? unpackBools(g.ic, total) : new Array(total).fill(false);
+    const full = {
+      version: 1,
+      params: paramsOut,
+      grid: {
+        nX: nx, nY: ny,
+        dX: g.dx, dY: g.dy,
+        xSize: g.xs, ySize: g.ys,
+        cx: g.cx||[], cy: g.cy||[], cz: g.cz||[],
+        isCiliated: isC,
+        ang: g.an||[]
+      }
+    };
+    return full;
+  }
+  // Already full shape
+  return obj;
+}
+
+function applyState(st){
+  if (!st || typeof st !== 'object') throw new Error('Invalid state object');
+  const v = Number(st.version)||1; if (v!==1) console.warn('Unknown state version', v);
+  const p = st.params||{}; const g = st.grid||{};
+  // Apply params subset
+  for (const [k,v] of Object.entries(p||{})){
+    if (k in params) params[k] = v;
+  }
+  // If grid centers included, override current grid; else apply only per-cell arrays if lengths match
+  const hasCenters = Array.isArray(g.cx) && Array.isArray(g.cy) && g.cx.length===g.cy.length && g.cx.length>0;
+  if (hasCenters){
+    sim.cx = Float64Array.from(g.cx); sim.cy = Float64Array.from(g.cy);
+    sim.cz = Float64Array.from(g.cz || new Array(g.cx.length).fill(params.ciliaH));
+    sim.total = sim.cx.length; sim.nX = Number(g.nX)||params.nX; sim.nY = Number(g.nY)||params.nY;
+    sim.dX = Number.isFinite(g.dX)? g.dX : 1.0; sim.dY = Number.isFinite(g.dY)? g.dY : 1.0;
+    sim.xSize = Number.isFinite(g.xSize)? g.xSize : (sim.nX*sim.dX);
+    sim.ySize = Number.isFinite(g.ySize)? g.ySize : (sim.nY*sim.dY);
+    // Apply per-cell arrays
+    if (Array.isArray(g.isCiliated) && g.isCiliated.length===sim.total){ sim.isCiliated = g.isCiliated.map(Boolean); }
+    else if (Array.isArray(g.isCiliated) && g.isCiliated.length){ console.warn('isCiliated length mismatch; ignoring'); }
+    if (Array.isArray(g.ang) && g.ang.length===sim.total){ sim.ang = Float64Array.from(g.ang); }
+    else if (Array.isArray(g.ang) && g.ang.length){ console.warn('ang length mismatch; ignoring'); }
+    // Rebuild – refresh per‑cell variations, sources, voronoi, seeds
+    const R = 1.0; const phaseAmp = 0.05; const ampAmp = 0.10;
+    sim.cellPhase = correlatedField(sim.cx, sim.cy, R, phaseAmp);
+    sim.cellAmp   = correlatedField(sim.cx, sim.cy, R, ampAmp);
+    buildSources(); updateVoronoi();
+  } else {
+    // No centers provided: only overwrite per-cell arrays if dimensions match current grid
+    const tot = sim.total;
+    if (Array.isArray(g.isCiliated) && g.isCiliated.length===tot){ sim.isCiliated = g.isCiliated.map(Boolean); }
+    if (Array.isArray(g.ang) && g.ang.length===tot){ sim.ang = Float64Array.from(g.ang); }
+    // Refresh per‑cell variations because grid hasn’t changed but fields did
+    const R = 1.0; const phaseAmp = 0.05; const ampAmp = 0.10;
+    sim.cellPhase = correlatedField(sim.cx, sim.cy, R, phaseAmp);
+    sim.cellAmp   = correlatedField(sim.cx, sim.cy, R, ampAmp);
+    buildSources(); if (sim.vor && sim.vor.polys) initCiliaSeeds(sim.vor.polys);
+  }
+  // Totals and counts
+  sim.totalCiliated = 0; for (let i=0;i<sim.total;i++){ if (sim.isCiliated && sim.isCiliated[i]) sim.totalCiliated++; }
+  // Adjust tracer population only; keep tracer states/positions otherwise
+  const need = Math.max(1, Math.floor(params.nTracer||sim.tracers?.length||100));
+  if (!sim.tracers){ seedTracers(); }
+  else if (sim.tracers.length !== need){ adjustTracerCount(need); }
+  // else: keep tracer positions, trails, and stats as-is
+  // Bring UI in sync and mark preset/modifier as custom/none
+  try {
+    const selP = document.getElementById('preset'); if (selP) selP.value='custom';
+    const selM = document.getElementById('mod'); if (selM) selM.value='none';
+    if (typeof syncUIFromParams === 'function') syncUIFromParams();
+  } catch(e){}
+  draw(); stats(); updateScaleBar();
+}
 
 // ===== Pan/drag to scroll the domain (infinite) + pinch zoom =====
 const viewEl = document.getElementById('view');
