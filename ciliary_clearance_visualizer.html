@@ -52,6 +52,7 @@
   .group{margin:8px 0 14px}
   .row{display:grid;grid-template-columns:1fr minmax(120px,160px);gap:8px;align-items:center;margin:6px 0}
   .row label{font-size:12px;color:var(--muted)}
+  .row label .val{ margin-left:6px; color:#cbd5e1; font-variant-numeric: tabular-nums; opacity:.85 }
   .row input[type=range]{width:100%}
   .row input[type=number], .row select{width:100%;background:#111827;color:#e5e7eb;border:1px solid #2f3847;border-radius:8px;padding:6px}
   .hint{font-size:12px;color:var(--muted);margin-top:4px}
@@ -189,25 +190,25 @@
       </div>
     </div>
     <div class="group">
-      <div class="row"><label>Ciliated coverage</label><input id="coverage" type="range" min="0" max="1" step="0.01" value="0.5"></div>
-      <div class="row"><label>Patch size / domain size</label><input id="patchlength" type="range" min="0.05" max="1.0" step="0.01" value="0.5"></div>
-      <div class="row"><label>Patch disorder</label><input id="crystalline" type="range" min="0" max="2" step="0.01" value="1.06"></div>
+      <div class="row"><label>Ciliated coverage <span class="val" id="coverageVal"></span></label><input id="coverage" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+      <div class="row"><label>Patch size / domain size <span class="val" id="patchlengthVal"></span></label><input id="patchlength" type="range" min="0.05" max="1.0" step="0.01" value="0.5"></div>
+      <div class="row"><label>Patch disorder <span class="val" id="crystallineVal"></span></label><input id="crystalline" type="range" min="0" max="2" step="0.01" value="1.06"></div>
     </div>
     <div class="group">
-      <div class="row"><label>Beat Orientational order (OOP)</label><input id="oop" type="range" min="0" max="1" step="0.01" value="0.90"></div>
-      <div class="row"><label>Beat amplitude [×L0]</label><input id="amp" type="range" min="0.1" max="2.0" step="0.01" value="1.0"></div>
-      <div class="row"><label>Cilia length/height [×L0]</label><input id="ciliaH" type="range" min="0.2" max="3.0" step="0.01" value="1.0"></div>
+      <div class="row"><label>Beat Orientational order (OOP) <span class="val" id="oopVal"></span></label><input id="oop" type="range" min="0" max="1" step="0.01" value="0.90"></div>
+      <div class="row"><label>Beat amplitude [×L0] <span class="val" id="ampVal"></span></label><input id="amp" type="range" min="0.1" max="2.0" step="0.01" value="1.0"></div>
+      <div class="row"><label>Cilia length/height [×L0] <span class="val" id="ciliaHVal"></span></label><input id="ciliaH" type="range" min="0.2" max="3.0" step="0.01" value="1.0"></div>
     </div>
     <div class="group">
-      <div class="row"><label>Focal plane z [×L0]</label><input id="focalZ" type="range" min="0.2" max="3.0" step="0.01" value="1.0"></div>
-      <div class="row"><label>Diffusion coefficient [×L0^2/T0]</label><input id="diff" type="range" min="0" max="0.1" step="0.0001" value="0.001"></div>
-      <div class="row"><label>Step size [×T0]</label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
-      <div class="row"><label>Trail length [×step]</label><input id="trail" type="range" min="0" max="300" step="1" value="0"></div>
-      <div class="row"><label>Tracer count</label><input id="nTracer" type="range" min="10" max="500" step="1" value="100"></div>
+      <div class="row"><label>Focal plane z [×L0] <span class="val" id="focalZVal"></span></label><input id="focalZ" type="range" min="0.2" max="3.0" step="0.01" value="1.0"></div>
+      <div class="row"><label>Diffusion coefficient [×L0^2/T0] <span class="val" id="diffVal"></span></label><input id="diff" type="range" min="0" max="0.1" step="0.0001" value="0.001"></div>
+      <div class="row"><label>Step size [×T0] <span class="val" id="dtVal"></span></label><input id="dt" type="range" min="0.01" max="0.2" step="0.005" value="0.05"></div>
+      <div class="row"><label>Trail length [×step] <span class="val" id="trailVal"></span></label><input id="trail" type="range" min="0" max="300" step="1" value="0"></div>
+      <div class="row"><label>Tracer count <span class="val" id="nTracerVal"></span></label><input id="nTracer" type="range" min="10" max="500" step="1" value="100"></div>
     </div>
     <div class="group">
-      <div class="row"><label>Periodic domain size (X) [×L0]</label><input id="nX" type="range" min="6" max="40" step="1" value="21"></div>
-      <div class="row"><label>Periodic domain size (Y) [×L0]</label><input id="nY" type="range" min="6" max="40" step="1" value="21"></div>
+      <div class="row"><label>Periodic domain size (X) [×L0] <span class="val" id="nXVal"></span></label><input id="nX" type="range" min="6" max="40" step="1" value="21"></div>
+      <div class="row"><label>Periodic domain size (Y) [×L0] <span class="val" id="nYVal"></span></label><input id="nY" type="range" min="6" max="40" step="1" value="21"></div>
     </div>
     <p class="algo-note">
       This ciliary clearance visualizer is based on a semi-infinite domain regularized Stokeslet formulation where a no-slip wall represents cell surface, and the average flow generated by each ciliated cell is <em>each</em> approximated by a <em>single</em> Stokeslet placed at one cilia length above the cell center with some regularization constant.<br>Characteristic scales of the simulation are average cell size L0~10μm, cilia beat period T0, and fluid viscosity μ0.<br>For experimental background and explanations to the preset data, see our <a href="https://www.nature.com/articles/s41467-025-57667-z" target="_blank" rel="noopener noreferrer">Nature Communications article</a>.
@@ -429,6 +430,14 @@ const sim = {
 // ===== UI wiring =====
 function byId(id){ return document.getElementById(id); }
 function setSlider(id, v){ const el=byId(id); if (el) el.value=String(v); }
+function setLabelVal(id, v){ const el = byId(id+'Val'); if (!el) return; el.textContent = String(v); }
+function fmt(id, v){
+  const n = Number(v);
+  if (id==='diff') return n.toFixed(4);
+  if (id==='dt') return n.toFixed(3);
+  if (['trail','nTracer','nX','nY'].includes(id)) return String(Math.round(n));
+  return n.toFixed(2);
+}
 function quantizePatchLength(v){
   // Only allow values where 1/λ_frac is an integer (i.e., λ/domain = 1/N)
   const vClamped = Math.max(0.05, Math.min(1.0, Number(v)||0.5));
@@ -516,6 +525,7 @@ function connect(){
       let v=Number(el.value);
       if (id==='patchlength'){ v = quantizePatchLength(v); el.value = String(v); }
       params[key] = v;
+      setLabelVal(id, fmt(id, v));
       if (presetDriven.has(id)) markPresetCustom();
       if (modDriven.has(id)) markModNone();
       if (gridKeys.includes(key)) { rebuild(); }
@@ -524,6 +534,8 @@ function connect(){
       else if (key === 'focalZ') { draw(); }
       else { updateNonGrid(key); }
     });
+    // initialize readout once on connect
+    setLabelVal(id, fmt(id, Number(el.value)));
   }
   const sc = byId('showCilia'); if (sc){ sc.checked = params.showCilia; sc.addEventListener('change', ()=>{ params.showCilia = !!sc.checked; }); }
 
@@ -2074,7 +2086,10 @@ function applyPreset(name){
 
 function syncUIFromParams(){
   const pairs = ['nX','nY','spacing','coverage','patchlength','crystalline','patchorder','angleStd','ciliaH','amp','eps','diff','dt','focalZ','nTracer','trail'];
-  for (const id of pairs){ const key = (id==='angleStd')? 'angleStdDeg' : id; setSlider(id, params[key]); }
+  for (const id of pairs){
+    const key = (id==='angleStd')? 'angleStdDeg' : id;
+    if (params[key] != null){ setSlider(id, params[key]); setLabelVal(id, fmt(id, params[key])); }
+  }
 }
 
 // Helper for example 1–8 from MATLAB comments
