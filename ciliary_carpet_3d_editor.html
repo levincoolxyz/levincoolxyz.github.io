@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ciliary Carpet 3D Editor</title>
+<style>
+  :root{
+    --bg:#0b0d12; --fg:#e8eaed; --muted:#9aa0a6; --panel:#0f131d; --border:#1f2937;
+  }
+  html,body{ height:100%; margin:0 }
+  body{ background:var(--bg); color:var(--fg); font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif }
+  .app{ display:grid; grid-template-columns:minmax(260px,360px) 1fr; grid-template-rows:auto 1fr; height:100% }
+  header{ grid-column:1 / -1; padding:8px 12px; border-bottom:1px solid var(--border); background:#0f1113; color:#e5e7eb }
+  header .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+  header h1{ font-size:16px; margin:0 12px 0 0 }
+  .btn{ background:#10192a; color:#e5e7eb; border:1px solid #2c3a4d; border-radius:8px; padding:8px 10px; cursor:pointer }
+  .btn:hover{ background:#162236 }
+  .btn.mode{ background:#0e1a2c; border-color:#2c3a4d }
+  .btn.mode.active, .btn.mode[aria-pressed="true"]{ background:#153054; border-color:#3a4e6a }
+  .btn-toggle{ width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px }
+  .panel{ background:var(--panel); color:#e5e7eb; border-right:1px solid var(--border); padding:12px; overflow:auto }
+  .app.collapsed{ grid-template-columns:0 1fr }
+  .app.collapsed .panel{ padding:0; overflow:hidden; pointer-events:none; opacity:0 }
+  .group{ margin:10px 0 14px }
+  .group h3{ margin:0 0 8px 0; font-size:13px; color:#9aa0a6; letter-spacing:.06em; text-transform:uppercase }
+  .row{ display:grid; grid-template-columns:1fr minmax(120px,160px); gap:8px; align-items:center; margin:6px 0 }
+  .row label{ font-size:12px; color:#9aa0a6 }
+  .row input[type=range], .row input[type=number], .row select{ width:100% }
+  .row input[type=number], .row select{ background:#111827; color:#e5e7eb; border:1px solid #2f3847; border-radius:8px; padding:6px }
+  .val{ margin-left:6px; color:#cbd5e1; font-variant-numeric:tabular-nums }
+  main.canvas-wrap{ position:relative; display:flex; align-items:stretch; justify-content:stretch; background:#0b0b0b }
+  #threeWrap{ position:relative; flex:1; min-height:clamp(320px, 70vh, 900px) }
+  #threeWrap > canvas{ display:block; width:100%; height:100%; touch-action:none }
+  #stats{ position:absolute; left:10px; bottom:10px; font:12px ui-monospace; color:#cbd5e1; background:rgba(0,0,0,.45); padding:6px 8px; border-radius:8px; white-space:pre }
+  #err{ position:fixed; right:12px; bottom:12px; max-width:44ch; background:#2b1b1b; color:#ffdcdc; border:1px solid #a55; padding:8px 10px; border-radius:10px; font:12px ui-monospace; display:none; white-space:pre-wrap; z-index:100 }
+  .hint{ font-size:12px; color:#9aa0a6 }
+  /* compact kappa(s) editor overlay */
+  #kappaEditor { position:absolute; right:12px; top:12px; width:220px; height:140px; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.45); display:flex; flex-direction:column; z-index:3 }
+  #kappaEditor .title { font-size:12px; color:#cbd5e1; padding:4px 6px; border-bottom:1px solid rgba(255,255,255,.08) }
+  #kappaCanvas { flex:1; display:block; width:100%; height:100%; touch-action:none }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="row">
+        <button id="togglePanel" class="btn btn-toggle" title="Toggle controls" aria-expanded="true">«</button>
+        <h1>Ciliary Carpet 3D Editor</h1>
+        <button id="playPause" class="btn" title="Pause/Resume animation only">Pause</button>
+        <button id="exportState" class="btn" title="Download current state as JSON">Export</button>
+        <button id="importState" class="btn" title="Load a saved state (click or Shift+click to paste JSON)">Import</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none">
+        <button id="modeFate" class="btn mode" aria-pressed="false" title="Paint ciliation (Shift/right-click to erase)">edit: cell fate</button>
+        <button id="modeBeatDir" class="btn mode" aria-pressed="false" title="Paint beat direction by dragging">edit: beat direction</button>
+      </div>
+    </header>
+
+    <aside class="panel" aria-label="Controls">
+      <div class="group">
+        <h3>Grid</h3>
+        <div class="row"><label>Cells X <span class="val" id="nXVal"></span></label><input id="nX" type="range" min="6" max="60" step="1" value="25"></div>
+        <div class="row"><label>Cells Y <span class="val" id="nYVal"></span></label><input id="nY" type="range" min="6" max="60" step="1" value="25"></div>
+        <!-- <div class="row"><label>Center jitter <span class="val" id="centerJitterVal"></span></label><input id="centerJitter" type="range" min="0" max="1.5" step="0.01" value="0.3"></div> -->
+        <div class="row"><label>Ciliated coverage <span class="val" id="coverageVal"></span></label><input id="coverage" type="range" min="0" max="1" step="0.01" value="0.3"></div>
+        <div class="row"><label>Patch size/domain <span class="val" id="patchlengthVal"></span></label><input id="patchlength" type="range" min="0.05" max="1.0" step="0.01" value="0.5"></div>
+        <div class="row"><label>Patch disorder <span class="val" id="crystallineVal"></span></label><input id="crystalline" type="range" min="0" max="2" step="0.01" value="0.8"></div>
+        <div class="row"><label>Patch order <span class="val" id="patchorderVal"></span></label><input id="patchorder" type="range" min="0" max="1" step="0.01" value="0.5"></div>
+      </div>
+      <div class="group">
+        <h3>Kinematics</h3>
+        <div class="row"><label>Cilia length L [×L0] <span class="val" id="lengthMeanVal"></span></label><input id="lengthMean" type="range" min="0.2" max="1.5" step="0.01" value="1.0"></div>
+        <div class="row"><label>L std [×L0] <span class="val" id="lengthStdVal"></span></label><input id="lengthStd" type="range" min="0" max="0.5" step="0.01" value="0.1"></div>
+        <div class="row"><label>Beat amplitude A <span class="val" id="ampMeanVal"></span></label><input id="ampMean" type="range" min="0" max="10.0" step="0.01" value="5"></div>
+        <div class="row"><label>A std [×L0] <span class="val" id="ampStdVal"></span></label><input id="ampStd" type="range" min="0" max="0.5" step="0.01" value="0.0"></div>
+        <div class="row"><label>CBF [Hz] <span class="val" id="cbfMeanVal"></span></labeA0scalel><input id="cbfMean" type="range" min="0.5" max="20" step="0.1" value="8"></div>
+        <div class="row"><label>CBF std [Hz] <span class="val" id="cbfStdVal"></span></label><input id="cbfStd" type="range" min="0" max="5" step="0.05" value="0.1"></div>
+        <div class="row"><label>Wave amp (phase) <span class="val" id="waveAmpVal"></span></label><input id="waveAmp" type="range" min="0" max="1.5" step="0.01" value="0.25"></div>
+        <div class="row"><label>Wave angle [deg] <span class="val" id="waveAngleVal"></span></label><input id="waveAngle" type="range" min="-180" max="180" step="1" value="-90"></div>
+        <div class="row"><label>Wave noise <span class="val" id="waveNoiseVal"></span></label><input id="waveNoise" type="range" min="0" max="0.5" step="0.01" value="0.02"></div>
+        <div class="row"><label>Beat dir std [deg] <span class="val" id="angleStdVal"></span></label><input id="angleStd" type="range" min="0" max="30" step="0.5" value="2"></div>
+        <div class="row"><label>Static curvature k0 <span class="val" id="k0Val"></span></label><input id="k0" type="range" min="0" max="2.0" step="0.01" value="1.0"></div>
+        <div class="row"><label>Wave number aK <span class="val" id="aKVal"></span></label><input id="aK" type="range" min="0.1" max="4.0" step="0.01" value="0.8"></div>
+      </div>
+      <div class="group">
+        <h3>Cilia on cell</h3>
+        <div class="row"><label>Cilia area per cell [%] <span class="val" id="ciliaAreaVal"></span></label><input id="ciliaArea" type="range" min="0.005" max="1" step="0.001" value="1"></div>
+      </div>
+      <div class="group">
+        <h3>Camera</h3>
+        <div class="row"><label>Azimuth [deg] <span class="val" id="azimuthVal"></span></label><input id="azimuth" type="range" min="-180" max="180" step="1" value="-90"></div>
+        <div class="row"><label>Elevation [deg] <span class="val" id="elevationVal"></span></label><input id="elevation" type="range" min="-80" max="80" step="1" value="-5"></div>
+        <div class="row"><label>Zoom (radius) <span class="val" id="camRVal"></span></label><input id="camR" type="range" min="10" max="200" step="1" value="50"></div>
+      </div>
+      <div class="group">
+        <h3>Edit</h3>
+        <div class="hint">Use header buttons to toggle edit modes. While editing, camera snaps to top view for easier painting. Pause only stops animation — editing stays active.</div>
+      </div>
+    </aside>
+
+    <main class="canvas-wrap">
+      <div id="threeWrap"></div>
+      <div id="kappaEditor">
+        <div class="title">Curvature amplitude profile κ(s)</div>
+        <canvas id="kappaCanvas"></canvas>
+      </div>
+      <div id="stats">—</div>
+      <div id="err"></div>
+    </main>
+  </div>
+
+<script type="module">
+// ESM helper
+async function importWithFallback(candidates){
+  for (const url of candidates){ try { return await import(url); } catch(e){ console.warn('Import failed:', url, e); } }
+  throw new Error('All import candidates failed');
+}
+async function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.async=true; s.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error('load fail '+src)); document.head.appendChild(s); }); }
+
+// Load THREE (ESM → local ESM → local UMD)
+let THREE;
+try {
+  THREE = await importWithFallback([
+    'https://unpkg.com/three@0.160.0/build/three.module.js',
+    '/javascripts/vendor/three/0.160.0/three.module.js',
+  ]);
+} catch (err){
+  console.warn('Falling back to UMD THREE:', err);
+  await loadScript('/javascripts/vendor/three/0.160.0/three.min.js');
+  THREE = window.THREE;
+}
+
+// ===== helpers =====
+function byId(id){ return document.getElementById(id); }
+function setLabel(id, v){ const el = byId(id+'Val'); if (el) el.textContent = String((typeof v==='number')? (Math.round(v*1000)/1000) : v); }
+function randn(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function toSignedDeg(a){ return ((a + 180) % 360 + 360) % 360 - 180; }
+
+// ===== parameters =====
+const params = {
+  nX:24, nY:20, density:2.0, crystalline:0.8,
+  coverage:0.3, patchlength:0.5, patchorder:0.5,
+  // lengths are in ×L0 units; L0≈10 μm
+  lengthMean:1.0, lengthStd:0.1,
+  ampMean:5, ampStd:0.0,
+  cbfMean:8, cbfStd:0.1,
+  waveAmp:0.25, waveAngle:-Math.PI/2, waveNoise:0.02,
+  angleMean:0, angleStd:2, // deg
+  cilRadius:0.20,
+  // camera
+  azimuth:-90, elevation:-5, camR:50,
+  // curvature model
+  k0:1.0, aK:0.8,
+  // seeding
+  centerJitter:0.3,
+  ciliaArea:1.0, // 0..1: fraction of cell top surface carrying cilia (area fraction)
+};
+
+// ===== app state =====
+const sim = {
+  playing:true,
+  scene:null, camera:null, renderer:null,
+  cam:{ r:50, az:-90, el:-5 }, q:null, placeCamera:null,
+  noSlipPlane:null, planeSize:[10,10],
+  // grid + per-cell fields
+  total:0,
+  cx:null, cy:null, cz:null, isCiliated:null,
+  ampScale:null, ciliaLen:null, ciliaFreq:null, initPhase:null,
+  beatAngle:null, xSize:0, ySize:0,
+  // voronoi + drawing
+  vorPolys:null, cellGroup:null, cellFillGroup:null, cellFillMeshes:null, cellInfo:null, // {cx,cy, area, radius}
+  cellCanvas:null, cellCtx:null, cellTexture:null,
+  // cilia seeds and geometry
+  cilia:{ group:null, seeds:null, nSeg:10, mat:null },
+  // pointer/edit
+  editMode:'none', painting:false, erase:false,
+  lastTapTime:0, lastButton:0,
+  raycaster: new (THREE.Raycaster||window.THREE.Raycaster)(),
+  _savedCam:null,
+  changedCells:null,
+  _rafPaint:false,
+  _renderScheduled:false,
+};
+
+// ===== curvature profile editor (borrowed from bundle visualizer) =====
+const profile = {
+  cps: [ {s:0, v:0.2}, {s:1, v:1.0} ],
+  edit:null, dragging:{ idx:-1, start:null }, canvas:null, ctx:null
+};
+function setupKappaEditor(){
+  const box = document.getElementById('kappaEditor'); const canvas=document.getElementById('kappaCanvas'); if (!box||!canvas) return;
+  profile.canvas=canvas; profile.ctx=canvas.getContext('2d');
+  function resize(){ const dpr=Math.min(2, window.devicePixelRatio||1); const w=box.clientWidth, h=box.clientHeight-22; canvas.width=Math.max(10,Math.floor(w*dpr)); canvas.height=Math.max(10,Math.floor(h*dpr)); canvas.style.width=w+'px'; canvas.style.height=h+'px'; draw(); }
+  function rect(){ const padL=36, padR=28, padT=18, padB=28; return { x:padL, y:padT, w:canvas.width-padL-padR, h:canvas.height-padT-padB }; }
+  function xyFromSV(s,v){ const r=rect(); return { x: r.x + Math.max(0,Math.min(1,s))*r.w, y: r.y + (1-Math.max(0,Math.min(1,v)))*r.h }; }
+  function svFromXY(x,y){ const r=rect(); return { s:(x-r.x)/Math.max(1,r.w), v: 1 - (y-r.y)/Math.max(1,r.h) }; }
+  function cpsSorted(cps){ return cps.slice().sort((a,b)=>a.s-b.s); }
+  function draw(){ const ctx=profile.ctx; if(!ctx) return; ctx.clearRect(0,0,canvas.width,canvas.height); const r=rect(); ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.strokeRect(r.x, r.y, r.w, r.h); const cps=cpsSorted(profile.edit||profile.cps); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); for(let i=0;i<cps.length;i++){ const p=xyFromSV(cps[i].s,cps[i].v); if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); } ctx.stroke(); const radius=6; for(let i=0;i<cps.length;i++){ const p=xyFromSV(cps[i].s,cps[i].v); ctx.beginPath(); ctx.arc(p.x,p.y,radius,0,Math.PI*2); ctx.fillStyle=(i===0||i===cps.length-1)?'#8ab4f8':'#fff'; ctx.fill(); }
+  }
+  function hit(x,y){ const cps=cpsSorted(profile.edit||profile.cps); const rad=10; for(let i=0;i<cps.length;i++){ const p=xyFromSV(cps[i].s,cps[i].v); const dx=x-p.x, dy=y-p.y; if (dx*dx+dy*dy <= rad*rad) return i; } return -1; }
+  function norm(cps){ let maxv=0; for(const c of cps) maxv=Math.max(maxv,c.v); if (maxv<=0) return cps; return cps.map(c=>({ s:Math.max(0,Math.min(1,c.s)), v:Math.max(0,Math.min(1,c.v/maxv)) })); }
+  let dragging=false, idx=-1, dragOut=false;
+  canvas.addEventListener('pointerdown', (e)=>{
+    const r=canvas.getBoundingClientRect(); const dpr=canvas.width/r.width;
+    const x=(e.clientX-r.left)*dpr, y=(e.clientY-r.top)*dpr;
+    profile.edit=profile.cps.map(c=>({s:c.s,v:c.v})); idx=hit(x,y);
+    if(idx===-1){ const sv=svFromXY(x,y); profile.edit.push({s:Math.max(0,Math.min(1,sv.s)), v:Math.max(0,Math.min(1,sv.v))}); idx=profile.edit.length-1; }
+    dragging=true; dragOut=false;
+    try{ canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId); }catch{}
+    e.preventDefault(); e.stopPropagation(); draw();
+  }, {passive:false});
+  canvas.addEventListener('pointermove', (e)=>{
+    if(!dragging) return; const r=canvas.getBoundingClientRect(); const dpr=canvas.width/r.width;
+    const x=(e.clientX-r.left)*dpr, y=(e.clientY-r.top)*dpr; const sv=svFromXY(x,y);
+    profile.edit[idx].s=sv.s; profile.edit[idx].v=sv.v; draw();
+    // mark as outside if pointer moved well beyond the plot rect
+    const pr=rect(); const flex=18*dpr; const out=(x < pr.x-flex) || (x > pr.x+pr.w+flex) || (y < pr.y-flex) || (y > pr.y+pr.h+flex);
+    dragOut = out;
+    e.preventDefault(); e.stopPropagation();
+  }, {passive:false});
+  function finishEdit(e){
+    if(!dragging) return; dragging=false;
+    const cpsArr=cpsSorted(profile.edit);
+    // delete the dragged point if released outside and it is not an endpoint
+    if (dragOut && idx>=0){ const isEndpoint = (Math.abs(cpsArr[idx].s) < 1e-6) || (Math.abs(cpsArr[idx].s-1) < 1e-6); if (!isEndpoint) cpsArr.splice(idx,1); }
+    const cps=norm(cpsArr);
+    function ensure(sFixed){ const id=cps.findIndex(c=>Math.abs(c.s-sFixed)<1e-6); if (id<0) cps.push({s:sFixed, v: sFixed<1e-6?0.2:1.0}); }
+    ensure(0); ensure(1); profile.cps=cpsSorted(cps); profile.edit=null; draw();
+    // refresh animation immediately even if paused
+    updateCilia(tNow); scheduleRender();
+    e && (e.stopPropagation?.(), e.preventDefault?.());
+  }
+  canvas.addEventListener('pointerup', finishEdit, {passive:false});
+  canvas.addEventListener('pointercancel', finishEdit, {passive:false});
+  canvas.addEventListener('lostpointercapture', finishEdit, {passive:false});
+  window.addEventListener('resize', resize); resize();
+}
+
+// ===== presence/patch pattern (from existing visualizers) =====
+function shape1d(x,a){ const m=((x+1)%2+2)%2; return (m<=2*a)? (m/a-1) : (1-(m-2*a)/(1-a)); }
+function presence(cx, cy, coverage, patchlength, crystalline, patchorder, nCols, nRows, dX, dY){
+  const n = cx.length; const out = new Array(n);
+  function seedAt(x,y){ const px=Math.floor((x + (nCols-1)*dX/2)/dX); const py=Math.floor((y + (nRows-1)*dY/2)/dY); const s=Math.sin(px*12.9898 + py*78.233)*43758.5453; return s - Math.floor(s); }
+  for(let i=0;i<n;i++){
+    const seed = seedAt(cx[i]+(Math.random()-0.5)*crystalline, cy[i]+(Math.random()-0.5)*crystalline);
+    let a = (seed-0.5)*patchorder + 0.5; a=Math.max(0.01, Math.min(0.99, a));
+    const pot = Math.min(
+      shape1d(cx[i]/Math.max(1,(nCols-1)*dX)/patchlength, a),
+      shape1d(cy[i]/Math.max(1,(nRows-1)*dY)/patchlength, a)
+    );
+    out[i] = (pot >= (1 - 2*coverage));
+  }
+  return out;
+}
+
+// ===== grid and random fields =====
+function generateGrid(){
+  const nX = Math.max(1, params.nX|0), nY = Math.max(1, params.nY|0);
+  const dX = 1.0, dY = 1.0; // world units are ×L0; one cell per 1.0
+  const xSize = (nX)*dX, ySize = (nY)*dY; // domain spans nX×nY cells
+  const coordx = new Array(nX), coordy=new Array(nY);
+  for(let i=0;i<nX;i++) coordx[i] = -xSize/2 + (i + 0.5)*dX;
+  for(let j=0;j<nY;j++) coordy[j] = -ySize/2 + (j + 0.5)*dY;
+  const cx=[], cy=[], cz=[];
+  for(let j=0;j<nY;j++){
+    for(let i=0;i<nX;i++){
+      const jit = Number(params.centerJitter||0);
+      cx.push(coordx[i] + (Math.random()-0.5)*jit);
+      cy.push(coordy[j] + (Math.random()-0.5)*jit);
+      cz.push(0);
+    }
+  }
+  sim.cx = new Float32Array(cx); sim.cy = new Float32Array(cy); sim.cz = new Float32Array(cz);
+  sim.total = nX*nY; sim.xSize = xSize; sim.ySize = ySize;
+  sim.isCiliated = presence(sim.cx, sim.cy, params.coverage, params.patchlength, params.crystalline, params.patchorder||0.5, nX, nY, dX, dY);
+  sim.totalCiliated = sim.isCiliated.reduce((a,b)=>a+(b?1:0),0);
+  // Only initialize beat angles if not already present or size changed; edits are preserved across kinematic changes
+  if (!sim.beatAngle || sim.beatAngle.length !== sim.total){
+    sim.beatAngle = new Float32Array(sim.total);
+    for (let i=0;i<sim.total;i++){ sim.beatAngle[i] = (params.angleMean + params.angleStd * randn()) * Math.PI/180; }
+  }
+  reseedRandomFields();
+  // Voronoi and seeds depend on centers; compute async and then seed
+  updateVoronoi().then(()=>{ initCiliaSeeds(); });
+}
+
+function getWave(wAmp, wAng, wNoise, cx, cy, xSize, ySize){
+  const n=cx.length; const out=new Float32Array(n);
+  const kvx=Math.cos(wAng)*wAmp, kvy=Math.sin(wAng)*wAmp; let base=0;
+  for(let i=0;i<n;i++){
+    if (xSize===0 && ySize===0) base = 0;
+    else if (xSize===0) base = ((kvy * cy[i]/ySize) % 1 + 1) % 1;
+    else if (ySize===0) base = ((kvx * cx[i]/xSize) % 1 + 1) % 1;
+    else base = ((kvx * cx[i]/xSize + kvy * cy[i]/ySize) % 1 + 1) % 1;
+    out[i] = base * (1 - params.waveNoise) + Math.random()*params.waveNoise;
+  }
+  return out;
+}
+
+// Normalized wave phase at world position (x,y) in cycles [0,1)
+function wavePhaseAt(x, y){
+  const wAmp = Number(params.waveAmp)||0; const ang = Number(params.waveAngle)||0;
+  const kvx = Math.cos(ang)*wAmp, kvy = Math.sin(ang)*wAmp;
+  const XS = sim.xSize || 1; const YS = sim.ySize || 1;
+  let base;
+  if (XS===0 && YS===0) base = 0;
+  else if (XS===0) base = ((kvy * y/YS) % 1 + 1) % 1;
+  else if (YS===0) base = ((kvx * x/XS) % 1 + 1) % 1;
+  else base = ((kvx * x/XS + kvy * y/YS) % 1 + 1) % 1;
+  // mix with per-seed noise in update functions via params.waveNoise
+  return base;
+}
+
+function reseedRandomFields(){
+  const n = sim.total;
+  sim.ampScale = new Float32Array(n);
+  sim.ciliaLen = new Float32Array(n);
+  sim.ciliaFreq = new Float32Array(n);
+  for(let i=0;i<n;i++){
+    sim.ampScale[i] = Math.max(0, params.ampMean + params.ampStd * randn());
+    sim.ciliaLen[i]  = Math.max(0.5, params.lengthMean + params.lengthStd * randn());
+    sim.ciliaFreq[i] = Math.max(0, params.cbfMean + params.cbfStd * randn());
+  }
+  sim.initPhase = getWave(params.waveAmp, params.waveAngle, params.waveNoise, sim.cx, sim.cy, sim.xSize, sim.ySize);
+}
+
+// ===== centerline model (from bundle visualizer) =====
+function centerlineFromCurvatureN(N, tFrac, A0scale, L, outX, outZ){
+  const ds = 1.0/(N-1); const k0=params.k0, aK=params.aK; const twoPiT=2*Math.PI*tFrac;
+  let theta_prev=0, x_prev=0, z_prev=0; outX[0]=0; outZ[0]=0;
+  function profEval(s){
+    const cps = (profile && profile.cps && profile.cps.length>=2) ? profile.cps : [ {s:0,v:0.2}, {s:1,v:1.0} ];
+    const arr = cps.slice().sort((a,b)=>a.s-b.s);
+    if (s<=arr[0].s) return arr[0].v; if (s>=arr[arr.length-1].s) return arr[arr.length-1].v;
+    for (let i=0;i<arr.length-1;i++){ const a=arr[i], b=arr[i+1]; if (s>=a.s && s<=b.s){ const t=(s-a.s)/Math.max(1e-6,(b.s-a.s)); return a.v*(1-t)+b.v*t; } }
+    return 1.0;
+  }
+  let kappa_prev = k0 + A0scale*aK*aK*profEval(0.0)*Math.cos(aK*2*Math.PI*0.0 - twoPiT);
+  for(let i=1;i<N;i++){
+    const s=i/(N-1);
+    const kappa = k0 + A0scale*aK*aK*profEval(s) * Math.cos(aK*2*Math.PI*s - twoPiT);
+    const theta = theta_prev + 0.5*(kappa_prev + kappa)*ds;
+    const sx_prev=Math.sin(theta_prev), sz_prev=Math.cos(theta_prev);
+    const sx=Math.sin(theta), sz=Math.cos(theta);
+    x_prev = x_prev + 0.5*(sx_prev+sx)*ds;
+    z_prev = z_prev + 0.5*(sz_prev+sz)*ds;
+    outX[i] = x_prev * L; outZ[i] = z_prev * L;
+    theta_prev = theta; kappa_prev = kappa;
+  }
+}
+
+// ===== camera helpers =====
+function quatFromAzEl(azDeg, elDeg){
+  const az = azDeg*Math.PI/180, el=elDeg*Math.PI/180;
+  const cx=Math.cos(el)*Math.cos(az), cy=Math.cos(el)*Math.sin(az), cz=Math.sin(el);
+  const f = new THREE.Vector3(-cx,-cy,-cz).normalize();
+  const o = new THREE.Object3D(); o.up.set(0,0,1); o.position.set(0,0,0); o.lookAt(new THREE.Vector3().copy(f));
+  return o.quaternion.clone();
+}
+function azElFromQuat(q){ const f=new THREE.Vector3(0,0,-1).applyQuaternion(q).normalize(); const az=toSignedDeg(Math.atan2(-f.y, -f.x)*180/Math.PI); const el=Math.asin(Math.max(-1,Math.min(1,-f.z)))*180/Math.PI; return {az,el}; }
+
+function setupOrbitControls(target){
+  if (!target) return;
+  let dragging=false, lastX=0, lastY=0;
+  const onDown = (e)=>{ if (sim.editMode!=='none') return; dragging=true; lastX=e.clientX; lastY=e.clientY; try{ target.setPointerCapture(e.pointerId);}catch{} e.preventDefault(); };
+  const onMove = (e)=>{
+    if (!dragging || sim.editMode!=='none') return;
+    const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
+    const s=0.005; // yaw around +Z, then pitch around camera right
+    const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1), -dx*s);
+    sim.q.premultiply(qYaw);
+    const right = new THREE.Vector3(1,0,0).applyQuaternion(sim.q);
+    const qPitch = new THREE.Quaternion().setFromAxisAngle(right, -dy*s);
+    sim.q.premultiply(qPitch);
+    const ae=azElFromQuat(sim.q); params.azimuth=sim.cam.az=toSignedDeg(ae.az); params.elevation=sim.cam.el=ae.el;
+    byId('azimuth').value = String(Math.round(params.azimuth)); byId('elevation').value=String(Math.round(params.elevation)); setLabel('azimuth', params.azimuth); setLabel('elevation', params.elevation);
+    sim.placeCamera && sim.placeCamera();
+  };
+  const onUp = (e)=>{ dragging=false; try{ target.releasePointerCapture(e.pointerId);}catch{} };
+  const onWheel = (e)=>{ e.preventDefault(); const dir = e.deltaY>0? 1 : -1; sim.cam.r = Math.max(10, Math.min(200, sim.cam.r + dir*2)); params.camR = sim.cam.r; const rEl=byId('camR'); if (rEl) rEl.value=String(Math.round(sim.cam.r)); setLabel('camR', sim.cam.r); sim.placeCamera && sim.placeCamera(); };
+  target.addEventListener('pointerdown', onDown); target.addEventListener('pointermove', onMove); target.addEventListener('pointerup', onUp); target.addEventListener('pointercancel', onUp); target.addEventListener('wheel', onWheel, {passive:false});
+}
+
+// ===== scene init =====
+function initScene(){
+  const wrap = byId('threeWrap');
+  sim.scene = new THREE.Scene(); sim.scene.background = new THREE.Color(0x000000);
+  const w = wrap.clientWidth || 640, h = wrap.clientHeight || 480;
+  sim.camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 2000);
+  sim.cam = { r: Number(params.camR)||50, az: params.azimuth, el: params.elevation };
+  sim.q = quatFromAzEl(sim.cam.az, sim.cam.el);
+  sim.placeCamera = function(){
+    const forward = new THREE.Vector3(0,0,-1).applyQuaternion(sim.q);
+    const up = new THREE.Vector3(0,1,0).applyQuaternion(sim.q);
+    const pos = forward.clone().multiplyScalar(-sim.cam.r);
+    sim.camera.position.copy(pos); sim.camera.up.copy(up); sim.camera.lookAt(0,0,0);
+  };
+  sim.placeCamera();
+  sim.renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+  sim.renderer.setPixelRatio(Math.min(2, devicePixelRatio||1));
+  sim.renderer.setSize(w, h, false);
+  wrap.innerHTML=''; wrap.appendChild(sim.renderer.domElement);
+  // lights
+  sim.scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8); dir.position.set(20,20,30); sim.scene.add(dir);
+  // plane for picking/visual reference + cell texture
+  // prepare cell canvas texture
+  sim.cellCanvas = document.createElement('canvas'); sim.cellCanvas.width = 1024; sim.cellCanvas.height = 1024;
+  sim.cellCtx = sim.cellCanvas.getContext('2d');
+  sim.cellTexture = new THREE.CanvasTexture(sim.cellCanvas); sim.cellTexture.needsUpdate = true;
+  updateNoSlipPlane();
+  // container groups
+  sim.cellGroup = new THREE.Group(); sim.scene.add(sim.cellGroup);
+  sim.cilia.group = new THREE.Group(); sim.scene.add(sim.cilia.group);
+  sim.cilia.mat = new THREE.LineBasicMaterial({ color:0xffffff, transparent:false });
+  setupKappaEditor();
+  // orbit controls (disabled while in edit modes)
+  setupOrbitControls(sim.renderer.domElement);
+  window.addEventListener('resize', ()=>{ const w2=wrap.clientWidth||640, h2=wrap.clientHeight||480; sim.camera.aspect=w2/h2; sim.camera.updateProjectionMatrix(); sim.renderer.setSize(w2,h2,false); });
+}
+
+function updateNoSlipPlane(){
+  const w = Math.max(1, sim.xSize);
+  const h = Math.max(1, sim.ySize);
+  sim.planeSize = [w,h];
+  if (!sim.noSlipPlane){
+    const geom = new THREE.PlaneGeometry(w, h);
+    const mat = new THREE.MeshBasicMaterial({ map: sim.cellTexture, transparent:false });
+    // Hide from color buffer to avoid the visible square; keep for picking
+    mat.colorWrite = false; mat.depthWrite = false; mat.depthTest = false;
+    sim.noSlipPlane = new THREE.Mesh(geom, mat); sim.scene.add(sim.noSlipPlane);
+  } else {
+    const geom = new THREE.PlaneGeometry(w, h); sim.noSlipPlane.geometry.dispose(); sim.noSlipPlane.geometry = geom;
+    const m = sim.noSlipPlane.material; if (m){ if (m.map !== sim.cellTexture){ m.map = sim.cellTexture; } m.colorWrite=false; m.depthWrite=false; m.depthTest=false; m.needsUpdate = true; }
+  }
+  sim.noSlipPlane.position.set(0,0,0);
+}
+
+// ===== Voronoi (cells + boundaries) =====
+let DelaunayCtor = null;
+async function ensureDelaunay(){
+  if (DelaunayCtor) return;
+  try {
+    const mod = await importWithFallback(['https://cdn.skypack.dev/d3-delaunay@6']);
+    DelaunayCtor = mod?.Delaunay ?? mod?.default?.Delaunay ?? mod?.default ?? mod ?? null;
+  } catch (err) {
+    console.warn('Falling back to local UMD d3-delaunay:', err);
+    await loadScript('/javascripts/vendor/d3-delaunay/6/d3-delaunay.min.js');
+    DelaunayCtor = (window.d3 && window.d3.Delaunay) ? window.d3.Delaunay : null;
+  }
+  if (!DelaunayCtor) throw new Error('Delaunay not available');
+}
+function drawVoronoi(polys){
+  // outlines group (keep for crisp boundaries)
+  if (sim.cellGroup){ while (sim.cellGroup.children.length) sim.cellGroup.remove(sim.cellGroup.children[0]); }
+  const edgeMat = new THREE.LineBasicMaterial({ color:0x8892a6, transparent:false });
+  for (let i=0;i<polys.length;i++){
+    const poly = polys[i]; if (!poly || poly.length<3) continue;
+    const g = new THREE.BufferGeometry();
+    const pos = new Float32Array(poly.length*3);
+    for (let k=0;k<poly.length;k++){ pos[3*k+0]=poly[k][0]; pos[3*k+1]=poly[k][1]; pos[3*k+2]=0; }
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    const loop = new THREE.LineLoop(g, edgeMat);
+    sim.cellGroup.add(loop);
+  }
+  // redraw texture fills
+  redrawCellsTexture();
+}
+
+function worldToTex(x,y){
+  const W = sim.cellCanvas.width, H = sim.cellCanvas.height;
+  const u = (x - (-sim.xSize/2)) / Math.max(1e-6, sim.xSize) * W;
+  const v = (1 - (y - (-sim.ySize/2)) / Math.max(1e-6, sim.ySize)) * H;
+  return [u, v];
+}
+function redrawCellsTexture(){
+  const ctx = sim.cellCtx; if (!ctx) return; const W = sim.cellCanvas.width, H = sim.cellCanvas.height;
+  ctx.clearRect(0,0,W,H);
+  for (let i=0;i<(sim.vorPolys?sim.vorPolys.length:0);i++){
+    fillCellToTexture(i);
+  }
+  sim.cellTexture.needsUpdate = true; scheduleRender();
+}
+function fillCellToTexture(i){
+  const ctx = sim.cellCtx; const poly = sim.vorPolys && sim.vorPolys[i]; if (!ctx || !poly || poly.length<3) return;
+  const isCil = sim.isCiliated ? !!sim.isCiliated[i] : false;
+  const col = isCil ? 'rgb(210,210,210)' : 'rgb(140,140,140)';
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  let p = worldToTex(poly[0][0], poly[0][1]); ctx.moveTo(p[0], p[1]);
+  for (let k=1;k<poly.length;k++){ p = worldToTex(poly[k][0], poly[k][1]); ctx.lineTo(p[0], p[1]); }
+  ctx.closePath(); ctx.fill();
+}
+function refreshCellFill(i){ fillCellToTexture(i); sim.cellTexture.needsUpdate = true; scheduleRender(); }
+async function updateVoronoi(){
+  await ensureDelaunay();
+  const pts = []; for (let i=0;i<sim.total;i++) pts.push([sim.cx[i], sim.cy[i]]);
+  const delaunay = DelaunayCtor.from(pts, d=>d[0], d=>d[1]);
+  const bounds = [-sim.xSize/2, -sim.ySize/2, sim.xSize/2, sim.ySize/2];
+  const vor = delaunay.voronoi(bounds);
+  const polys = new Array(sim.total);
+  const info = new Array(sim.total);
+  for (let i=0;i<sim.total;i++){
+    const poly = vor.cellPolygon(i); const arr = poly ? Array.from(poly) : null; polys[i] = arr;
+    if (arr && arr.length>=3){
+      // compute centroid and area (shoelace)
+      let A=0, Cx=0, Cy=0; for (let k=0;k<arr.length;k++){ const p=arr[k], q=arr[(k+1)%arr.length]; const w=p[0]*q[1]-q[0]*p[1]; A+=w; Cx+=(p[0]+q[0])*w; Cy+=(p[1]+q[1])*w; } A*=0.5; const cx=Cx/(6*A||1e-9), cy=Cy/(6*A||1e-9); const area=Math.abs(A); const radius=Math.sqrt(area/Math.PI);
+      info[i]={ cx, cy, area, radius };
+    } else { info[i]= { cx: sim.cx[i], cy: sim.cy[i], area: 0, radius: 0.5 }; }
+  }
+  sim.vorPolys = polys; sim.cellInfo = info;
+  drawVoronoi(polys);
+}
+
+// ===== Cilia seeding per cell (100–150) and geometry =====
+function pointInPoly(poly, x, y){ let inside=false; for (let i=0,j=poly.length-1;i<poly.length;j=i++) { const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1]; const intersect=((yi>y)!=(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi+1e-12)+xi); if (intersect) inside=!inside; } return inside; }
+function initCiliaSeeds(){
+  const seeds = new Array(sim.total);
+  for (let i=0;i<sim.total;i++){
+    if (!sim.isCiliated[i]){ seeds[i]=null; continue; }
+    const poly = sim.vorPolys && sim.vorPolys[i]; if (!poly || poly.length<3){ seeds[i]=null; continue; }
+    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity; for (const p of poly){ if (p[0]<minx) minx=p[0]; if (p[0]>maxx) maxx=p[0]; if (p[1]<miny) miny=p[1]; if (p[1]>maxy) maxy=p[1]; }
+    const want = 100 + Math.floor(Math.random()*51); // 100..150
+    const arr=[]; let tries=0;
+    while (arr.length < want && tries < want*80){
+      tries++;
+      const rx = minx + Math.random()*(maxx-minx);
+      const ry = miny + Math.random()*(maxy-miny);
+      if (!pointInPoly(poly, rx, ry)) continue;
+      // compute normalized radius to support fast visibility gating by area fraction
+      const inf = sim.cellInfo && sim.cellInfo[i]; const cx = inf? inf.cx : sim.cx[i]; const cy = inf? inf.cy : sim.cy[i];
+      const R = Math.max(1e-6, (inf && inf.radius) ? inf.radius : 0.5);
+      const dx=(rx-cx), dy=(ry-cy); const r = Math.hypot(dx,dy); const rho = r / R; // 0..~1 inside polygon
+      // per-seed jitters: phase in [0,1), amp ±10%, angle ±5deg
+      arr.push({ x:rx, y:ry, rho, dphi: (Math.random()-0.5)*0.1, damp:(Math.random()*0.2-0.1), dang: (Math.random()*10-5)*Math.PI/180, wj: Math.random() });
+    }
+    seeds[i]=arr;
+  }
+  sim.cilia.seeds = seeds;
+  buildCiliaGeometry();
+  // refresh positions immediately
+  updateCilia(tNow); if (sim.renderer) sim.renderer.render(sim.scene, sim.camera);
+}
+function buildCiliaGeometry(){
+  // clear old
+  if (sim.cilia.group){ while (sim.cilia.group.children.length){ const o=sim.cilia.group.children.pop(); if (o.geometry) o.geometry.dispose?.(); } }
+  const nSeg = sim.cilia.nSeg;
+  const mat = sim.cilia.mat;
+  for (let i=0;i<sim.total;i++){
+    const seeds = (sim.cilia.seeds && sim.cilia.seeds[i]) || null; if (!seeds) continue;
+    for (let k=0;k<seeds.length;k++){
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nSeg*3), 3));
+      const line = new THREE.Line(geom, mat);
+      sim.cilia.group.add(line);
+      seeds[k]._line = line; // attach for updates
+    }
+  }
+}
+function updateCilia(time){
+  const nSeg = sim.cilia.nSeg; const xLine = new Float32Array(nSeg), zLine = new Float32Array(nSeg);
+  for (let cell=0; cell<sim.total; cell++){
+    if (!sim.isCiliated[cell]) continue;
+    const seeds = sim.cilia.seeds && sim.cilia.seeds[cell]; if (!seeds) continue;
+    const tRoot = time * sim.ciliaFreq[cell];
+    const L = sim.ciliaLen[cell]; const baseA = sim.ampScale[cell];
+    for (let sIdx=0; sIdx<seeds.length; sIdx++){
+      const sd = seeds[sIdx]; const line = sd._line; if (!line) continue;
+      if (line.visible === false) continue; // skip hidden cilia for performance
+      const baseCell = (sim.initPhase && sim.initPhase[cell]!=null) ? sim.initPhase[cell] : wavePhaseAt(sim.cx[cell], sim.cy[cell]);
+      const wNoise = Math.max(0, Math.min(1, Number(params.waveNoise)||0));
+      const wj = sd.wj != null ? sd.wj : 0;
+      const tFrac = (tRoot + (1 - wNoise)*baseCell + wNoise*wj + (sd.dphi||0)) % 1.0;
+      const A0scale = baseA * (1 + (sd.damp||0));
+      centerlineFromCurvatureN(nSeg, tFrac, A0scale, L, xLine, zLine);
+      const a = sim.beatAngle[cell] + (sd.dang||0); const ss=Math.sin(a), cc=Math.cos(a);
+      const pos = line.geometry.attributes.position.array;
+      for (let i=0;i<nSeg;i++){
+        const j3=i*3; const xp=xLine[i], zp=zLine[i];
+        const xc = xp*cc + sd.x;
+        const yc = xp*ss + sd.y; // use +sin to align with painted direction
+        const zc = zp; // flat surface for performance
+        pos[j3+0]=xc; pos[j3+1]=yc; pos[j3+2]=zc;
+      }
+      line.geometry.attributes.position.needsUpdate = true;
+      line.visible = true;
+    }
+  }
+}
+
+function updateCiliaCells(cells){
+  if (!Array.isArray(cells) || cells.length===0) return;
+  const nSeg = sim.cilia.nSeg; const xLine = new Float32Array(nSeg), zLine = new Float32Array(nSeg);
+  for (let idx=0; idx<cells.length; idx++){
+    const cell = cells[idx];
+    if (cell<0 || cell>=sim.total) continue;
+    if (!sim.isCiliated[cell]) continue;
+    const seeds = sim.cilia.seeds && sim.cilia.seeds[cell]; if (!seeds) continue;
+    const tRoot = tNow * sim.ciliaFreq[cell];
+    const L = sim.ciliaLen[cell]; const baseA = sim.ampScale[cell];
+    for (let sIdx=0; sIdx<seeds.length; sIdx++){
+      const sd = seeds[sIdx]; const line = sd._line; if (!line || line.visible===false) continue;
+      const baseCell = (sim.initPhase && sim.initPhase[cell]!=null) ? sim.initPhase[cell] : wavePhaseAt(sim.cx[cell], sim.cy[cell]);
+      const wNoise = Math.max(0, Math.min(1, Number(params.waveNoise)||0));
+      const wj = sd.wj != null ? sd.wj : 0;
+      const tFrac = (tRoot + (1 - wNoise)*baseCell + wNoise*wj + (sd.dphi||0)) % 1.0;
+      const A0scale = baseA * (1 + (sd.damp||0));
+      centerlineFromCurvatureN(nSeg, tFrac, A0scale, L, xLine, zLine);
+      const a = sim.beatAngle[cell] + (sd.dang||0); const ss=Math.sin(a), cc=Math.cos(a);
+      const pos = line.geometry.attributes.position.array;
+      for (let i=0;i<nSeg;i++){
+        const j3=i*3; const xp=xLine[i], zp=zLine[i];
+        pos[j3+0] = xp*cc + sd.x;
+        pos[j3+1] = xp*ss + sd.y;
+        pos[j3+2] = zp;
+      }
+      line.geometry.attributes.position.needsUpdate = true;
+    }
+  }
+}
+
+function scheduleRender(){
+  if (sim._renderScheduled) return;
+  sim._renderScheduled = true;
+  requestAnimationFrame(()=>{ sim._renderScheduled=false; if (sim.renderer) sim.renderer.render(sim.scene, sim.camera); });
+}
+
+function markCellChanged(i){
+  if (!sim.changedCells) sim.changedCells = new Set();
+  sim.changedCells.add(i);
+  if (sim._rafPaint) return;
+  sim._rafPaint = true;
+  requestAnimationFrame(()=>{
+    sim._rafPaint = false;
+    const cells = sim.changedCells ? Array.from(sim.changedCells) : [];
+    sim.changedCells = new Set();
+    if (cells.length){ updateCiliaCells(cells); }
+    scheduleRender();
+  });
+}
+
+// ===== editing =====
+function worldOnPlaneFromEvent(e){
+  if (!sim.renderer || !sim.camera || !sim.noSlipPlane) return null;
+  const rect = sim.renderer.domElement.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / Math.max(1, rect.width))*2 - 1;
+  const y = -(((e.clientY - rect.top) / Math.max(1, rect.height))*2 - 1);
+  sim.raycaster.setFromCamera({x,y}, sim.camera);
+  const hit = sim.raycaster.intersectObject(sim.noSlipPlane, false);
+  if (hit && hit.length){ const p=hit[0].point; return [p.x, p.y, p.z]; }
+  // Fallback: intersect ray with Z=0 plane analytically
+  const ray = sim.raycaster.ray;
+  const oz = ray.origin.z, dz = ray.direction.z;
+  if (Math.abs(dz) < 1e-9) return null;
+  const t = -oz / dz;
+  const px = ray.origin.x + ray.direction.x * t;
+  const py = ray.origin.y + ray.direction.y * t;
+  const pz = 0;
+  return [px, py, pz];
+}
+function nearestCellIndexNoPBC(x,y){
+  let best=-1, bestD=Infinity; const n=sim.total;
+  for (let i=0;i<n;i++){ const dx=x-sim.cx[i], dy=y-sim.cy[i]; const d2=dx*dx+dy*dy; if (d2<bestD){ bestD=d2; best=i; } }
+  return best;
+}
+function paintFateSegment(x0,y0,x1,y1, makeCiliated){
+  const dx=x1-x0, dy=y1-y0; const dist=Math.hypot(dx,dy); const step = Math.max(0.25, Math.min(0.6, 0.5)); const n = Math.max(1, Math.ceil(dist/step));
+  for (let k=0;k<=n;k++){
+    const x=x0 + dx*(k/n), y=y0 + dy*(k/n); const idx=nearestCellIndexNoPBC(x,y);
+    if (idx>=0){
+      const before = !!sim.isCiliated[idx];
+      const after = !!makeCiliated;
+      if (before !== after){
+        sim.isCiliated[idx] = after;
+        regenSeedsForIndex(idx);
+        refreshCellFill(idx);
+        markCellChanged(idx);
+      }
+    }
+  }
+}
+function paintDirSegment(x0,y0,x1,y1){
+  const dx=x1-x0, dy=y1-y0; const dist=Math.hypot(dx,dy) || 0; if (dist<=1e-9) return;
+  const ang=Math.atan2(dy,dx);
+  const step=Math.max(0.25, Math.min(0.6, 0.5)); const n=Math.max(1, Math.ceil(dist/step));
+  for (let k=0;k<=n;k++){
+    const x=x0+dx*(k/n), y=y0+dy*(k/n); const idx=nearestCellIndexNoPBC(x,y);
+    if (idx>=0 && sim.isCiliated[idx]){ sim.beatAngle[idx] = ang; markCellChanged(idx); }
+  }
+}
+function bindEditing(){
+  const c = sim.renderer?.domElement; if (!c) return;
+  let lastWX=0, lastWY=0; let isRight=false;
+  c.addEventListener('contextmenu', (e)=>{ e.preventDefault(); });
+  c.addEventListener('pointerdown', (e)=>{
+    // erase with right click or shift; also support double‑tap/click to erase
+    isRight = (e.button===2) || e.shiftKey;
+    if (!isRight && sim.editMode==='fate'){
+      const now = Date.now();
+      const rect = c.getBoundingClientRect();
+      const dx = (e.clientX - (sim.lastTapX||0));
+      const dy = (e.clientY - (sim.lastTapY||0));
+      const dist2 = dx*dx + dy*dy;
+      const isDouble = (now - (sim.lastTapTime||0)) < 350 && dist2 < (30*30);
+      sim.lastTapTime = now; sim.lastTapX = e.clientX; sim.lastTapY = e.clientY;
+      if (isDouble) isRight = true; // double = erase
+    }
+    if (sim.editMode==='none') return; // orbitControls handles
+    const p = worldOnPlaneFromEvent(e); if (!p) return; sim.painting=true; lastWX=p[0]; lastWY=p[1];
+    if (sim.editMode==='fate'){
+      paintFateSegment(lastWX,lastWY,lastWX,lastWY, !isRight);
+    }
+    e.preventDefault();
+    try{ c.setPointerCapture && c.setPointerCapture(e.pointerId); }catch{}
+    // partial update via markCellChanged in paint handlers
+  }, {passive:false});
+  c.addEventListener('pointermove', (e)=>{
+    if (!sim.painting || sim.editMode==='none') return;
+    const p = worldOnPlaneFromEvent(e); if (!p) return; const wx=p[0], wy=p[1];
+    if (sim.editMode==='fate') paintFateSegment(lastWX,lastWY,wx,wy, !isRight);
+    else if (sim.editMode==='dir') paintDirSegment(lastWX,lastWY,wx,wy);
+    lastWX=wx; lastWY=wy; e.preventDefault();
+    // partial updates scheduled via markCellChanged
+  }, {passive:false});
+  c.addEventListener('pointerup', ()=>{ sim.painting=false; });
+  c.addEventListener('pointercancel', ()=>{ sim.painting=false; });
+}
+
+function regenSeedsForIndex(i){
+  if (!sim.vorPolys || !sim.cilia || !sim.cilia.group) return;
+  // remove old geometry for this cell
+  const old = sim.cilia.seeds && sim.cilia.seeds[i];
+  if (old && old.length){ for (const sd of old){ if (sd && sd._line){ try{ sim.cilia.group.remove(sd._line); sd._line.geometry?.dispose?.(); }catch{} } } }
+  if (!sim.cilia.seeds) sim.cilia.seeds = new Array(sim.total);
+  if (!sim.isCiliated[i]){ sim.cilia.seeds[i]=null; return; }
+  const poly = sim.vorPolys[i]; if (!poly || poly.length<3){ sim.cilia.seeds[i]=null; return; }
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity; for (const p of poly){ if (p[0]<minx) minx=p[0]; if (p[0]>maxx) maxx=p[0]; if (p[1]<miny) miny=p[1]; if (p[1]>maxy) maxy=p[1]; }
+  const want = 100 + Math.floor(Math.random()*51);
+  const arr=[]; let tries=0;
+  while (arr.length < want && tries < want*80){
+    tries++;
+    const rx = minx + Math.random()*(maxx-minx);
+    const ry = miny + Math.random()*(maxy-miny);
+    if (!pointInPoly(poly, rx, ry)) continue;
+    const inf = sim.cellInfo && sim.cellInfo[i]; const cx = inf? inf.cx : sim.cx[i]; const cy = inf? inf.cy : sim.cy[i]; const R = Math.max(1e-6, (inf && inf.radius)?inf.radius:0.5);
+    const r = Math.hypot(rx-cx, ry-cy); const rho = r / R;
+    arr.push({ x:rx, y:ry, rho, dphi:(Math.random()-0.5)*0.1, damp:(Math.random()*0.2-0.1), dang:(Math.random()*10-5)*Math.PI/180, wj: Math.random() });
+  }
+  // build geometry for new seeds
+  const nSeg = sim.cilia.nSeg; const mat = sim.cilia.mat;
+  for (let k=0;k<arr.length;k++){
+    const geom = new THREE.BufferGeometry(); geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nSeg*3),3));
+    const line = new THREE.Line(geom, mat); sim.cilia.group.add(line); arr[k]._line = line;
+  }
+  sim.cilia.seeds[i] = arr;
+  applyCiliaAreaVisibility();
+  // Update only this cell's cilia and schedule render
+  updateCiliaCells([i]);
+  scheduleRender();
+}
+
+function applyCiliaAreaVisibility(){
+  const frac = Math.max(0, Math.min(1, Number(params.ciliaArea)||0));
+  const cutoff = Math.sqrt(frac);
+  for (let i=0;i<sim.total;i++){
+    const seeds = sim.cilia.seeds && sim.cilia.seeds[i]; if (!seeds) continue;
+    const cellOn = sim.isCiliated ? !!sim.isCiliated[i] : true;
+    for (let k=0;k<seeds.length;k++){
+      const sd = seeds[k]; const ln = sd && sd._line; if (!ln) continue;
+      const rho = sd.rho != null ? sd.rho : 0; // default keep center
+      ln.visible = cellOn && (rho <= cutoff);
+    }
+  }
+}
+
+// (Removed bulged surface for performance)
+
+// ===== UI wiring =====
+function connectUI(){
+  const appEl = document.querySelector('.app');
+  const toggleBtn = byId('togglePanel');
+  const collapseQuery = window.matchMedia('(max-width: 900px)');
+  let userLockedPanel=false;
+  const setCollapsed=(collapsed)=>{ appEl.classList.toggle('collapsed', !!collapsed); toggleBtn.setAttribute('aria-expanded', String(!collapsed)); toggleBtn.textContent = collapsed ? '»' : '«'; };
+  setCollapsed(collapseQuery.matches);
+  const onChange=(e)=>{ if (!userLockedPanel) setCollapsed(e.matches); };
+  collapseQuery.addEventListener?.('change', onChange); collapseQuery.addListener?.(onChange);
+  toggleBtn.addEventListener('click', ()=>{ userLockedPanel=true; setCollapsed(!appEl.classList.contains('collapsed')); });
+
+  function bindRange(id, key, toVal){ const el=byId(id); if (!el) return; const apply=()=>{ let v=Number(el.value); if (id==='waveAngle') v = v*Math.PI/180; if (key==='angleStd') { setLabel(id, Number(el.value)); params[key] = Number(el.value); } else { params[key]=v; setLabel(id, v); } onParamChange(key); }; el.addEventListener('input', apply); setLabel(id, Number(el.value)); }
+  bindRange('nX','nX'); bindRange('nY','nY'); bindRange('crystalline','crystalline'); bindRange('centerJitter','centerJitter');
+  // quantized patchlength
+  const pl = byId('patchlength'); if (pl){ pl.addEventListener('input', ()=>{ const v=quantizePatchLength(Number(pl.value)); pl.value=String(v); setLabel('patchlength', v); params.patchlength=v; onParamChange('patchlength'); }); setLabel('patchlength', Number(pl.value)); }
+  bindRange('coverage','coverage'); bindRange('patchorder','patchorder');
+  // center jitter + cilia area + bulge
+  const cj = document.createElement('div');
+  // Sliders exist already in markup? If not, we keep param programmatically; optional UI addition could be done later.
+  bindRange('lengthMean','lengthMean'); bindRange('lengthStd','lengthStd'); bindRange('ampMean','ampMean'); bindRange('ampStd','ampStd'); bindRange('cbfMean','cbfMean'); bindRange('cbfStd','cbfStd'); bindRange('waveAmp','waveAmp'); bindRange('waveAngle','waveAngle'); bindRange('waveNoise','waveNoise'); bindRange('angleStd','angleStd'); bindRange('k0','k0'); bindRange('aK','aK'); bindRange('ciliaArea','ciliaArea');
+  bindRange('azimuth','azimuth'); bindRange('elevation','elevation'); bindRange('camR','camR');
+  const btnFate = byId('modeFate');
+  const btnDir  = byId('modeBeatDir');
+  function setMode(m){
+    const prev = sim.editMode;
+    sim.editMode = m;
+    const isF=(m==='fate'), isD=(m==='dir');
+    if (btnFate){ btnFate.classList.toggle('active', isF); btnFate.setAttribute('aria-pressed', String(isF)); btnFate.textContent = isF? 'edit: cell fate (on)' : 'edit: cell fate'; }
+    if (btnDir){ btnDir.classList.toggle('active', isD); btnDir.setAttribute('aria-pressed', String(isD)); btnDir.textContent = isD? 'edit: beat direction (on)' : 'edit: beat direction'; }
+    // do not alter camera in edit modes; keep current 3D view
+  }
+  btnFate?.addEventListener('click', ()=>{ setMode(sim.editMode==='fate' ? 'none' : 'fate'); });
+  btnDir?.addEventListener('click',  ()=>{ setMode(sim.editMode==='dir'  ? 'none' : 'dir');  });
+  byId('playPause')?.addEventListener('click', ()=>{ sim.playing = !sim.playing; byId('playPause').textContent = sim.playing ? 'Pause' : 'Play'; if (!sim.playing){ updateCilia(tNow); if (sim.renderer) sim.renderer.render(sim.scene, sim.camera); } });
+
+  // ---- State export/import ----
+  const expBtn = byId('exportState');
+  const impBtn = byId('importState');
+  const impFile = byId('importFile');
+  expBtn?.addEventListener('click', ()=>{
+    try{
+      const st = collectState();
+      const blob = new Blob([JSON.stringify(st, null, 2)], {type:'application/json'});
+      const now=new Date(); const pad=(n)=>String(n).padStart(2,'0');
+      const fname = `cilia_carpet_state_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0);
+    }catch(err){ console.error('Export failed', err); }
+  });
+  impBtn?.addEventListener('click', async (e)=>{
+    if (e.shiftKey){
+      try{ const text = (await navigator.clipboard.readText?.()) || window.prompt('Paste state JSON',''); if (!text) return; const st = tryDecodeState(text); applyState(st); }catch(err){ console.error('Import (clipboard) failed', err); }
+    } else { impFile?.click(); }
+  });
+  impFile?.addEventListener('change', async ()=>{
+    const f=impFile.files && impFile.files[0]; if (!f) return; try{ const text=await f.text(); const st=tryDecodeState(text); applyState(st); }catch(err){ console.error('Import failed', err);} finally { impFile.value=''; }
+  });
+}
+
+function onParamChange(key){
+  const gridKeys = new Set(['nX','nY','crystalline','centerJitter']);
+  const patternKeys = new Set(['coverage','patchlength','patchorder']);
+  if (key==='azimuth' || key==='elevation' || key==='camR'){
+    if (key==='azimuth') sim.cam.az = params.azimuth; if (key==='elevation') sim.cam.el = params.elevation; if (key==='camR') sim.cam.r = params.camR;
+    sim.q = quatFromAzEl(sim.cam.az, sim.cam.el); sim.placeCamera && sim.placeCamera(); return;
+  }
+  if (key==='waveAngle') { params.waveAngle = Number(byId('waveAngle').value) * Math.PI/180; sim.initPhase = getWave(params.waveAmp, params.waveAngle, params.waveNoise, sim.cx, sim.cy, sim.xSize, sim.ySize); updateCilia(tNow); scheduleRender(); return; }
+  if (gridKeys.has(key)){
+    generateGrid(); updateNoSlipPlane(); updateCilia(tNow); if (sim.renderer) sim.renderer.render(sim.scene, sim.camera); return;
+  }
+  if (patternKeys.has(key)){
+    // Update only ciliation pattern; preserve beat angles and centers
+    const nX = params.nX|0, nY=params.nY|0; sim.isCiliated = presence(sim.cx, sim.cy, params.coverage, params.patchlength, params.crystalline, params.patchorder||0.5, nX, nY, (sim.xSize/(Math.max(1,nX-1)||1)), (sim.ySize/(Math.max(1,nY-1)||1)));
+    // rebuild seeds for changed cells
+    for (let i=0;i<sim.total;i++){ regenSeedsForIndex(i); }
+    // recolor fills based on new pattern
+    if (sim.vorPolys) drawVoronoi(sim.vorPolys);
+    updateCilia(tNow); if (sim.renderer) sim.renderer.render(sim.scene, sim.camera); return;
+  }
+  if (['lengthMean','lengthStd','ampMean','ampStd','cbfMean','cbfStd','angleStd','k0','aK'].includes(key)){
+    reseedRandomFields(); updateCilia(tNow); if (sim.renderer) sim.renderer.render(sim.scene, sim.camera); return;
+  }
+  if (['waveAmp','waveNoise'].includes(key)) { sim.initPhase = getWave(params.waveAmp, params.waveAngle, params.waveNoise, sim.cx, sim.cy, sim.xSize, sim.ySize); updateCilia(tNow); scheduleRender(); return; }
+  if (key==='ciliaArea'){ applyCiliaAreaVisibility(); if (!sim.playing){ if (sim.renderer) sim.renderer.render(sim.scene, sim.camera); } return; }
+}
+
+// ===== main loop =====
+let tNow=0, lastT=performance.now(), acc=0;
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=(now-lastT)/1000; lastT=now; acc+=dt;
+  if (sim.playing){ if (acc>=0.016){ acc=0; tNow += 0.02; updateCilia(tNow); } }
+  if (sim.renderer) sim.renderer.render(sim.scene, sim.camera);
+  const statsEl = byId('stats'); if (statsEl){ statsEl.textContent = `cells: ${sim.total}  ciliated: ${sim.isCiliated? sim.isCiliated.filter(Boolean).length : 0}`; }
+}
+
+// ===== boot =====
+function boot(){
+  // init camera values
+  sim.cam.r = Number(params.camR)||50; sim.cam.az=params.azimuth; sim.cam.el=params.elevation;
+  initScene();
+  generateGrid();
+  connectUI();
+  bindEditing();
+  requestAnimationFrame(loop);
+}
+boot();
+
+// minimal self-check
+console.assert(byId('threeWrap'), 'Missing threeWrap');
+
+// ===== helpers adopted from clearance visualizer =====
+function quantizePatchLength(v){ const vClamped = Math.max(0.05, Math.min(1.0, Number(v)||0.5)); const N = Math.max(1, Math.min(20, Math.round(1.0 / vClamped))); return 1.0 / N; }
+
+// ===== State export / import =====
+function collectState(){
+  const pkeys = ['nX','nY','centerJitter','crystalline','coverage','patchlength','patchorder','lengthMean','lengthStd','ampMean','ampStd','cbfMean','cbfStd','waveAmp','waveAngle','waveNoise','angleStd','k0','aK','ciliaArea','azimuth','elevation','camR'];
+  const p={}; for (const k of pkeys){ if (k in params) p[k]=params[k]; }
+  const grid = {
+    nX: params.nX|0, nY: params.nY|0,
+    xSize: sim.xSize||0, ySize: sim.ySize||0,
+    cx: Array.from(sim.cx||[]), cy: Array.from(sim.cy||[]),
+    isCiliated: Array.from(sim.isCiliated||[], v=>!!v),
+    ang: Array.from(sim.beatAngle||[])
+  };
+  const curvature = { cps: Array.isArray(profile?.cps) ? profile.cps.map(c=>({s:+c.s, v:+c.v})) : [] };
+  return { version:1, params:p, grid, curvature };
+}
+function tryDecodeState(text){ let obj=null; try{ obj=JSON.parse(text); }catch{} if (!obj || typeof obj!=='object') throw new Error('Invalid JSON'); return obj; }
+function applyState(st){
+  if (!st || typeof st!=='object') throw new Error('Invalid state');
+  const p=st.params||{}; Object.keys(p||{}).forEach(k=>{ if (k in params) params[k]=p[k]; });
+  const g=st.grid||{}; const cx=g.cx||[], cy=g.cy||[]; if (cx.length && cy.length && cx.length===cy.length){
+    sim.cx = Float32Array.from(cx); sim.cy = Float32Array.from(cy); sim.total=cx.length;
+    params.nX = g.nX || params.nX; params.nY = g.nY || params.nY; sim.xSize=g.xSize||params.nX; sim.ySize=g.ySize||params.nY;
+    sim.isCiliated = (g.isCiliated||[]).map(Boolean); sim.beatAngle = Float32Array.from(g.ang||new Array(sim.total).fill(0));
+  }
+  // curvature profile
+  if (st.curvature && Array.isArray(st.curvature.cps) && st.curvature.cps.length>=2){
+    profile.cps = st.curvature.cps.map(c=>({ s: Math.max(0,Math.min(1, +c.s)), v: Math.max(0, +c.v) }));
+    redrawKappaEditor();
+  }
+  // camera from params
+  try {
+    sim.cam.r = Number(params.camR)||sim.cam.r; sim.cam.az = Number(params.azimuth)||sim.cam.az; sim.cam.el = Number(params.elevation)||sim.cam.el;
+    sim.q = quatFromAzEl(sim.cam.az, sim.cam.el); sim.placeCamera && sim.placeCamera();
+  } catch {}
+  // Rebuild dependent structures
+  sim.initPhase = getWave(params.waveAmp, params.waveAngle, params.waveNoise, sim.cx, sim.cy, sim.xSize, sim.ySize);
+  updateVoronoi().then(()=>{ initCiliaSeeds(); applyCiliaAreaVisibility(); updateCilia(tNow); scheduleRender(); });
+  // keep UI in sync
+  try{ document.getElementById('waveAngle').value = String(Math.round(params.waveAngle*180/Math.PI)); }catch{}
+}
+
+// Minimal redraw for kappa editor using stored canvas/context
+function redrawKappaEditor(){
+  const canvas = profile.canvas, ctx = profile.ctx; if (!canvas || !ctx) return;
+  const cps = Array.isArray(profile.cps) ? profile.cps.slice().sort((a,b)=>a.s-b.s) : [ {s:0,v:0.2}, {s:1,v:1.0} ];
+  const padL=36, padR=28, padT=18, padB=28; const w=canvas.width, h=canvas.height;
+  const rx=padL, ry=padT, rw=Math.max(10, w-padL-padR), rh=Math.max(10, h-padT-padB);
+  function xyFromSV(s,v){ return { x: rx + Math.max(0,Math.min(1,s))*rw, y: ry + (1-Math.max(0,Math.min(1,v)))*rh }; }
+  ctx.clearRect(0,0,w,h); ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.strokeRect(rx,ry,rw,rh);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath();
+  for (let i=0;i<cps.length;i++){ const p=xyFromSV(cps[i].s,cps[i].v); if (i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); }
+  ctx.stroke();
+  ctx.fillStyle='#8ab4f8'; const radius=6;
+  for (let i=0;i<cps.length;i++){ const p=xyFromSV(cps[i].s,cps[i].v); ctx.beginPath(); ctx.arc(p.x,p.y,radius,0,Math.PI*2); ctx.fill(); }
+}
+</script>
+</body>
+</html>
