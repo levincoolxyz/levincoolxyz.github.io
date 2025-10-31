@@ -146,7 +146,8 @@ const params = {
   cbfMean:8, cbfStd:0.1,
   waveAmp:0.25, waveAngle:-Math.PI/2, waveNoise:0.02,
   angleMean:0, angleStd:2, // deg
-  cilRadius:0.20,
+  // Tube radius for cilium when exporting (×L0 units)
+  cilRadius:0.02,
   // camera
   azimuth:-90, elevation:-5, camR:50,
   // curvature model
@@ -180,6 +181,9 @@ const sim = {
   changedCells:null,
   _rafPaint:false,
   _renderScheduled:false,
+  // transient status text in #stats overlay
+  statusMessage:null,
+  statusUntil:0,
 };
 
 // ===== curvature profile editor (borrowed from bundle visualizer) =====
@@ -832,6 +836,8 @@ function connectUI(){
   impFile?.addEventListener('change', async ()=>{
     const f=impFile.files && impFile.files[0]; if (!f) return; try{ const text=await f.text(); const st=tryDecodeState(text); applyState(st); }catch(err){ console.error('Import failed', err);} finally { impFile.value=''; }
   });
+
+  // (OBJ export removed; use Blender importer script with state JSON)
 }
 
 function onParamChange(key){
@@ -868,7 +874,11 @@ function loop(now){
   const dt=(now-lastT)/1000; lastT=now; acc+=dt;
   if (sim.playing){ if (acc>=0.016){ acc=0; tNow += 0.02; updateCilia(tNow); } }
   if (sim.renderer) sim.renderer.render(sim.scene, sim.camera);
-  const statsEl = byId('stats'); if (statsEl){ statsEl.textContent = `cells: ${sim.total}  ciliated: ${sim.isCiliated? sim.isCiliated.filter(Boolean).length : 0}`; }
+  const statsEl = byId('stats'); if (statsEl){
+    const nowMs = performance.now();
+    if (sim.statusMessage && nowMs < sim.statusUntil){ statsEl.textContent = sim.statusMessage; }
+    else { statsEl.textContent = `cells: ${sim.total}  ciliated: ${sim.isCiliated? sim.isCiliated.filter(Boolean).length : 0}`; }
+  }
 }
 
 // ===== boot =====
@@ -944,6 +954,8 @@ function redrawKappaEditor(){
   ctx.fillStyle='#8ab4f8'; const radius=6;
   for (let i=0;i<cps.length;i++){ const p=xyFromSV(cps[i].s,cps[i].v); ctx.beginPath(); ctx.arc(p.x,p.y,radius,0,Math.PI*2); ctx.fill(); }
 }
+
+// (OBJ exporter removed)
 </script>
 </body>
 </html>
