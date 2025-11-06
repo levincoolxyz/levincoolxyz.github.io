@@ -1127,6 +1127,9 @@ function step(dt){
   const fz = Number(params.focalZ) || h;
   for (let p=0;p<sim.tracers.length;p++){
     const t = sim.tracers[p];
+    const trailCap = Math.max(0, Math.floor(params.trail||0));
+    const recordTrail = trailCap > 0;
+    if (!recordTrail && Array.isArray(sim.trails) && Array.isArray(sim.trails[p])){ sim.trails[p].length = 0; }
     const ox = t.x, oy = t.y, oz = t.z; // previous position before integrating
     let vx = 0, vy = 0, vz = 0;
     if (N>0){
@@ -1178,7 +1181,7 @@ function step(dt){
         let pushNow = true;
         // find last finite point (skip sentinel)
         for (let k=tr.length-1; k>=0; k--){ const lp=tr[k]; if (lp && isFinite(lp.x) && isFinite(lp.y)){ const dx=t.x-lp.x, dy=t.y-lp.y; if (dx*dx+dy*dy < minW2) pushNow=false; break; } }
-        if (pushNow){ tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > params.trail) tr.shift(); }
+        if (recordTrail){ tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > trailCap) tr.shift(); }
         continue;
       }
       // Only non-adhered beads reach this point → apply defocus respawn if needed
@@ -1190,7 +1193,7 @@ function step(dt){
         t.vx = t.vy = t.vz = 0; t.ivx = t.ivy = 0; t.stuck = false;
         t.t0 = sim.time || 0; t.age = 0; t.sumX = 0; t.sumY = 0; t.pathLen = 0;
         if (sim.trails && sim.trails[p]) sim.trails[p] = [];
-        const tr = sim.trails[p]; tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > params.trail) tr.shift();
+        const tr = sim.trails[p]; if (recordTrail){ tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > trailCap) tr.shift(); }
         continue;
       }
     }
@@ -1209,12 +1212,12 @@ function step(dt){
     t.ivx = dxw / dt; t.ivy = dyw / dt;
     t.age += dt;
     const tr = sim.trails[p];
-    if (didWrap) { tr.push({x:NaN, y:NaN}); }
+    if (recordTrail && didWrap) { tr.push({x:NaN, y:NaN}); }
     // Decimate: only append if moved at least ~0.75 px
     const minPix = 0.75, s = Math.max(1e-6, sim.scale); const minW = minPix/s; const minW2 = minW*minW;
     let pushNow = true;
     for (let k=tr.length-1; k>=0; k--){ const lp=tr[k]; if (lp && isFinite(lp.x) && isFinite(lp.y)){ const dx=t.x-lp.x, dy=t.y-lp.y; if (dx*dx+dy*dy < minW2) pushNow=false; break; } }
-    if (pushNow){ tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > params.trail) tr.shift(); }
+    if (recordTrail && pushNow){ tr.push({x:t.x, y:t.y, z:t.z}); if (tr.length > trailCap) tr.shift(); }
   }
 }
 
@@ -1970,7 +1973,7 @@ const human_ap= [13.45,11.04,13.58,10.93333333];
 const human_oop=[0.82,0.87,0.96];
 const human_cop=[0.755255328,0.596899225,0.927536232,0.699680511,0.820220936];
 const human_lam=[26.89,25.80,31.30,24.80,36.33333333].map(x=>x/L0);
-const human_ccov = avg([91.56, 85.15])/100; // coverage for BG0-1 and BG2-6
+const human_ccov = [91.56, 85.15].map(x=>x/100); // coverage for BG0-1 and BG2-6
 
 const rat_h = [6.383];
 const rat_ap= [8.89, 7.99, 6.45, 6.05, 6.9, 6.5];
@@ -2050,7 +2053,17 @@ function applyPreset(name){
 
   // helper to set from dataset
   function coverageFor(preset){
-    if (preset.startsWith('human_')) return human_ccov;
+    // Human: support array or scalar definitions of coverage
+    if (preset.startsWith('human_')){
+      const hcov = typeof human_ccov !== 'undefined' ? human_ccov : params.coverage;
+      if (Array.isArray(hcov)){
+        const vals = hcov.map(v => (v > 1 ? v/100 : v));
+        if (preset.endsWith('_max')) return Math.max.apply(null, vals);
+        if (preset.endsWith('_min')) return Math.min.apply(null, vals);
+        return vals.reduce((a,b)=>a+b,0)/vals.length; // '_avg' or default
+      }
+      return hcov; // already a scalar fraction
+    }
     if (preset.startsWith('rat_')) return rat_ccov;
     if (preset.startsWith('bd_')) return bd_ccov;
     if (preset.startsWith('mair_')) return mair_ccov;
