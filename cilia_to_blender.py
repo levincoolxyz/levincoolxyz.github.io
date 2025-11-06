@@ -23,6 +23,7 @@ import json
 import math
 import random
 from math import sin, cos, pi
+from bpy.app.handlers import persistent
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, FloatProperty, IntProperty, BoolProperty
 from bpy.types import Operator
@@ -321,12 +322,21 @@ class CiliaSet:
                 crv.dimensions = '3D'
                 crv.resolution_u = 1
                 crv.bevel_depth = float(bevel_depth)
+                try:
+                    crv.use_fill_caps = True
+                except Exception:
+                    pass
                 spl = crv.splines.new('POLY')
                 spl.points.add(nseg - 1)
                 for j in range(nseg):
                     spl.points[j].co = (0.0, 0.0, 0.0, 1.0)
                 obj = bpy.data.objects.new(crv.name, crv)
                 bpy.context.scene.collection.objects.link(obj)
+                # assign rough cilia material
+                try:
+                    _assign_cilia_material(obj)
+                except Exception:
+                    pass
                 # per-cilium constants
                 consts = dict(
                     L=float(self.ciliaLen[cell]) if cell < len(self.ciliaLen) else 1.0,
@@ -339,6 +349,22 @@ class CiliaSet:
                     dang=float(sd.get('dang', 0.0)), wj=float(sd.get('wj', 0.0)),
                 )
                 self.cilia.append(dict(spline=spl, consts=consts))
+                # persist per-cilium constants for reload
+                try:
+                    for k,v in consts.items():
+                        obj["cc_"+k] = float(v)
+                except Exception:
+                    pass
+        # persist global params for reload
+        try:
+            sc = bpy.context.scene
+            sc["cc_nseg"] = int(self.nseg)
+            sc["cc_k0"] = float(self.k0)
+            sc["cc_aK"] = float(self.aK)
+            sc["cc_waveNoise"] = float(self.waveNoise)
+            sc["cc_cps_json"] = json.dumps(self.cps)
+        except Exception:
+            pass
 
     def update(self, t):
         nseg = self.nseg
@@ -410,6 +436,21 @@ class CC_OT_ImportCurves(Operator, ImportHelper):
         description="Import all seeded cilia (do not gate by area fraction)",
         default=False,
     )
+    build_cell_volumes: BoolProperty(
+        name="Build Cell Volumes",
+        description="Import Voronoi cell volumes if polygons are present in JSON",
+        default=True,
+    )
+    volume_depth: FloatProperty(
+        name="Volume Depth (×L0)",
+        description="Extrude polygons downward by this depth",
+        default=1.2, min=0.0, soft_max=5.0,
+    )
+    jitter_amp: FloatProperty(
+        name="Bottom XY Jitter",
+        description="Small random jitter applied to bottom polygon",
+        default=0.08, min=0.0, soft_max=0.5,
+    )
     fps_override: IntProperty(
         name="FPS Override",
         description="Set animation FPS (0 = use scene FPS)",
@@ -435,6 +476,18 @@ class CC_OT_ImportCurves(Operator, ImportHelper):
             t = sc.frame_current / float(fps)
             cs.update(t)
             self.report({'INFO'}, f"Imported {len(cs.cilia)} cilia curves from '{os.path.basename(self.filepath)}'. Animation handler installed.")
+            # volumes: prefer precomputed rings from JSON, else fallback to polys
+            try:
+                grid = data.get('grid') or {}
+                vols = data.get('volumes') or {}
+                rings_by_cell = vols.get('rings')
+                isCil = grid.get('isCiliated')
+                if self.build_cell_volumes and rings_by_cell:
+                    _build_cell_volumes_from_rings(rings_by_cell, is_ciliated=isCil)
+                elif self.build_cell_volumes and grid.get('polys'):
+                    _build_cell_volumes(grid.get('polys'), depth=float(self.volume_depth), jitter=float(self.jitter_amp), is_ciliated=isCil)
+            except Exception as e:
+                self.report({'WARNING'}, f"Cell volumes skipped: {e}")
         except Exception as e:
             self.report({'ERROR'}, f"Import failed: {e}")
             return {'CANCELLED'}
@@ -449,6 +502,17 @@ def menu_func_import(self, context):
 def register():
     bpy.utils.register_class(CC_OT_ImportCurves)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
+    # install persistent handlers
+    try:
+        if cc_frame_handler not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(cc_frame_handler)
+    except Exception:
+        pass
+    try:
+        if cc_load_post not in bpy.app.handlers.load_post:
+            bpy.app.handlers.load_post.append(cc_load_post)
+    except Exception:
+        pass
 
 
 def unregister():
@@ -460,7 +524,244 @@ def unregister():
         bpy.utils.unregister_class(CC_OT_ImportCurves)
     except Exception:
         pass
+    try:
+        bpy.app.handlers.frame_change_post.remove(cc_frame_handler)
+    except Exception:
+        pass
+    try:
+        bpy.app.handlers.load_post.remove(cc_load_post)
+    except Exception:
+        pass
 
+
+# ===== Materials, volumes, and persistent handlers =====
+
+def _get_or_make_material(name, make_fn):
+    mat = bpy.data.materials.get(name)
+    if mat is None:
+        mat = bpy.data.materials.new(name)
+        try:
+            mat.use_nodes = True
+            # clear
+            nt = mat.node_tree
+            for n in list(nt.nodes):
+                nt.nodes.remove(n)
+            make_fn(mat)
+        except Exception:
+            pass
+    return mat
+
+def _assign_cilia_material(obj):
+    def _build(mat):
+        nt = mat.node_tree
+        out = nt.nodes.new('ShaderNodeOutputMaterial')
+        bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
+        bsdf.inputs['Base Color'].default_value = (0.8, 0.8, 0.82, 1.0)
+        bsdf.inputs['Roughness'].default_value = 0.9
+        bsdf.inputs['Specular'].default_value = 0.1
+        nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+    mat = _get_or_make_material('CiliaMaterial', _build)
+    try:
+        if len(obj.data.materials) == 0:
+            obj.data.materials.append(mat)
+        else:
+            obj.data.materials[0] = mat
+    except Exception:
+        pass
+
+def _assign_volume_material(obj, ciliated=False):
+    def _build_cil(mat):
+        nt = mat.node_tree
+        out = nt.nodes.new('ShaderNodeOutputMaterial')
+        bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
+        bsdf.inputs['Base Color'].default_value = (0.2, 0.6, 0.9, 0.35)
+        bsdf.inputs['Roughness'].default_value = 0.7
+        bsdf.inputs['Specular'].default_value = 0.1
+        nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+        try:
+            mat.blend_method = 'BLEND'
+            mat.shadow_method = 'NONE'
+        except Exception:
+            pass
+    def _build_gray(mat):
+        nt = mat.node_tree
+        out = nt.nodes.new('ShaderNodeOutputMaterial')
+        bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
+        bsdf.inputs['Base Color'].default_value = (0.6, 0.6, 0.6, 0.25)
+        bsdf.inputs['Roughness'].default_value = 0.8
+        bsdf.inputs['Specular'].default_value = 0.05
+        nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+        try:
+            mat.blend_method = 'BLEND'
+            mat.shadow_method = 'NONE'
+        except Exception:
+            pass
+    mat = _get_or_make_material('CellVolumeMaterialCiliated' if ciliated else 'CellVolumeMaterialGray', _build_cil if ciliated else _build_gray)
+    try:
+        if len(obj.data.materials) == 0:
+            obj.data.materials.append(mat)
+        else:
+            obj.data.materials[0] = mat
+    except Exception:
+        pass
+
+def _build_cell_volumes(polys, depth=1.2, jitter=0.02, is_ciliated=None):
+    import bmesh
+    for i, poly in enumerate(polys or []):
+        if not poly or len(poly) < 3:
+            continue
+        top = [(float(p[0]), float(p[1]), 0.0) for p in poly]
+        bot = []
+        for p in poly:
+            jx = (random.random()*2.0 - 1.0) * float(jitter)
+            jy = (random.random()*2.0 - 1.0) * float(jitter)
+            bot.append((float(p[0]) + jx, float(p[1]) + jy, -float(depth)))
+        me = bpy.data.meshes.new(f"CellVol_{i}")
+        bm = bmesh.new()
+        vtop = [bm.verts.new(co) for co in top]
+        vbot = [bm.verts.new(co) for co in bot]
+        bm.verts.ensure_lookup_table()
+        n = len(poly)
+        # sides
+        for k in range(n):
+            a=vtop[k]; b=vtop[(k+1)%n]; c=vbot[(k+1)%n]; d=vbot[k]
+            try:
+                bm.faces.new([a,b,c,d])
+            except Exception:
+                pass
+        # caps
+        try:
+            bm.faces.new(vtop)
+        except Exception:
+            pass
+        try:
+            bm.faces.new(list(reversed(vbot)))
+        except Exception:
+            pass
+        bm.normal_update()
+        bm.to_mesh(me)
+        bm.free()
+        obj = bpy.data.objects.new(me.name, me)
+        bpy.context.scene.collection.objects.link(obj)
+        cil = False
+        try:
+            if isinstance(is_ciliated, list) and i < len(is_ciliated):
+                cil = bool(is_ciliated[i])
+        except Exception:
+            cil = False
+        _assign_volume_material(obj, ciliated=cil)
+
+def _build_cell_volumes_from_rings(rings_by_cell, is_ciliated=None):
+    import bpy
+    import array
+    for i, rings in enumerate(rings_by_cell or []):
+        if not rings or any(r is None or len(r)<3 for r in rings):
+            continue
+        ringN = len(rings[0])
+        slices = len(rings) - 1
+        totalV = (slices+1)*ringN + 2
+        pos = array.array('f', [0.0]*(totalV*3))
+        v = 0
+        for s in range(slices+1):
+            for j in range(ringN):
+                P = rings[s][j]
+                pos[v] = float(P[0]); pos[v+1] = float(P[1]); pos[v+2] = float(P[2]); v += 3
+        topCenterIdx = (slices+1)*ringN
+        botCenterIdx = topCenterIdx + 1
+        cxTop = sum(p[0] for p in rings[0]) / ringN
+        cyTop = sum(p[1] for p in rings[0]) / ringN
+        cxBot = sum(p[0] for p in rings[slices]) / ringN
+        cyBot = sum(p[1] for p in rings[slices]) / ringN
+        pos[v] = cxTop; pos[v+1] = cyTop; pos[v+2] = float(rings[0][0][2]); v += 3
+        pos[v] = cxBot; pos[v+1] = cyBot; pos[v+2] = float(rings[slices][0][2])
+
+        sideCount = slices*ringN*6
+        capCount = ringN*3*2
+        import array as _arr
+        idx = _arr.array('I', [0]*(sideCount+capCount))
+        t = 0
+        for s in range(slices):
+            for j in range(ringN):
+                a = s*ringN + j
+                b = s*ringN + ((j+1)%ringN)
+                c = (s+1)*ringN + ((j+1)%ringN)
+                d = (s+1)*ringN + j
+                idx[t]=a; idx[t+1]=b; idx[t+2]=c; idx[t+3]=a; idx[t+4]=c; idx[t+5]=d; t+=6
+        for j in range(ringN):
+            idx[t]=topCenterIdx; idx[t+1]=j; idx[t+2]=(j+1)%ringN; t+=3
+        base = slices*ringN
+        for j in range(ringN):
+            idx[t]=botCenterIdx; idx[t+1]=base+((j+1)%ringN); idx[t+2]=base+j; t+=3
+
+        me = bpy.data.meshes.new(f"CellVol_{i}")
+        me.from_pydata([(pos[k], pos[k+1], pos[k+2]) for k in range(0,len(pos),3)], [], [(idx[k], idx[k+1], idx[k+2]) for k in range(0,len(idx),3)])
+        me.update()
+        obj = bpy.data.objects.new(me.name, me)
+        bpy.context.scene.collection.objects.link(obj)
+        cil = False
+        try:
+            if isinstance(is_ciliated, list) and i < len(is_ciliated):
+                cil = bool(is_ciliated[i])
+        except Exception:
+            cil = False
+        _assign_volume_material(obj, ciliated=cil)
+
+# Persistent animation across file reloads
+_g_cs = None
+
+def _rebuild_from_scene(scene):
+    try:
+        nseg = int(scene.get('cc_nseg', 0))
+        k0 = float(scene.get('cc_k0', 0.0))
+        aK = float(scene.get('cc_aK', 0.0))
+        waveNoise = float(scene.get('cc_waveNoise', 0.0))
+        cps = None
+        if 'cc_cps_json' in scene:
+            try:
+                cps = json.loads(scene['cc_cps_json'])
+            except Exception:
+                cps = None
+        if nseg < 2:
+            return None
+        data = {'nSeg': nseg, 'params': {'k0': k0, 'aK': aK, 'waveNoise': waveNoise, 'profile': {'cps': cps or [{'s':0,'v':0.2},{'s':1,'v':1.0}]}}}
+        cs = CiliaSet(data)
+        cs.cilia = []
+        for obj in bpy.data.objects:
+            if obj.type == 'CURVE' and obj.name.startswith(NAME_PREFIX):
+                if not obj.data.splines:
+                    continue
+                spl = obj.data.splines[0]
+                consts = {}
+                for k in ['L','A','f','ang','base','sd_x','sd_y','dphi','damp','dang','wj']:
+                    consts[k] = float(obj.get('cc_'+k, 0.0))
+                cs.cilia.append({'spline': spl, 'consts': consts})
+        return cs
+    except Exception:
+        return None
+
+@persistent
+def cc_frame_handler(scene):
+    global _g_cs
+    if _g_cs is None:
+        _g_cs = _rebuild_from_scene(scene)
+        if _g_cs is None:
+            return
+    try:
+        fps = scene.get('cc_fps', scene.render.fps)
+        t = scene.frame_current / float(fps if fps else scene.render.fps)
+        _g_cs.update(t)
+    except Exception:
+        pass
+
+@persistent
+def cc_load_post(dummy):
+    try:
+        if cc_frame_handler not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(cc_frame_handler)
+    except Exception:
+        pass
+    global _g_cs
+    _g_cs = None
 
 if __name__ == "__main__":
     register()

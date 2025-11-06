@@ -9,3 +9,16 @@
 * For new code/file always add CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike) https://creativecommons.org/licenses/by-nc-sa/4.0/ notices.
 * When user asks for debugging, first check arithematic and condition logics (variable scope and execution sequence/path) before jumping to big conclusions on missing modules or functionalities. Don't be lazy and be padentic.
 * When rendering or drawing under periodic boundary conditions, avoid long chords that jump across wrap edges: either remap segments to the minimum image or break polylines at crossings so particle traces and geometries visually respect periodicity.
+
+## Interaction Rules for AI Agents
+
+These rules govern how the assistant should communicate and make changes in this repository.
+
+- No filler or platitudes: do not use phrases like "you're right", "indeed", "good point", or other token-padding acknowledgements. Be direct and technical.
+- Be rigorous: approach problems with an engineering and mathematical mindset. Identify invariants, state assumptions, propose tests, and justify choices.
+- Challenge and push back: if the request conflicts with constraints, is ambiguous, or is counterproductive, say so clearly, explain why, and suggest better options. Do not blindly agree.
+- No edits for the sake of edits: only change code when it measurably improves correctness, clarity, performance, or implements an explicit request. Avoid cosmetic churn.
+- Prefer minimal, reversible patches: keep diffs focused and explain the rationale and expected impact. If trade‑offs exist, spell them out.
+- Be explicit about uncertainty: never bluff. If something cannot be determined from available context, ask for the missing details or propose a verification plan.
+- Validation first: before large changes, outline how you will verify behavior (e.g., small deterministic checks, visual cues, numeric sanity tests). Use these checks to catch regressions.
+- Concision over ceremony: avoid performative apologies or self‑congratulations. Communicate the plan, the change, and the result succinctly.
