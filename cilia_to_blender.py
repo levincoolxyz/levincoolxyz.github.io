@@ -554,13 +554,110 @@ def _get_or_make_material(name, make_fn):
 def _assign_cilia_material(obj):
     def _build(mat):
         nt = mat.node_tree
+        # Output node
         out = nt.nodes.new('ShaderNodeOutputMaterial')
-        bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
-        bsdf.inputs['Base Color'].default_value = (0.8, 0.8, 0.82, 1.0)
-        bsdf.inputs['Roughness'].default_value = 0.9
-        bsdf.inputs['Specular'].default_value = 0.1
-        nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
-    mat = _get_or_make_material('CiliaMaterial', _build)
+        # Principled Hair BSDF
+        hair = nt.nodes.new('ShaderNodeBsdfHairPrincipled')
+        # Try to set model/coloring as requested: Chiang + Direct coloring
+        try:
+            # Hair model selection (Chiang)
+            if hasattr(hair, 'hair_model'):
+                hair.hair_model = 'CHIANG'
+            elif hasattr(hair, 'model'):
+                hair.model = 'CHIANG'
+        except Exception:
+            pass
+        try:
+            # Direct coloring (color parameterization)
+            if hasattr(hair, 'parametrization'):
+                # COLOR = Direct; alternatives include MELANIN/ABSORPTION depending on Blender version
+                hair.parametrization = 'COLOR'
+            elif hasattr(hair, 'coloring'):  # older/alt naming
+                hair.coloring = 'DIRECT'
+        except Exception:
+            pass
+
+        # Color: #DDDDDDDD (RGBA)
+        try:
+            hair.inputs['Color'].default_value = (221/255.0, 221/255.0, 221/255.0, 221/255.0)
+        except Exception:
+            pass
+
+        # Set scalar parameters
+        def _set_input(name, value):
+            try:
+                if name in hair.inputs:
+                    hair.inputs[name].default_value = float(value)
+            except Exception:
+                pass
+
+        _set_input('Roughness', 0.7)
+        _set_input('Radial Roughness', 0.8)
+        _set_input('Coat', 0.2)
+        _set_input('IOR', 1.2)
+        _set_input('Offset', 0.07)
+
+        # Random Roughness driven by 3D White Noise on Geometry Normal, scaled by 0.5
+        try:
+            wn = nt.nodes.new('ShaderNodeTexWhiteNoise')
+            # Prefer 3D white noise if supported
+            try:
+                wn.noise_dimensions = '3D'
+            except Exception:
+                pass
+            geom = nt.nodes.new('ShaderNodeNewGeometry')
+            mul = nt.nodes.new('ShaderNodeMath')
+            mul.operation = 'MULTIPLY'
+            mul.inputs[1].default_value = 0.5  # random roughness amplitude
+
+            # Link: Geometry.Normal -> WhiteNoise.Vector -> Math(*0.5) -> Hair.Random Roughness
+            try:
+                nt.links.new(geom.outputs['Normal'], wn.inputs['Vector'])
+            except Exception:
+                pass
+            try:
+                nt.links.new(wn.outputs['Fac'], mul.inputs[0])
+            except Exception:
+                pass
+
+            # Connect to the best-matching randomness input available
+            linked = False
+            for key in ('Random Roughness', 'Random', 'Randomness'):
+                try:
+                    if key in hair.inputs:
+                        nt.links.new(mul.outputs[0], hair.inputs[key])
+                        linked = True
+                        break
+                except Exception:
+                    pass
+            # If no link target, at least set a default Random Roughness value
+            if not linked:
+                _set_input('Random Roughness', 0.5)
+        except Exception:
+            # Fall back: just set a default random roughness value
+            _set_input('Random Roughness', 0.5)
+
+        # Connect BSDF to output
+        try:
+            nt.links.new(hair.outputs['BSDF'], out.inputs['Surface'])
+        except Exception:
+            pass
+
+    # Ensure material exists; rebuild if needed to apply new node tree
+    mat = bpy.data.materials.get('CiliaMaterial')
+    if mat is None:
+        mat = _get_or_make_material('CiliaMaterial', _build)
+    else:
+        try:
+            mat.use_nodes = True
+            nt = mat.node_tree
+            # Always rebuild to reflect latest spec
+            for n in list(nt.nodes):
+                nt.nodes.remove(n)
+            _build(mat)
+        except Exception:
+            pass
+
     try:
         if len(obj.data.materials) == 0:
             obj.data.materials.append(mat)

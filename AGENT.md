@@ -14,6 +14,7 @@
 
 These rules govern how the assistant should communicate and make changes in this repository.
 
+- !!!!!!!If you see any technical difficulty or unclear on my instructions, please first plan and ask before generating code!!!!!!!!!!
 - No filler or platitudes: do not use phrases like "you're right", "indeed", "good point", or other token-padding acknowledgements. Be direct and technical.
 - Be rigorous: approach problems with an engineering and mathematical mindset. Identify invariants, state assumptions, propose tests, and justify choices.
 - Challenge and push back: if the request conflicts with constraints, is ambiguous, or is counterproductive, say so clearly, explain why, and suggest better options. Do not blindly agree.
