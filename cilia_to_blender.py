@@ -18,6 +18,17 @@ Notes:
   - Re-running replaces existing imported curves.
 """
 
+# Blender add-on metadata to allow installing and enabling this script
+bl_info = {
+    "name": "Cilia Curves Importer + Animator",
+    "author": "Project Authors",
+    "version": (0, 2, 0),
+    "blender": (4, 5, 0),
+    "location": "File > Import > Ciliary Curves (JSON)",
+    "description": "Import cilia curves from JSON and animate via persistent handlers; optional 3D cell volumes",
+    "category": "Import-Export",
+}
+
 import bpy
 import json
 import math
@@ -25,12 +36,21 @@ import random
 from math import sin, cos, pi
 from bpy.app.handlers import persistent
 from bpy_extras.io_utils import ImportHelper
-from bpy.props import StringProperty, FloatProperty, IntProperty, BoolProperty
+from bpy.props import StringProperty, FloatProperty, IntProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
 
 
 NAME_PREFIX = "Cilium"
 DEFAULT_BEVEL = 0.01  # ×L0 units; adjust to taste
+
+# ===== Scutoid generation parameters (edit as needed) =====
+SCUTOID_SLICES = 3           # number of z-slices between top and bottom
+SCUTOID_DRIFT_ALPHA = 0.3    # fraction of typical spacing for drift magnitude
+SCUTOID_DRIFT_STYLE = 'RANDOM'  # 'SWIRL' or 'RANDOM'
+SCUTOID_K_NEIGHBORS = 12     # k-NN for Voronoi clipping (performance vs. fidelity)
+SCUTOID_RANDOM_SEED = 1      # seed for reproducibility (used in RANDOM style)
+SCUTOID_EPS = 1e-7           # geometric tolerance
+SCUTOID_JUNCTION_T = 0.5     # fixed junction height fraction in [0,1]
 
 
 def _realf(x, default=0.0):
@@ -56,6 +76,29 @@ def _randn():
     while v == 0.0:
         v = random.random()
     return (-(2.0 * math.log(u)) ** 0.5) * math.cos(2.0 * math.pi * v)
+
+
+def _load_json_with_fallback(path):
+    encodings = ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252')
+    last_err = None
+    for enc in encodings:
+        try:
+            with open(path, 'r', encoding=enc) as f:
+                txt = f.read()
+            # Replace non-breaking spaces and similar non-JSON whitespace
+            txt = txt.replace('\u00a0', ' ').replace('\xa0', ' ')
+            return json.loads(txt)
+        except Exception as e:
+            last_err = e
+            continue
+    # Final attempt: binary read with utf-8 ignoring errors
+    try:
+        with open(path, 'rb') as f:
+            raw = f.read()
+        txt = raw.decode('utf-8', errors='ignore').replace('\u00a0', ' ').replace('\xa0', ' ')
+        return json.loads(txt)
+    except Exception as e:
+        raise last_err or e
 
 
 def _wave_phase_at(x, y, xSize, ySize, wAmp, wAng):
@@ -396,25 +439,25 @@ _HANDLER_NAME = "cc_frame_handler"
 
 
 def _install_handler(cs: CiliaSet, fps_override=None):
-    fps = fps_override or bpy.context.scene.render.fps
-
-    def _update(scene):
-        t = scene.frame_current / float(fps)
-        cs.update(t)
-
-    # remove existing
-    to_del = []
-    for h in bpy.app.handlers.frame_change_post:
-        if getattr(h, "__name__", "") == _HANDLER_NAME:
-            to_del.append(h)
-    for h in to_del:
-        bpy.app.handlers.frame_change_post.remove(h)
-
-    def wrapper(scene):
-        return _update(scene)
-
-    wrapper.__name__ = _HANDLER_NAME
-    bpy.app.handlers.frame_change_post.append(wrapper)
+    # Set global CiliaSet so the persistent cc_frame_handler can drive it
+    global _g_cs
+    _g_cs = cs
+    # Persist FPS override into scene for reopen
+    try:
+        sc = bpy.context.scene
+        if fps_override and int(fps_override) > 0:
+            sc["cc_fps"] = int(fps_override)
+        else:
+            if "cc_fps" in sc:
+                del sc["cc_fps"]
+    except Exception:
+        pass
+    # Ensure the persistent handler is installed (avoid ephemeral wrappers)
+    try:
+        if cc_frame_handler not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(cc_frame_handler)
+    except Exception:
+        pass
 
 
 class CC_OT_ImportCurves(Operator, ImportHelper):
@@ -441,6 +484,16 @@ class CC_OT_ImportCurves(Operator, ImportHelper):
         description="Import Voronoi cell volumes if polygons are present in JSON",
         default=True,
     )
+    volume_method: EnumProperty(
+        name="Volume Method",
+        description="How to generate cell volumes",
+        items=(
+            ('SCUTOID', "SCUTOID (Layered Voronoi)", "Layered Voronoi stitching for true scutoids"),
+            ('FRACTURE', "Cell Fracture (Centers)", "Use Cell Fracture add-on with grid centers"),
+            ('JSON', "JSON Voronoi (Polys/Rings)", "Use polygons/rings from JSON if present"),
+        ),
+        default='SCUTOID',
+    )
     volume_depth: FloatProperty(
         name="Volume Depth (×L0)",
         description="Extrude polygons downward by this depth",
@@ -459,8 +512,7 @@ class CC_OT_ImportCurves(Operator, ImportHelper):
 
     def execute(self, context):
         try:
-            with open(self.filepath, 'r') as f:
-                data = json.load(f)
+            data = _load_json_with_fallback(self.filepath)
         except Exception as e:
             self.report({'ERROR'}, f"Failed to read JSON: {e}")
             return {'CANCELLED'}
@@ -476,16 +528,32 @@ class CC_OT_ImportCurves(Operator, ImportHelper):
             t = sc.frame_current / float(fps)
             cs.update(t)
             self.report({'INFO'}, f"Imported {len(cs.cilia)} cilia curves from '{os.path.basename(self.filepath)}'. Animation handler installed.")
-            # volumes: prefer precomputed rings from JSON, else fallback to polys
+            # volumes: either Cell Fracture from centers or JSON polys/rings
             try:
                 grid = data.get('grid') or {}
-                vols = data.get('volumes') or {}
-                rings_by_cell = vols.get('rings')
                 isCil = grid.get('isCiliated')
-                if self.build_cell_volumes and rings_by_cell:
-                    _build_cell_volumes_from_rings(rings_by_cell, is_ciliated=isCil)
-                elif self.build_cell_volumes and grid.get('polys'):
-                    _build_cell_volumes(grid.get('polys'), depth=float(self.volume_depth), jitter=float(self.jitter_amp), is_ciliated=isCil)
+                if self.build_cell_volumes:
+                    if self.volume_method == 'SCUTOID':
+                        _build_cell_volumes_scutoid_from_centers(
+                            cs.cx, cs.cy, cs.xSize, cs.ySize,
+                            depth=float(self.volume_depth),
+                            is_ciliated=isCil,
+                            collection_name="CellVolumes"
+                        )
+                    elif self.volume_method == 'FRACTURE':
+                        _build_cell_volumes_fracture_from_centers(
+                            cs.cx, cs.cy, cs.xSize, cs.ySize,
+                            depth=float(self.volume_depth),
+                            is_ciliated=isCil,
+                            collection_name="CellVolumes"
+                        )
+                    else:
+                        vols = data.get('volumes') or {}
+                        rings_by_cell = vols.get('rings')
+                        if rings_by_cell:
+                            _build_cell_volumes_from_rings(rings_by_cell, is_ciliated=isCil)
+                        elif grid.get('polys'):
+                            _build_cell_volumes(grid.get('polys'), depth=float(self.volume_depth), jitter=float(self.jitter_amp), is_ciliated=isCil)
             except Exception as e:
                 self.report({'WARNING'}, f"Cell volumes skipped: {e}")
         except Exception as e:
@@ -495,12 +563,134 @@ class CC_OT_ImportCurves(Operator, ImportHelper):
         return {'FINISHED'}
 
 
+class CC_OT_BakeCurves(Operator):
+    bl_idname = "cc.bake_curves_to_shapekeys"
+    bl_label = "Bake Cilia Curves to Shape Keys"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    frame_start: IntProperty(name="Start Frame", default=1, min=0)
+    frame_end: IntProperty(name="End Frame", default=250, min=1)
+    step: IntProperty(name="Step", default=1, min=1)
+    clear_existing: BoolProperty(name="Clear Existing Keys", default=True)
+    constant_interp: BoolProperty(name="Constant Interp", default=True, description="Use constant interpolation between baked keys")
+
+    def execute(self, context):
+        sc = bpy.context.scene
+        fs = int(self.frame_start)
+        fe = int(self.frame_end)
+        st = int(self.step)
+        if fe < fs:
+            fs, fe = fe, fs
+        fps = sc.get('cc_fps', sc.render.fps)
+
+        # Build or reuse CiliaSet from scene
+        cs = _rebuild_from_scene(sc)
+        if cs is None:
+            self.report({'ERROR'}, "Cannot rebuild animation state from scene.")
+            return {'CANCELLED'}
+
+        # Collect target curve objects
+        targets = [obj for obj in bpy.data.objects if (obj.type=='CURVE' and obj.name.startswith(NAME_PREFIX))]
+        if not targets:
+            self.report({'ERROR'}, "No cilia curves found to bake.")
+            return {'CANCELLED'}
+
+        # Optionally clear existing non-basis shape keys
+        for obj in targets:
+            try:
+                sk = obj.data.shape_keys
+                if sk and self.clear_existing:
+                    # remove all except Basis
+                    for kb in list(sk.key_blocks)[1:]:
+                        obj.shape_key_remove(kb)
+            except Exception:
+                pass
+
+        # Ensure Basis exists for all
+        for obj in targets:
+            try:
+                if not obj.data.shape_keys:
+                    obj.shape_key_add(name="Basis", from_mix=False)
+            except Exception:
+                pass
+
+        # Helper to flatten points order
+        def flatten_points(obj):
+            pts = []
+            for spl in obj.data.splines:
+                if spl.type == 'POLY':
+                    for p in spl.points:
+                        pts.append(p.co.copy())
+                elif spl.type == 'BEZIER':
+                    for bp in spl.bezier_points:
+                        pts.append((bp.co.x, bp.co.y, bp.co.z, 1.0))
+                else:
+                    for p in spl.points:
+                        pts.append(p.co.copy())
+            return pts
+
+        # Bake frames
+        for f in range(fs, fe+1, st):
+            t = f / float(fps if fps else 24)
+            cs.update(t)
+            sc.frame_set(f)
+            for obj in targets:
+                # Create new key and copy coordinates
+                key_name = f"F{f:04d}"
+                try:
+                    kb = obj.shape_key_add(name=key_name, from_mix=False)
+                except Exception:
+                    # ensure shapekeys exist
+                    if not obj.data.shape_keys:
+                        obj.shape_key_add(name="Basis", from_mix=False)
+                    kb = obj.shape_key_add(name=key_name, from_mix=False)
+                pts = flatten_points(obj)
+                try:
+                    data = kb.data
+                    if len(data) != len(pts):
+                        # Fallback: skip if topology changed
+                        continue
+                    for i in range(len(pts)):
+                        data[i].co = pts[i]
+                except Exception:
+                    continue
+                # Keyframe the key's value
+                try:
+                    kb.value = 1.0
+                    kb.keyframe_insert(data_path="value", frame=f)
+                    # Zero other keys at this frame
+                    for other in obj.data.shape_keys.key_blocks:
+                        if other.name != key_name and other.name != 'Basis':
+                            other.value = 0.0
+                            other.keyframe_insert(data_path="value", frame=f)
+                except Exception:
+                    pass
+
+        # Set interpolation to CONSTANT if requested
+        if self.constant_interp:
+            for obj in targets:
+                try:
+                    ad = obj.data.shape_keys.animation_data
+                    if not ad or not ad.action:
+                        continue
+                    for fc in ad.action.fcurves:
+                        if fc.data_path.endswith('value'):
+                            for kp in fc.keyframe_points:
+                                kp.interpolation = 'CONSTANT'
+                except Exception:
+                    pass
+
+        self.report({'INFO'}, f"Baked {len(targets)} curves from frame {fs} to {fe} (step {st}).")
+        return {'FINISHED'}
+
+
 def menu_func_import(self, context):
     self.layout.operator(CC_OT_ImportCurves.bl_idname, text="Ciliary Curves (JSON)")
 
 
 def register():
     bpy.utils.register_class(CC_OT_ImportCurves)
+    bpy.utils.register_class(CC_OT_BakeCurves)
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     # install persistent handlers
     try:
@@ -522,6 +712,10 @@ def unregister():
         pass
     try:
         bpy.utils.unregister_class(CC_OT_ImportCurves)
+    except Exception:
+        pass
+    try:
+        bpy.utils.unregister_class(CC_OT_BakeCurves)
     except Exception:
         pass
     try:
@@ -748,6 +942,249 @@ def _build_cell_volumes(polys, depth=1.2, jitter=0.02, is_ciliated=None):
             cil = False
         _assign_volume_material(obj, ciliated=cil)
 
+def _build_cell_volumes_fracture_from_centers(cx, cy, xSize, ySize, depth=1.2, is_ciliated=None, collection_name="CellVolumes"):
+    import bpy
+    import bmesh
+    # Ensure arrays
+    try:
+        cx = list(cx or [])
+        cy = list(cy or [])
+    except Exception:
+        return
+    n = min(len(cx), len(cy))
+    if n <= 0:
+        return
+    # Domain guard
+    try:
+        xSize = float(xSize)
+        ySize = float(ySize)
+    except Exception:
+        return
+    if xSize <= 0.0 or ySize <= 0.0:
+        return
+
+    # Enable add-on if available
+    try:
+        bpy.ops.preferences.addon_enable(module="object_fracture_cell")
+    except Exception:
+        pass
+
+    # Create top plane centered domain [-xSize/2..xSize/2] x [-ySize/2..ySize/2] and extrude down by depth
+    me = bpy.data.meshes.new("CellSlab")
+    bm = bmesh.new()
+    hx = float(xSize) * 0.5
+    hy = float(ySize) * 0.5
+    v0 = bm.verts.new((-hx, -hy, 0.0))
+    v1 = bm.verts.new(( hx, -hy, 0.0))
+    v2 = bm.verts.new(( hx,  hy, 0.0))
+    v3 = bm.verts.new((-hx,  hy, 0.0))
+    bm.faces.new([v0, v1, v2, v3])
+    bm.verts.ensure_lookup_table()
+    # Extrude face region and translate downwards in -Z
+    res = bmesh.ops.extrude_face_region(bm, geom=bm.faces[:])
+    verts_ex = [e for e in res.get('geom', []) if isinstance(e, bmesh.types.BMVert)]
+    try:
+        bmesh.ops.translate(bm, verts=verts_ex, vec=(0.0, 0.0, -float(depth)))
+    except Exception:
+        # fallback to small depth if value bad
+        bmesh.ops.translate(bm, verts=verts_ex, vec=(0.0, 0.0, -1.0))
+    bm.normal_update()
+    bm.to_mesh(me)
+    bm.free()
+    slab = bpy.data.objects.new("CellSlab", me)
+    bpy.context.scene.collection.objects.link(slab)
+
+    # Create seed mesh object with a vertex at each (cx, cy, 0)
+    seeds_me = bpy.data.meshes.new("CellSeeds")
+    bm2 = bmesh.new()
+    for i in range(n):
+        try:
+            bm2.verts.new((float(cx[i]), float(cy[i]), 0.0))
+        except Exception:
+            pass
+    bm2.verts.ensure_lookup_table()
+    bm2.to_mesh(seeds_me)
+    bm2.free()
+    seeds_obj = bpy.data.objects.new("CellSeeds", seeds_me)
+    bpy.context.scene.collection.objects.link(seeds_obj)
+    try:
+        seeds_obj.parent = slab
+    except Exception:
+        pass
+
+    # Select slab and make it active
+    try:
+        bpy.ops.object.mode_set(mode='OBJECT')
+    except Exception:
+        pass
+    for o in list(bpy.context.selected_objects or []):
+        try:
+            o.select_set(False)
+        except Exception:
+            pass
+    try:
+        slab.select_set(True)
+        bpy.context.view_layer.objects.active = slab
+    except Exception:
+        pass
+
+    # Track objects before fracture
+    before = set(bpy.data.objects)
+
+    # Try cell fracture operator variants
+    ok = False
+    last_err = None
+    try:
+        bpy.ops.object.add_fracture_cell_objects(
+            source={'VERT_CHILD'},
+            source_limit=n,
+            source_noise=0,
+            cell_scale=(1, 1, 1),
+            recursion=0,
+            recursion_source_limit=8,
+            recursion_clamp=250,
+            recursion_chance=0.25,
+            recursion_chance_select='SIZE_MIN',
+            use_smooth_faces=False,
+            use_sharp_edges=True,
+            use_sharp_edges_apply=True,
+            use_data_match=True,
+            use_island_split=True,
+            margin=0.001,
+            material_index=0,
+            use_interior_vgroup=False,
+            mass_mode='VOLUME',
+            mass=1,
+            use_recenter=True,
+            use_remove_original=True,
+            collection_name=collection_name,
+            use_debug_points=False,
+            use_debug_redraw=True,
+            use_debug_bool=False,
+        )
+        ok = True
+    except Exception as e:
+        last_err = e
+        try:
+            bpy.ops.object.cell_fracture_operator(
+                source='VERT_CHILD',
+                source_limit=n,
+                noise=0,
+                cell_scale=(1, 1, 1),
+                recursion=0,
+                recursion_source_limit=8,
+                recursion_clamp=250,
+                recursion_chance=0.25,
+                use_smooth_faces=False,
+                use_sharp_edges=True,
+                use_sharp_edges_apply=True,
+                use_data_match=True,
+                use_island_split=True,
+                margin=0.001,
+                material_index=0,
+                use_interior_vgroup=False,
+                mass_mode='VOLUME',
+                mass=1,
+                use_recenter=True,
+                use_remove_original=True,
+                collection_name=collection_name,
+                debug_points=False,
+                debug_redraw=True,
+                debug_bool=False,
+            )
+            ok = True
+        except Exception as e2:
+            last_err = e2
+
+    # Collect shards
+    shards = []
+    try:
+        coll = bpy.data.collections.get(collection_name)
+        if coll is not None:
+            shards = list(coll.objects)
+    except Exception:
+        shards = []
+    if not shards:
+        shards = [o for o in bpy.data.objects if o not in before]
+
+    # Remove seeds object; and ensure slab is removed
+    try:
+        bpy.data.objects.remove(seeds_obj, do_unlink=True)
+    except Exception:
+        try:
+            seeds_obj.hide_set(True)
+        except Exception:
+            pass
+    # Attempt to remove slab in case operator kept it
+    try:
+        if slab and slab.name in bpy.data.objects:
+            bpy.data.objects.remove(slab, do_unlink=True)
+    except Exception:
+        try:
+            slab.hide_set(True)
+        except Exception:
+            pass
+
+    # Build KDTree for fast mapping
+    kd = None
+    try:
+        from mathutils.kdtree import KDTree
+        kd = KDTree(n)
+        for i in range(n):
+            kd.insert((float(cx[i]), float(cy[i]), 0.0), i)
+        kd.balance()
+    except Exception:
+        kd = None
+
+    # Map each shard to nearest center and assign material + name
+    for obj in shards:
+        try:
+            if obj.type != 'MESH':
+                continue
+            me = obj.data
+            mx = obj.matrix_world
+            maxz = None
+            for v in me.vertices:
+                z = (mx @ v.co).z
+                if maxz is None or z > maxz:
+                    maxz = z
+            if maxz is None:
+                continue
+            eps = max(1e-5, abs(float(depth)) * 1e-5)
+            accx = 0.0; accy = 0.0; cnt = 0
+            for v in me.vertices:
+                co = mx @ v.co
+                if co.z >= maxz - eps:
+                    accx += co.x; accy += co.y; cnt += 1
+            if cnt > 0:
+                cxy = (accx / cnt, accy / cnt)
+            else:
+                cxy = (mx.translation.x, mx.translation.y)
+            if kd is not None:
+                _, idx, _ = kd.find((cxy[0], cxy[1], 0.0))
+                ci = int(idx)
+            else:
+                best = None; bi = 0
+                for i in range(n):
+                    d = (float(cx[i]) - cxy[0])**2 + (float(cy[i]) - cxy[1])**2
+                    if best is None or d < best:
+                        best = d; bi = i
+                ci = int(bi)
+            obj["cc_cell_index"] = ci
+            try:
+                obj.name = f"CellVol_{ci}"
+            except Exception:
+                pass
+            cil = False
+            try:
+                if isinstance(is_ciliated, list) and ci < len(is_ciliated):
+                    cil = bool(is_ciliated[ci])
+            except Exception:
+                cil = False
+            _assign_volume_material(obj, ciliated=cil)
+        except Exception:
+            continue
+
 def _build_cell_volumes_from_rings(rings_by_cell, is_ciliated=None):
     import bpy
     import array
@@ -795,6 +1232,589 @@ def _build_cell_volumes_from_rings(rings_by_cell, is_ciliated=None):
         me.update()
         obj = bpy.data.objects.new(me.name, me)
         bpy.context.scene.collection.objects.link(obj)
+        cil = False
+        try:
+            if isinstance(is_ciliated, list) and i < len(is_ciliated):
+                cil = bool(is_ciliated[i])
+        except Exception:
+            cil = False
+        _assign_volume_material(obj, ciliated=cil)
+
+def _build_cell_volumes_scutoid_from_centers(cx, cy, xSize, ySize, depth=1.2, is_ciliated=None, collection_name="CellVolumes"):
+    import bpy
+    from mathutils.kdtree import KDTree
+
+    # Sanitize inputs
+    try:
+        cx = [float(v) for v in (cx or [])]
+        cy = [float(v) for v in (cy or [])]
+        n = min(len(cx), len(cy))
+    except Exception:
+        return
+    if n <= 0:
+        return
+    try:
+        xSize = float(xSize); ySize = float(ySize); depth = float(depth)
+    except Exception:
+        return
+    if xSize <= 0.0 or ySize <= 0.0 or depth <= 0.0:
+        return
+
+    # Parameters
+    S = int(max(2, SCUTOID_SLICES))
+    eps = float(SCUTOID_EPS)
+    kNN = int(max(4, SCUTOID_K_NEIGHBORS))
+    random.seed(int(SCUTOID_RANDOM_SEED))
+
+    hx, hy = xSize*0.5, ySize*0.5
+    domain_rect = [(-hx, -hy), (hx, -hy), (hx, hy), (-hx, hy)]
+
+    # Typical spacing
+    area = xSize * ySize
+    spacing = math.sqrt(area / float(n))
+    amp = float(SCUTOID_DRIFT_ALPHA) * spacing
+
+    # Drift field
+    drift = []
+    if str(SCUTOID_DRIFT_STYLE).upper().startswith('RAND'):
+        for i in range(n):
+            ang = random.random() * 2.0 * math.pi
+            drift.append((amp*math.cos(ang), amp*math.sin(ang)))
+    else:
+        # SWIRL: perpendicular to (x, y)
+        for i in range(n):
+            x, y = cx[i], cy[i]
+            nx, ny = -y, x
+            l = math.hypot(nx, ny)
+            if l < 1e-12:
+                nx, ny, l = 1.0, 0.0, 1.0
+            drift.append((amp*nx/l, amp*ny/l))
+
+    # Helper: Sutherland–Hodgman clip polygon by half-plane n·x <= c
+    def clip_halfplane(poly, nxy, c):
+        if not poly:
+            return []
+        a, b = nxy
+        out = []
+        prev = poly[-1]
+        pv = prev[0]*a + prev[1]*b - c
+        for cur in poly:
+            cv = cur[0]*a + cur[1]*b - c
+            if cv <= eps:
+                if pv > eps:
+                    # entering: add intersection
+                    denom = ( (cur[0]-prev[0])*a + (cur[1]-prev[1])*b )
+                    t = 0.0 if abs(denom) < 1e-20 else (c - (prev[0]*a + prev[1]*b)) / denom
+                    ip = (prev[0] + t*(cur[0]-prev[0]), prev[1] + t*(cur[1]-prev[1]))
+                    out.append(ip)
+                out.append(cur)
+            elif pv <= eps:
+                # exiting: add intersection
+                denom = ( (cur[0]-prev[0])*a + (cur[1]-prev[1])*b )
+                t = 0.0 if abs(denom) < 1e-20 else (c - (prev[0]*a + prev[1]*b)) / denom
+                ip = (prev[0] + t*(cur[0]-prev[0]), prev[1] + t*(cur[1]-prev[1]))
+                out.append(ip)
+            prev, pv = cur, cv
+        return out
+
+    # Helper: build Voronoi polygon for site i at slice positions
+    def voronoi_polygon(i, pts):
+        poly = list(domain_rect)
+        pi = pts[i]
+        # Neighbors by distance
+        dists = [ ( (pts[j][0]-pi[0])**2 + (pts[j][1]-pi[1])**2, j ) for j in range(len(pts)) if j != i ]
+        dists.sort(key=lambda x: x[0])
+        for _, j in dists[:kNN]:
+            pj = pts[j]
+            nx, ny = (pj[0]-pi[0]), (pj[1]-pi[1])
+            c = (pj[0]*pj[0] + pj[1]*pj[1] - pi[0]*pi[0] - pi[1]*pi[1]) * 0.5
+            ln = math.hypot(nx, ny)
+            if ln < eps:
+                continue
+            poly = clip_halfplane(poly, (nx, ny), c)
+            if not poly:
+                break
+        return poly
+
+    # Helper: segment of polygon lying on line n·x = c (if any)
+    def segment_on_line(poly, nxy, c):
+        if not poly:
+            return None
+        a, b = nxy
+        ln = math.hypot(a, b)
+        if ln < eps:
+            return None
+        an, bn = a/ln, b/ln
+        # Tangent unit vector
+        tx, ty = -bn, an
+        # Base point x0 on the line
+        x0 = (an*c/ln, bn*c/ln)
+        def ucoord(P):
+            return (P[0]-x0[0])*tx + (P[1]-x0[1])*ty
+        # Collect intersections and collinear points
+        us = []
+        m = len(poly)
+        for k in range(m):
+            P = poly[k]
+            Q = poly[(k+1)%m]
+            vP = P[0]*a + P[1]*b - c
+            vQ = Q[0]*a + Q[1]*b - c
+            if abs(vP) <= eps and abs(vQ) <= eps:
+                # entire edge collinear, add both
+                us.append(ucoord(P)); us.append(ucoord(Q))
+            elif vP*vQ < -eps*eps:
+                # proper crossing
+                denom = ( (Q[0]-P[0])*a + (Q[1]-P[1])*b )
+                t = 0.0 if abs(denom) < 1e-20 else (c - (P[0]*a + P[1]*b)) / denom
+                I = (P[0] + t*(Q[0]-P[0]), P[1] + t*(Q[1]-P[1]))
+                us.append(ucoord(I))
+        if len(us) < 2:
+            return None
+        umin, umax = min(us), max(us)
+        if (umax - umin) < eps:
+            return None
+        # Reconstruct endpoints
+        P0 = (x0[0] + umin*tx, x0[1] + umin*ty)
+        P1 = (x0[0] + umax*tx, x0[1] + umax*ty)
+        return (P0, P1)
+
+    # Build slice site positions
+    slices_pts = []
+    for s in range(S):
+        t = 0.0 if S <= 1 else (s / float(S-1))
+        pts = [ (cx[i] + t*drift[i][0], cy[i] + t*drift[i][1]) for i in range(n) ]
+        slices_pts.append(pts)
+
+    # Compute polygons per slice
+    polys = []  # list of list-of-polygons per slice
+    for s in range(S):
+        pts = slices_pts[s]
+        polys_s = []
+        for i in range(n):
+            polys_s.append(voronoi_polygon(i, pts))
+        polys.append(polys_s)
+
+    # Precompute pair segments E_ij^s and boundary segments B_i^s
+    # Boundaries: x=-hx, x=hx, y=-hy, y=hy denoted by keys: ('BXMIN'),('BXMAX'),('BYMIN'),('BYMAX')
+    segs_pair = [{} for _ in range(S)]  # per slice: dict with key (min(i,j), max(i,j)) -> (Pi,Pj)
+    segs_bound = [{} for _ in range(S)]  # per slice: dict with key i -> list of (key, seg)
+
+    # Boundary lines as (n, c): x = -hx => n=(1,0), c=-hx; x = hx => n=(1,0), c=hx; y lines similar.
+    bounds = [
+        ('BXMIN', (1.0, 0.0), -hx),
+        ('BXMAX', (1.0, 0.0),  hx),
+        ('BYMIN', (0.0, 1.0), -hy),
+        ('BYMAX', (0.0, 1.0),  hy),
+    ]
+
+    for s in range(S):
+        pts = slices_pts[s]
+        for i in range(n):
+            pi = polys[s][i]
+            if not pi:
+                continue
+            # Boundary segments
+            blist = []
+            for bkey, nxy, c in bounds:
+                seg = segment_on_line(pi, nxy, c)
+                if seg is not None:
+                    blist.append((bkey, seg))
+            if blist:
+                segs_bound[s][i] = blist
+        # Pairwise segments (use kNN of slice)
+        for i in range(n):
+            pi = polys[s][i]
+            if not pi:
+                continue
+            # neighbor candidates
+            di = [ ( (pts[j][0]-pts[i][0])**2 + (pts[j][1]-pts[i][1])**2, j ) for j in range(n) if j != i ]
+            di.sort(key=lambda x: x[0])
+            for _, j in di[:kNN]:
+                if j <= i:
+                    key = (j, i)
+                else:
+                    key = (i, j)
+                if key in segs_pair[s]:
+                    continue
+                pj = polys[s][j]
+                if not pj:
+                    continue
+                nx, ny = (pts[j][0]-pts[i][0]), (pts[j][1]-pts[i][1])
+                c = (pts[j][0]*pts[j][0] + pts[j][1]*pts[j][1] - pts[i][0]*pts[i][0] - pts[i][1]*pts[i][1]) * 0.5
+                seg_i = segment_on_line(pi, (nx, ny), c)
+                seg_j = segment_on_line(pj, (nx, ny), c)
+                if (seg_i is None) or (seg_j is None):
+                    continue
+                # Convert to u-intervals and take overlap
+                ln = math.hypot(nx, ny)
+                an, bn = nx/ln, ny/ln
+                tx, ty = -bn, an
+                x0 = (an*c/ln, bn*c/ln)
+                def u_of(P):
+                    return (P[0]-x0[0])*tx + (P[1]-x0[1])*ty
+                a0, a1 = u_of(seg_i[0]), u_of(seg_i[1])
+                if a1 < a0: a0, a1 = a1, a0
+                b0, b1 = u_of(seg_j[0]), u_of(seg_j[1])
+                if b1 < b0: b0, b1 = b1, b0
+                u0, u1 = max(a0, b0), min(a1, b1)
+                if (u1 - u0) <= eps:
+                    continue
+                # Reconstruct overlap segment
+                P0 = (x0[0] + u0*tx, x0[1] + u0*ty)
+                P1 = (x0[0] + u1*tx, x0[1] + u1*ty)
+                segs_pair[s][key] = (P0, P1)
+
+    # Build meshes per cell
+    coll = bpy.data.collections.get(collection_name)
+    if coll is None:
+        coll = bpy.data.collections.new(collection_name)
+        bpy.context.scene.collection.children.link(coll)
+
+    def add_mesh(name, verts, faces):
+        me = bpy.data.meshes.new(name)
+        me.from_pydata(verts, [], faces)
+        me.update()
+        ob = bpy.data.objects.new(name, me)
+        coll.objects.link(ob)
+        return ob
+
+    # Precompute cap vertices for top and bottom per cell
+    top_verts2d = [polys[0][i] or [] for i in range(n)]
+    bot_verts2d = [polys[-1][i] or [] for i in range(n)]
+
+    for i in range(n):
+        # Skip empty cells
+        if not top_verts2d[i] and not bot_verts2d[i]:
+            continue
+        verts = []
+        faces = []
+        # Top cap (z=0)
+        tv = top_verts2d[i]
+        top_idx0 = len(verts)
+        for P in tv:
+            verts.append((P[0], P[1], 0.0))
+        if len(tv) >= 3:
+            for k in range(1, len(tv)-1):
+                faces.append((top_idx0, top_idx0+k, top_idx0+k+1))
+        # Bottom cap (z=-depth)
+        bv = bot_verts2d[i]
+        bot_idx0 = len(verts)
+        for P in bv:
+            verts.append((P[0], P[1], -depth))
+        if len(bv) >= 3:
+            for k in range(1, len(bv)-1):
+                # reverse winding so normals face outward
+                faces.append((bot_idx0, bot_idx0+k+1, bot_idx0+k))
+
+        # Lateral faces. For S==2, use fixed junction height; else fall back to layered stitching
+        def make_quad(p0, p1, q1, q0):
+            a = len(verts); verts.append((p0[0], p0[1], z_top))
+            b = len(verts); verts.append((p1[0], p1[1], z_top))
+            c = len(verts); verts.append((q1[0], q1[1], z_bot))
+            d = len(verts); verts.append((q0[0], q0[1], z_bot))
+            faces.append((a, b, c))
+            faces.append((a, c, d))
+
+        if S == 2:
+            t0 = max(0.0, min(1.0, float(SCUTOID_JUNCTION_T)))
+            z_top, z_bot = 0.0, -depth
+
+            # Seed positions at fixed junction height
+            pts_t = [ (cx[k] + t0*drift[k][0], cy[k] + t0*drift[k][1]) for k in range(n) ]
+
+            def bisector_coeff(iA, iB):
+                ax, ay = pts_t[iA]; bx, by = pts_t[iB]
+                nx, ny = (bx-ax), (by-ay)
+                c = 0.5*((bx*bx + by*by) - (ax*ax + ay*ay))
+                return nx, ny, c
+
+            def intersect_lin(n1x, n1y, c1, n2x, n2y, c2):
+                det = n1x*n2y - n1y*n2x
+                if abs(det) < 1e-12:
+                    return None
+                x = ( c1*n2y - n1y*c2) / det
+                y = (-c1*n2x + n1x*c2) / det
+                return (x, y)
+
+            def intersect_bisectors(iA, iB, iC):
+                n1x, n1y, c1 = bisector_coeff(iA, iB)
+                n2x, n2y, c2 = bisector_coeff(iA, iC)
+                return intersect_lin(n1x, n1y, c1, n2x, n2y, c2)
+
+            def intersect_bisector_boundary(iA, iB, bkey):
+                n1x, n1y, c1 = bisector_coeff(iA, iB)
+                if bkey == 'BXMIN':
+                    x = -hx
+                    if abs(n1y) < 1e-12: return None
+                    y = (c1 - n1x*x) / n1y
+                    return (x, y)
+                if bkey == 'BXMAX':
+                    x =  hx
+                    if abs(n1y) < 1e-12: return None
+                    y = (c1 - n1x*x) / n1y
+                    return (x, y)
+                if bkey == 'BYMIN':
+                    y = -hy
+                    if abs(n1x) < 1e-12: return None
+                    x = (c1 - n1y*y) / n1x
+                    return (x, y)
+                if bkey == 'BYMAX':
+                    y =  hy
+                    if abs(n1x) < 1e-12: return None
+                    x = (c1 - n1y*y) / n1x
+                    return (x, y)
+                return None
+
+            def dist2_point_seg(P, seg):
+                (x1,y1),(x2,y2) = seg
+                vx, vy = x2-x1, y2-y1
+                wx, wy = P[0]-x1, P[1]-y1
+                vv = vx*vx + vy*vy
+                if vv < 1e-20:
+                    return wx*wx + wy*wy
+                t = (wx*vx + wy*vy) / vv
+                t = 0.0 if t < 0.0 else (1.0 if t > 1.0 else t)
+                px, py = x1 + t*vx, y1 + t*vy
+                dx, dy = P[0]-px, P[1]-py
+                return dx*dx + dy*dy
+
+            def pick_target_segment_bottom(i_local, M, segs_pair_bot_i, segs_bound_bot_i):
+                best = (None, None, None, 1e30)  # (kind, id_or_key, seg, d2)
+                for j2, seg in segs_pair_bot_i.items():
+                    d2 = dist2_point_seg(M, seg)
+                    if d2 < best[3]:
+                        best = ('PAIR', j2, seg, d2)
+                for (bk, seg) in segs_bound_bot_i:
+                    d2 = dist2_point_seg(M, seg)
+                    if d2 < best[3]:
+                        best = ('BOUND', bk, seg, d2)
+                return best[0], best[1], best[2]
+
+            def pick_target_segment_top(i_local, M, segs_pair_top_i, segs_bound_top_i):
+                best = (None, None, None, 1e30)
+                for j2, seg in segs_pair_top_i.items():
+                    d2 = dist2_point_seg(M, seg)
+                    if d2 < best[3]:
+                        best = ('PAIR', j2, seg, d2)
+                for (bk, seg) in segs_bound_top_i:
+                    d2 = dist2_point_seg(M, seg)
+                    if d2 < best[3]:
+                        best = ('BOUND', bk, seg, d2)
+                return best[0], best[1], best[2]
+
+            # Build maps for quick lookup of segments for cell i
+            segs_pair_top_i = {}
+            for (a,b), seg in segs_pair[0].items():
+                if a == i:
+                    segs_pair_top_i[b] = seg
+                elif b == i:
+                    segs_pair_top_i[a] = seg
+            segs_pair_bot_i = {}
+            for (a,b), seg in segs_pair[-1].items():
+                if a == i:
+                    segs_pair_bot_i[b] = seg
+                elif b == i:
+                    segs_pair_bot_i[a] = seg
+            segs_bound_top_i = segs_bound[0].get(i, [])
+            segs_bound_bot_i = segs_bound[-1].get(i, [])
+
+            # Union of neighbors
+            neighs = set(segs_pair_top_i.keys()) | set(segs_pair_bot_i.keys())
+
+            # Handle pair edges
+            for j in neighs:
+                seg_top = segs_pair_top_i.get(j)
+                seg_bot = segs_pair_bot_i.get(j)
+                if (seg_top is not None) and (seg_bot is not None):
+                    p0, p1 = seg_top
+                    q0, q1 = seg_bot
+                    make_quad(p0, p1, q1, q0)
+                elif seg_top is not None:
+                    # Disappears: connect top edge to interior Y and to a bottom target segment
+                    p0, p1 = seg_top
+                    mid = ((p0[0]+p1[0])*0.5, (p0[1]+p1[1])*0.5)
+                    kind, idk, segB = pick_target_segment_bottom(i, mid, segs_pair_bot_i, segs_bound_bot_i)
+                    if segB is None:
+                        # fallback: collapse to nearest bottom vertex
+                        bv = bot_verts2d[i]
+                        if bv:
+                            v = min(bv, key=lambda P: (P[0]-mid[0])**2 + (P[1]-mid[1])**2)
+                            a = len(verts); verts.append((p0[0], p0[1], z_top))
+                            b = len(verts); verts.append((p1[0], p1[1], z_top))
+                            c = len(verts); verts.append((v[0],  v[1],  z_bot))
+                            faces.append((a, b, c))
+                        continue
+                    # Compute junction point Py at t0
+                    if kind == 'PAIR':
+                        Py = intersect_bisectors(i, j, idk)
+                    else:
+                        Py = intersect_bisector_boundary(i, j, idk)
+                    if Py is None:
+                        Py = mid
+                    # Top triangles to Py
+                    a = len(verts); verts.append((p0[0], p0[1], z_top))
+                    b = len(verts); verts.append((p1[0], p1[1], z_top))
+                    c = len(verts); verts.append((Py[0], Py[1], z_top + t0*(z_bot - z_top)))
+                    faces.append((a, b, c))
+                    # Bottom triangles from Py to target segment
+                    q0, q1 = segB
+                    d = len(verts); verts.append((Py[0], Py[1], z_top + t0*(z_bot - z_top)))
+                    e = len(verts); verts.append((q1[0], q1[1], z_bot))
+                    f = len(verts); verts.append((q0[0], q0[1], z_bot))
+                    faces.append((d, e, f))
+                else:
+                    # Appears: connect bottom edge to interior Y and to a top target segment
+                    q0, q1 = seg_bot
+                    mid = ((q0[0]+q1[0])*0.5, (q0[1]+q1[1])*0.5)
+                    kind, idk, segT = pick_target_segment_top(i, mid, segs_pair_top_i, segs_bound_top_i)
+                    if segT is None:
+                        tv = top_verts2d[i]
+                        if tv:
+                            v = min(tv, key=lambda P: (P[0]-mid[0])**2 + (P[1]-mid[1])**2)
+                            a = len(verts); verts.append((v[0], v[1], z_top))
+                            b = len(verts); verts.append((q1[0], q1[1], z_bot))
+                            c = len(verts); verts.append((q0[0], q0[1], z_bot))
+                            faces.append((a, b, c))
+                        continue
+                    if kind == 'PAIR':
+                        Py = intersect_bisectors(i, j, idk)
+                    else:
+                        Py = intersect_bisector_boundary(i, j, idk)
+                    if Py is None:
+                        Py = mid
+                    # Top triangles from target segment to Py
+                    p0, p1 = segT
+                    a = len(verts); verts.append((p0[0], p0[1], z_top))
+                    b = len(verts); verts.append((p1[0], p1[1], z_top))
+                    c = len(verts); verts.append((Py[0], Py[1], z_top + t0*(z_bot - z_top)))
+                    faces.append((a, b, c))
+                    # Bottom triangles from bottom edge to Py
+                    d = len(verts); verts.append((q0[0], q0[1], z_bot))
+                    e = len(verts); verts.append((q1[0], q1[1], z_bot))
+                    f = len(verts); verts.append((Py[0], Py[1], z_top + t0*(z_bot - z_top)))
+                    faces.append((d, e, f))
+
+            # Boundary edges: analogous handling
+            map_top = {k:seg for (k,seg) in (segs_bound_top_i or [])}
+            map_bot = {k:seg for (k,seg) in (segs_bound_bot_i or [])}
+            bkeys = set(map_top.keys()) | set(map_bot.keys())
+            for bk in bkeys:
+                seg_top = map_top.get(bk)
+                seg_bot = map_bot.get(bk)
+                if (seg_top is not None) and (seg_bot is not None):
+                    p0, p1 = seg_top; q0, q1 = seg_bot
+                    make_quad(p0, p1, q1, q0)
+                elif seg_top is not None:
+                    # Boundary disappears: connect to nearest bottom pair segment
+                    p0, p1 = seg_top
+                    mid = ((p0[0]+p1[0])*0.5, (p0[1]+p1[1])*0.5)
+                    kind, idk, segB = pick_target_segment_bottom(i, mid, segs_pair_bot_i, [])
+                    if segB is None:
+                        continue
+                    Py = intersect_bisector_boundary(i, idk, bk) if kind=='PAIR' else mid
+                    a = len(verts); verts.append((p0[0], p0[1], z_top))
+                    b = len(verts); verts.append((p1[0], p1[1], z_top))
+                    c = len(verts); verts.append((Py[0], Py[1], z_top + t0*(z_bot - z_top)))
+                    faces.append((a, b, c))
+                    q0b, q1b = segB
+                    d = len(verts); verts.append((Py[0], Py[1], z_top + t0*(z_bot - z_top)))
+                    e = len(verts); verts.append((q1b[0], q1b[1], z_bot))
+                    f = len(verts); verts.append((q0b[0], q0b[1], z_bot))
+                    faces.append((d, e, f))
+                elif seg_bot is not None:
+                    # Boundary appears: connect from nearest top pair segment
+                    q0, q1 = seg_bot
+                    mid = ((q0[0]+q1[0])*0.5, (q0[1]+q1[1])*0.5)
+                    kind, idk, segT = pick_target_segment_top(i, mid, segs_pair_top_i, [])
+                    if segT is None:
+                        continue
+                    Py = intersect_bisector_boundary(i, idk, bk) if kind=='PAIR' else mid
+                    p0t, p1t = segT
+                    a = len(verts); verts.append((p0t[0], p0t[1], z_top))
+                    b = len(verts); verts.append((p1t[0], p1t[1], z_top))
+                    c = len(verts); verts.append((Py[0], Py[1], z_top + t0*(z_bot - z_top)))
+                    faces.append((a, b, c))
+                    d = len(verts); verts.append((q0[0], q0[1], z_bot))
+                    e = len(verts); verts.append((q1[0], q1[1], z_bot))
+                    f = len(verts); verts.append((Py[0], Py[1], z_top + t0*(z_bot - z_top)))
+                    faces.append((d, e, f))
+        else:
+            for s in range(S-1):
+                z_top = 0.0 if S<=1 else -(s / float(S-1)) * depth
+                z_bot = 0.0 if S<=1 else -((s+1) / float(S-1)) * depth
+                # Pair edges
+                for j in range(n):
+                    if j == i: continue
+                    key = (i, j) if i < j else (j, i)
+                    seg_top = segs_pair[s].get(key)
+                    seg_bot = segs_pair[s+1].get(key)
+                    if (seg_top is None) and (seg_bot is None):
+                        continue
+                    if (seg_top is not None) and (seg_bot is not None):
+                        p0, p1 = seg_top
+                        q0, q1 = seg_bot
+                        make_quad(p0, p1, q1, q0)
+                    elif seg_top is not None:
+                        # Edge disappears; connect to nearest bottom vertex
+                        p0, p1 = seg_top
+                        bv = bot_verts2d[i]
+                        if not bv:
+                            continue
+                        # nearest to mid point
+                        mid = ((p0[0]+p1[0])*0.5, (p0[1]+p1[1])*0.5)
+                        v = min(bv, key=lambda P: (P[0]-mid[0])**2 + (P[1]-mid[1])**2)
+                        a = len(verts); verts.append((p0[0], p0[1], z_top))
+                        b = len(verts); verts.append((p1[0], p1[1], z_top))
+                        c = len(verts); verts.append((v[0],  v[1],  z_bot))
+                        faces.append((a, b, c))
+                    else:
+                        # Edge appears; connect from top nearest vertex
+                        q0, q1 = seg_bot
+                        tv = top_verts2d[i]
+                        if not tv:
+                            continue
+                        mid = ((q0[0]+q1[0])*0.5, (q0[1]+q1[1])*0.5)
+                        v = min(tv, key=lambda P: (P[0]-mid[0])**2 + (P[1]-mid[1])**2)
+                        a = len(verts); verts.append((v[0], v[1], z_top))
+                        b = len(verts); verts.append((q1[0], q1[1], z_bot))
+                        c = len(verts); verts.append((q0[0], q0[1], z_bot))
+                        faces.append((a, b, c))
+                # Boundary edges
+                bl_top = segs_bound[s].get(i) or []
+                bl_bot = segs_bound[s+1].get(i) or []
+                # Map by boundary key
+                map_top = {k:seg for (k,seg) in bl_top}
+                map_bot = {k:seg for (k,seg) in bl_bot}
+                keys = set(map_top.keys()) | set(map_bot.keys())
+                for k in keys:
+                    seg_top = map_top.get(k)
+                    seg_bot = map_bot.get(k)
+                    if (seg_top is not None) and (seg_bot is not None):
+                        p0, p1 = seg_top; q0, q1 = seg_bot
+                        make_quad(p0, p1, q1, q0)
+                    elif seg_top is not None:
+                        p0, p1 = seg_top
+                        bv = bot_verts2d[i]
+                        if not bv: continue
+                        mid = ((p0[0]+p1[0])*0.5, (p0[1]+p1[1])*0.5)
+                        v = min(bv, key=lambda P: (P[0]-mid[0])**2 + (P[1]-mid[1])**2)
+                        a = len(verts); verts.append((p0[0], p0[1], z_top))
+                        b = len(verts); verts.append((p1[0], p1[1], z_top))
+                        c = len(verts); verts.append((v[0],  v[1],  z_bot))
+                        faces.append((a, b, c))
+                    elif seg_bot is not None:
+                        q0, q1 = seg_bot
+                        tv = top_verts2d[i]
+                        if not tv: continue
+                        mid = ((q0[0]+q1[0])*0.5, (q0[1]+q1[1])*0.5)
+                        v = min(tv, key=lambda P: (P[0]-mid[0])**2 + (P[1]-mid[1])**2)
+                        a = len(verts); verts.append((v[0], v[1], z_top))
+                        b = len(verts); verts.append((q1[0], q1[1], z_bot))
+                        c = len(verts); verts.append((q0[0], q0[1], z_bot))
+                        faces.append((a, b, c))
+
+        # Create object and assign material
+        obj = add_mesh(f"CellVol_{i}", verts, faces)
         cil = False
         try:
             if isinstance(is_ciliated, list) and i < len(is_ciliated):
