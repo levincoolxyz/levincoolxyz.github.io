@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Media Record</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Noto+Emoji&display=swap"
+  />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      --bg: #f7f4ed;
+      --card-bg: #ffffff;
+      --accent: #1976d2;
+      --accent-soft: #e3f2fd;
+      --danger: #e53935;
+      --border: #ddd;
+      --text-muted: #666;
+      --tube-full: #c8e6c9;
+      --tube-selected: #fff3cd;
+      --tube-empty: #f5f5f5;
+      --radius-lg: 16px;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: #222;
+    }
+
+    .app-shell {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header .back-btn {
+      margin-right: 8px;
+      font-size: 22px;
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+
+    header .back-btn:active {
+      background: #eee;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    main {
+      flex: 1;
+      padding: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+      margin-bottom: 16px;
+      position: relative;
+      border-left: 4px solid transparent;
+    }
+
+    .card.status-valid {
+      border-left-color: #43a047;
+    }
+
+    .card.status-expired {
+      border-left-color: #e53935;
+    }
+
+    .card.status-used {
+      border-left-color: #757575;
+    }
+
+    .card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    .status-pill.dot::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    .status-valid {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .status-valid.dot::before {
+      background: #2e7d32;
+    }
+
+    .status-expired {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .status-expired.dot::before {
+      background: #c62828;
+    }
+
+    .status-used {
+      background: #eeeeee;
+      color: #424242;
+    }
+    .status-used.dot::before {
+      background: #424242;
+    }
+
+    .medium-tag {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #eeeeee;
+      margin-left: 8px;
+    }
+
+    .batch-tag {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e3f2fd;
+      margin-left: 8px;
+    }
+
+    .status-right {
+      text-align: right;
+    }
+
+    .days-left {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .days-left span {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: block;
+      line-height: 1.1;
+    }
+
+    .expired-big {
+      color: #e53935;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .expired-small {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    .row {
+      font-size: 13px;
+      margin-top: 2px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+    }
+
+    .row-icon {
+      font-size: 16px;
+      margin-right: 8px;
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+        "Noto Emoji", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+
+    .tube-icons {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .tube-icon {
+      font-size: 12px;
+      padding: 4px 6px;
+      margin-right: 6px;
+      margin-top: 4px;
+      border-radius: 999px;
+      background: #e0e0e0;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .tube-icon::before {
+      content: "🧪";
+      font-size: 14px;
+      margin-right: 4px;
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+        "Noto Emoji", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+
+    .tube-icon.done {
+      background: #c8e6c9;
+    }
+
+    .tube-icon.used {
+      background: #eeeeee;
+      color: #757575;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .btn-icon {
+      border: none;
+      background: none;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 999px;
+      font-size: 18px;
+    }
+
+    .btn-icon.danger {
+      color: var(--danger);
+    }
+
+    .btn-icon:active {
+      background: #eee;
+    }
+
+    .fab {
+      position: fixed;
+      right: calc(50% - 240px + 16px);
+      bottom: 24px;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        font-size: 15px;
+      }
+
+      .row,
+      .label-row,
+      .supp-row,
+      .slider-row {
+        font-size: 14px;
+      }
+
+      .btn {
+        font-size: 17px;
+      }
+
+      .tube-cell {
+        font-size: 14px;
+      }
+
+      .status-pill,
+      .medium-tag,
+      .batch-tag {
+        font-size: 13px;
+      }
+
+      .fab {
+        right: 16px;
+      }
+    }
+
+    /* Edit view */
+
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .label-row {
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #333;
+    }
+
+    input[type="date"],
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+
+    .slider-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .supp-card {
+      border-radius: var(--radius-lg);
+      background: #fafafa;
+      border: 1px solid #eee;
+      padding: 10px 12px;
+    }
+
+    .supp-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .supp-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin: 2px 0;
+    }
+
+    .supp-row span:last-child {
+      font-weight: 500;
+    }
+
+    .supp-total {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed #ddd;
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .tube-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .tube-cell {
+      border-radius: 14px;
+      padding: 12px 6px;
+      text-align: center;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      min-height: 60px;
+      box-sizing: border-box;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .tube-cell-id {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .tube-cell.empty {
+      background: var(--tube-empty);
+      color: var(--text-muted);
+    }
+
+    .tube-cell.planned {
+      background: var(--tube-selected);
+      border-color: #f2c94c;
+    }
+
+    .tube-cell.done {
+      background: var(--tube-full);
+    }
+
+    .footer-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      gap: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 0;
+      border-radius: 999px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: #eeeeee;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .helper-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .edit-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #f5f5f5;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .tab-button.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Header -->
+    <header>
+      <div id="backBtn" class="back-btn hidden" aria-label="Back">&lsaquo;</div>
+      <h1>Media Record</h1>
+    </header>
+
+    <!-- Main content -->
+    <main>
+      <!-- List view -->
+      <div id="listView">
+        <div id="recordList"></div>
+      </div>
+
+      <!-- Edit view -->
+      <div id="editView" class="hidden">
+        <div class="edit-title" id="editTitle"></div>
+
+        <div class="section">
+          <div class="label-row">Preparation Date</div>
+          <input type="date" id="prepDateInput" />
+        </div>
+
+        <div class="section">
+          <div class="label-row">Batch Name</div>
+          <input type="text" id="batchNameInput" />
+          <div class="helper-text">
+            Default is auto-generated as YYYYMMDD-XX but you can edit.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="label-row">Expiry Date</div>
+          <input type="date" id="expiryDateInput" disabled />
+          <div class="helper-text" id="daysLeftInfo"></div>
+        </div>
+
+        <div class="section">
+          <div class="tabs">
+            <button
+              class="tab-button active"
+              id="pcCompleteTabButton"
+              type="button"
+            >
+              PC-Complete
+            </button>
+          </div>
+        </div>
+
+        <div id="pcCompleteTabPanel">
+          <div class="section">
+            <div class="slider-row">
+              <span>Base Volume: <strong id="baseVolumeLabel">50</strong> ml</span>
+              <span>10 ml &ndash; 50 ml</span>
+            </div>
+            <input
+              type="range"
+              id="baseVolumeSlider"
+              min="10"
+              max="50"
+              step="1"
+            />
+          </div>
+
+          <div class="section">
+            <div class="supp-card">
+              <div class="supp-title">PC-Complete</div>
+              <div class="supp-row">
+                <span>Maintenance Supplement</span>
+                <span id="suppMaint">0&nbsp;&micro;l</span>
+              </div>
+              <div class="supp-row">
+                <span>Heparin Supplement</span>
+                <span id="suppHep">0&nbsp;&micro;l</span>
+              </div>
+              <div class="supp-row">
+                <span>Hydrocortisone Supplement</span>
+                <span id="suppHydro">0&nbsp;&micro;l</span>
+              </div>
+              <div class="supp-total">
+                <span>Total Volume Prepared</span>
+                <span id="totalVolumeLabel">0 ml</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="label-row">Falcon Tube Layout Tracking</div>
+            <div class="tube-grid" id="tubeGrid"></div>
+            <div class="helper-text">
+              Tap a tube once to mark it planned (yellow), tap again to mark it
+              done (green), tap again to clear it (empty).
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-buttons">
+          <button class="btn secondary" id="cancelEditBtn">Cancel</button>
+          <button class="btn primary" id="saveEditBtn">Save</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Floating add button (list view only) -->
+    <button class="fab" id="addRecordBtn">+</button>
+  </div>
+
+  <script>
+    "use strict";
+
+    const STORAGE_KEY = "mediaCultureRecords_v2";
+
+    function loadRecords() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return [];
+        return arr;
+      } catch (e) {
+        console.error("Failed to load records", e);
+        return [];
+      }
+    }
+
+    function saveRecords() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function generateId() {
+      return "r_" + Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    function todayISO() {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function addDaysISO(dateIso, days) {
+      const d = new Date(dateIso);
+      d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function diffDays(fromIso, toIso) {
+      const a = new Date(fromIso);
+      const b = new Date(toIso);
+      const ms = b - a;
+      return Math.floor(ms / (24 * 3600 * 1000));
+    }
+
+    function formatDisplayDate(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    // Supplement ratios (µl per ml)
+    const SUPP_RATIOS = {
+      maint: 12.5,
+      hep: 2,
+      hydro: 5,
+    };
+
+    const MEDIUM_CONFIGS = {
+      "PC-Complete": {
+        shelfLifeDays: 14,
+      },
+    };
+
+    function getShelfLifeDaysForMediumName(name) {
+      const cfg = MEDIUM_CONFIGS[name];
+      return cfg && typeof cfg.shelfLifeDays === "number" ? cfg.shelfLifeDays : 14;
+    }
+
+    function recomputeExpiry(rec) {
+      const mediumName = rec.mediumName || "PC-Complete";
+      const days = getShelfLifeDaysForMediumName(mediumName);
+      rec.expiryDate = addDaysISO(rec.prepDate, days);
+      return rec.expiryDate;
+    }
+
+    let records = loadRecords();
+    let currentRecordId = null;
+    let isNewRecord = false;
+    let editTubeVolumes = [];
+    let editTubeStates = [];
+
+    // DOM refs
+    const listViewEl = document.getElementById("listView");
+    const editViewEl = document.getElementById("editView");
+    const recordListEl = document.getElementById("recordList");
+    const backBtnEl = document.getElementById("backBtn");
+    const addRecordBtnEl = document.getElementById("addRecordBtn");
+
+    const editTitleEl = document.getElementById("editTitle");
+    const prepDateInputEl = document.getElementById("prepDateInput");
+    const batchNameInputEl = document.getElementById("batchNameInput");
+    const expiryDateInputEl = document.getElementById("expiryDateInput");
+    const daysLeftInfoEl = document.getElementById("daysLeftInfo");
+    const baseVolumeSliderEl = document.getElementById("baseVolumeSlider");
+    const baseVolumeLabelEl = document.getElementById("baseVolumeLabel");
+    const suppMaintEl = document.getElementById("suppMaint");
+    const suppHepEl = document.getElementById("suppHep");
+    const suppHydroEl = document.getElementById("suppHydro");
+    const totalVolumeLabelEl = document.getElementById("totalVolumeLabel");
+    const tubeGridEl = document.getElementById("tubeGrid");
+    const cancelEditBtnEl = document.getElementById("cancelEditBtn");
+    const saveEditBtnEl = document.getElementById("saveEditBtn");
+
+    function renderListView() {
+      recordListEl.innerHTML = "";
+
+      if (!records.length) {
+        const empty = document.createElement("div");
+        empty.textContent = "No media batches recorded yet.";
+        empty.style.fontSize = "13px";
+        empty.style.color = "#777";
+        recordListEl.appendChild(empty);
+        return;
+      }
+
+      const today = todayISO();
+
+      records
+        .slice()
+        .sort((a, b) => (a.prepDate < b.prepDate ? 1 : -1))
+        .forEach((rec) => {
+          const expiryDate = rec.expiryDate || recomputeExpiry(rec);
+          const totalVolume = rec.tubes.reduce((sum, v) => sum + (v || 0), 0);
+          const tubeCount = rec.tubes.filter((v) => v > 0).length;
+          const daysLeft = diffDays(today, expiryDate);
+          const expired = daysLeft < 0;
+
+          const usedTubes = Array.isArray(rec.usedTubes) ? rec.usedTubes : [];
+          const hasVolume = rec.tubes.some((v) => v > 0);
+          const allUsed =
+            hasVolume &&
+            rec.tubes.every((v, idx) => v <= 0 || !!usedTubes[idx]);
+
+          let usageStatus = rec.usageStatus || "active";
+          if (allUsed) usageStatus = "used";
+
+          let effectiveStatus;
+          if (expired) effectiveStatus = "expired";
+          else if (usageStatus === "used") effectiveStatus = "used";
+          else effectiveStatus = "valid";
+
+          const card = document.createElement("div");
+          card.className = "card status-" + effectiveStatus;
+
+          const headerRow = document.createElement("div");
+          headerRow.className = "card-header-row";
+
+          const leftHeader = document.createElement("div");
+
+          const status = document.createElement("span");
+          status.className =
+            "status-pill dot status-" +
+            (effectiveStatus === "expired"
+              ? "expired"
+              : effectiveStatus === "used"
+              ? "used"
+              : "valid");
+          status.textContent =
+            effectiveStatus === "expired"
+              ? "Expired"
+              : effectiveStatus === "used"
+              ? "Used"
+              : "Valid";
+          leftHeader.appendChild(status);
+
+          const tag = document.createElement("span");
+          tag.className = "medium-tag";
+          tag.textContent = "PC-Complete";
+          leftHeader.appendChild(tag);
+
+          if (rec.batchName) {
+            const batch = document.createElement("span");
+            batch.className = "batch-tag";
+            batch.textContent = rec.batchName;
+            leftHeader.appendChild(batch);
+          }
+
+          headerRow.appendChild(leftHeader);
+
+          const rightStatus = document.createElement("div");
+          rightStatus.className = "status-right";
+
+          if (effectiveStatus === "expired") {
+            rightStatus.innerHTML =
+              '<div class="expired-big">Expired</div>' +
+              '<span class="expired-small">expired</span>';
+          } else {
+            rightStatus.innerHTML =
+              '<div class="days-left">' +
+              daysLeft +
+              '<span>days left</span></div>';
+          }
+
+          headerRow.appendChild(rightStatus);
+          card.appendChild(headerRow);
+
+          const row1 = document.createElement("div");
+          row1.className = "row";
+          row1.innerHTML =
+            '<span class="row-icon">📅</span>Preparation Date: ' +
+            formatDisplayDate(rec.prepDate);
+          card.appendChild(row1);
+
+          const row2 = document.createElement("div");
+          row2.className = "row";
+          row2.innerHTML =
+            '<span class="row-icon">🧪</span>Completed Tubes: ' +
+            tubeCount +
+            " (" +
+            totalVolume +
+            " ml)";
+          card.appendChild(row2);
+
+          const tubeStatusRow = document.createElement("div");
+          tubeStatusRow.className = "row";
+          tubeStatusRow.innerHTML =
+            '<span class="row-icon">🧫</span>Tube Status:';
+          card.appendChild(tubeStatusRow);
+
+          const tubeIconsWrap = document.createElement("div");
+          tubeIconsWrap.className = "tube-icons";
+          rec.tubes.forEach((v, idx) => {
+            if (v > 0) {
+              const t = document.createElement("div");
+              const isUsed =
+                Array.isArray(rec.usedTubes) && !!rec.usedTubes[idx];
+              t.className = "tube-icon " + (isUsed ? "used" : "done");
+              t.textContent = v + " ml";
+              t.addEventListener("click", (ev) => {
+                ev.stopPropagation();
+                toggleTubeUsedById(rec.id, idx);
+              });
+              tubeIconsWrap.appendChild(t);
+            }
+          });
+          card.appendChild(tubeIconsWrap);
+
+          const row3 = document.createElement("div");
+          row3.className = "row";
+          row3.innerHTML =
+            '<span class="row-icon">⌛</span>Expiry Date: ' +
+            formatDisplayDate(expiryDate);
+          card.appendChild(row3);
+
+          const footer = document.createElement("div");
+          footer.className = "card-footer";
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn-icon danger";
+          delBtn.innerHTML = "🗑";
+          delBtn.title = "Delete batch";
+          delBtn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            if (
+              confirm(
+                "Delete this media batch record? This cannot be undone."
+              )
+            ) {
+              records = records.filter((r) => r.id !== rec.id);
+              saveRecords();
+              renderListView();
+            }
+          });
+          footer.appendChild(delBtn);
+          card.appendChild(footer);
+
+          card.addEventListener("click", () => {
+            openEditView(rec.id, false);
+          });
+
+          let touchStartX = null;
+          let touchStartY = null;
+
+          card.addEventListener("touchstart", (ev) => {
+            if (ev.touches.length !== 1) return;
+            const touch = ev.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+          });
+
+          card.addEventListener("touchend", (ev) => {
+            if (touchStartX === null || touchStartY === null) return;
+            const touch = ev.changedTouches[0];
+            const dx = touch.clientX - touchStartX;
+            const dy = touch.clientY - touchStartY;
+            touchStartX = null;
+            touchStartY = null;
+
+            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+              ev.preventDefault();
+              ev.stopPropagation();
+              if (
+                confirm(
+                  "Delete this media batch record? This cannot be undone."
+                )
+              ) {
+                records = records.filter((r) => r.id !== rec.id);
+                saveRecords();
+                renderListView();
+              }
+            }
+          });
+
+          recordListEl.appendChild(card);
+        });
+    }
+
+    function renderTubeGrid() {
+      tubeGridEl.innerHTML = "";
+      editTubeVolumes.forEach((vol, idx) => {
+        const cell = document.createElement("div");
+        const state = editTubeStates[idx] || "empty";
+        const classes = ["tube-cell", state];
+        cell.className = classes.join(" ");
+
+        const idEl = document.createElement("div");
+        idEl.className = "tube-cell-id";
+        idEl.textContent = "F" + (idx + 1);
+        cell.appendChild(idEl);
+
+        const volEl = document.createElement("div");
+        volEl.textContent = vol > 0 ? vol + " ml" : "empty";
+        cell.appendChild(volEl);
+
+        cell.addEventListener("click", () => {
+          handleTubeClick(idx);
+        });
+
+        tubeGridEl.appendChild(cell);
+      });
+    }
+
+    function updateSupplementsAndTotal() {
+      let preparedVolume = 0;
+      let planningVolume = 0;
+      editTubeVolumes.forEach((v, idx) => {
+        const state = editTubeStates[idx];
+        const vol = v || 0;
+        if (state === "done") {
+          preparedVolume += vol;
+          planningVolume += vol;
+        } else if (state === "planned") {
+          planningVolume += vol;
+        }
+      });
+
+      // Only done (green) tubes contribute to "Total Volume Prepared"
+      totalVolumeLabelEl.textContent = preparedVolume + " ml";
+
+      // Supplements are computed from planningVolume (planned + done)
+      const maint = Math.round(planningVolume * SUPP_RATIOS.maint);
+      const hep = Math.round(planningVolume * SUPP_RATIOS.hep);
+      const hydro = Math.round(planningVolume * SUPP_RATIOS.hydro);
+      suppMaintEl.innerHTML = maint + "&nbsp;&micro;l";
+      suppHepEl.innerHTML = hep + "&nbsp;&micro;l";
+      suppHydroEl.innerHTML = hydro + "&nbsp;&micro;l";
+    }
+
+    function updateDaysLeftHelper(rec) {
+      const today = todayISO();
+      const days = diffDays(today, rec.expiryDate);
+      if (days < 0) {
+        daysLeftInfoEl.textContent = "Already expired.";
+      } else {
+        daysLeftInfoEl.textContent = days + " days left from today.";
+      }
+    }
+
+    function generateDefaultBatchName(prepDateIso) {
+      const datePart = prepDateIso.replace(/-/g, "");
+      const existing = records.filter((r) => r.prepDate === prepDateIso);
+      const idx = existing.length + 1;
+      const suffix = idx.toString().padStart(2, "0");
+      return datePart + "-" + suffix;
+    }
+
+    function ensureUsedTubesArray(rec) {
+      if (!Array.isArray(rec.tubes)) return;
+      if (!Array.isArray(rec.usedTubes) || rec.usedTubes.length !== rec.tubes.length) {
+        rec.usedTubes = rec.tubes.map(() => false);
+      }
+    }
+
+    function updateUsageStatusFromTubes(rec) {
+      if (!Array.isArray(rec.tubes)) {
+        rec.usageStatus = rec.usageStatus || "active";
+        return;
+      }
+      const usedTubes = Array.isArray(rec.usedTubes) ? rec.usedTubes : [];
+      const hasVolume = rec.tubes.some((v) => v > 0);
+      const allUsed =
+        hasVolume &&
+        rec.tubes.every((v, idx) => v <= 0 || !!usedTubes[idx]);
+      rec.usageStatus = allUsed ? "used" : "active";
+    }
+
+    function toggleTubeUsedById(recordId, tubeIndex) {
+      const rec = records.find((r) => r.id === recordId);
+      if (!rec) return;
+      ensureUsedTubesArray(rec);
+      if (!Array.isArray(rec.usedTubes) || tubeIndex < 0 || tubeIndex >= rec.usedTubes.length) {
+        return;
+      }
+      rec.usedTubes[tubeIndex] = !rec.usedTubes[tubeIndex];
+      updateUsageStatusFromTubes(rec);
+      saveRecords();
+      renderListView();
+    }
+
+    function openEditView(recordId, isNew) {
+      currentRecordId = recordId;
+      isNewRecord = isNew;
+
+      const rec = records.find((r) => r.id === recordId);
+      if (!rec) return;
+
+      editTitleEl.textContent = isNew ? "Add New Media Record" : "Edit Media Record";
+
+      prepDateInputEl.value = rec.prepDate;
+      batchNameInputEl.value = rec.batchName || "";
+      expiryDateInputEl.value = recomputeExpiry(rec);
+      baseVolumeSliderEl.value = rec.baseVolume;
+      baseVolumeLabelEl.textContent = rec.baseVolume;
+
+      editTubeVolumes = rec.tubes.slice();
+      editTubeStates = editTubeVolumes.map((v) => (v > 0 ? "done" : "empty"));
+
+      updateSupplementsAndTotal();
+      updateDaysLeftHelper(rec);
+      renderTubeGrid();
+      updateSaveButtonState();
+
+      listViewEl.classList.add("hidden");
+      editViewEl.classList.remove("hidden");
+      backBtnEl.classList.remove("hidden");
+      addRecordBtnEl.classList.add("hidden");
+    }
+
+    function closeEditView() {
+      currentRecordId = null;
+      editTubeVolumes = [];
+      editTubeStates = [];
+      editViewEl.classList.add("hidden");
+      listViewEl.classList.remove("hidden");
+      backBtnEl.classList.add("hidden");
+      addRecordBtnEl.classList.remove("hidden");
+    }
+
+    function handleTubeClick(idx) {
+      const state = editTubeStates[idx] || "empty";
+      if (state === "empty") {
+        const base = parseInt(baseVolumeSliderEl.value, 10);
+        editTubeVolumes[idx] = base;
+        editTubeStates[idx] = "planned";
+      } else if (state === "planned") {
+        editTubeStates[idx] = "done";
+      } else if (state === "done") {
+        editTubeVolumes[idx] = 0;
+        editTubeStates[idx] = "empty";
+      }
+
+      updateSupplementsAndTotal();
+      renderTubeGrid();
+      updateSaveButtonState();
+    }
+
+    function updateSaveButtonState() {
+      const hasPlanned = editTubeStates.some((s) => s === "planned");
+      const hasPrepared = editTubeStates.some(
+        (s) => s === "planned" || s === "done"
+      );
+      saveEditBtnEl.disabled = hasPlanned || !hasPrepared;
+    }
+
+    baseVolumeSliderEl.addEventListener("input", () => {
+      const rec = records.find((r) => r.id === currentRecordId);
+      if (!rec) return;
+      const val = parseInt(baseVolumeSliderEl.value, 10);
+      rec.baseVolume = val;
+      baseVolumeLabelEl.textContent = val;
+      updateSupplementsAndTotal();
+      renderTubeGrid();
+    });
+
+    prepDateInputEl.addEventListener("change", () => {
+      const rec = records.find((r) => r.id === currentRecordId);
+      if (!rec) return;
+      if (prepDateInputEl.value) {
+        rec.prepDate = prepDateInputEl.value;
+        if (!rec.batchName || isNewRecord) {
+          batchNameInputEl.value = generateDefaultBatchName(rec.prepDate);
+        }
+        recomputeExpiry(rec);
+        expiryDateInputEl.value = rec.expiryDate;
+        updateDaysLeftHelper(rec);
+      }
+    });
+
+    batchNameInputEl.addEventListener("input", () => {
+      const rec = records.find((r) => r.id === currentRecordId);
+      if (!rec) return;
+      rec.batchName = batchNameInputEl.value.trim();
+    });
+
+    cancelEditBtnEl.addEventListener("click", () => {
+      records = loadRecords();
+      closeEditView();
+      renderListView();
+    });
+
+    saveEditBtnEl.addEventListener("click", () => {
+      // Ensure batch name not empty
+      const rec = records.find((r) => r.id === currentRecordId);
+      if (rec && (!rec.batchName || !rec.batchName.trim())) {
+        rec.batchName = generateDefaultBatchName(rec.prepDate);
+      }
+      if (rec) {
+        const finalizedTubes = editTubeVolumes.map((v, idx) =>
+          editTubeStates[idx] === "done" ? v || 0 : 0
+        );
+        rec.tubes = finalizedTubes;
+        ensureUsedTubesArray(rec);
+        rec.usedTubes = rec.tubes.map(() => false);
+        rec.usageStatus = "active";
+        recomputeExpiry(rec);
+      }
+      saveRecords();
+      closeEditView();
+      renderListView();
+    });
+
+    backBtnEl.addEventListener("click", () => {
+      records = loadRecords();
+      closeEditView();
+      renderListView();
+    });
+
+    addRecordBtnEl.addEventListener("click", () => {
+      const today = todayISO();
+      const newId = generateId();
+      const rec = {
+        id: newId,
+        mediumName: "PC-Complete",
+        prepDate: today,
+        expiryDate: addDaysISO(today, getShelfLifeDaysForMediumName("PC-Complete")),
+        batchName: "", // will be auto-generated in openEditView
+        baseVolume: 40,
+        usageStatus: "active",
+        tubes: Array(12).fill(0),
+        usedTubes: Array(12).fill(false),
+      };
+      records.push(rec);
+      saveRecords();
+      renderListView();
+
+      // Generate batch name based on today's date and existing records
+      rec.batchName = generateDefaultBatchName(rec.prepDate);
+      saveRecords();
+
+      openEditView(rec.id, true);
+    });
+
+    // Initial render
+    renderListView();
+  </script>
+</body>
+</html>
