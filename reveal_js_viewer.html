@@ -85,6 +85,40 @@
       border-radius:18px;
       background:#0b0f18;
     }
+    #reload{
+      position:fixed;
+      left:16px;
+      bottom:16px;
+      width:44px;
+      height:44px;
+      border-radius:999px;
+      border:1px solid rgba(132,210,246,.55);
+      background:rgba(132,210,246,.16);
+      color:var(--accent-2);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      box-shadow:0 8px 24px rgba(0,0,0,.35);
+      transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+      z-index:20;
+    }
+    #reload svg{
+      width:22px;
+      height:22px;
+      fill:currentColor;
+    }
+    #reload.arming{
+      transform:scale(1.06);
+      border-color:var(--accent-2);
+      background:rgba(132,210,246,.3);
+      box-shadow:0 12px 30px rgba(0,0,0,.45);
+    }
+    #reload.armed{
+      animation:pulse .5s ease;
+    }
+    body:not(.is-loaded) #reload{
+      display:none;
+    }
     body.is-loaded{
       background:#000;
     }
@@ -105,6 +139,11 @@
       from{opacity:0;transform:translateY(12px)}
       to{opacity:1;transform:translateY(0)}
     }
+    @keyframes pulse{
+      0%{transform:scale(1)}
+      50%{transform:scale(1.08)}
+      100%{transform:scale(1)}
+    }
     @media (max-width:720px){
       #dropzone{min-height:60vh}
     }
@@ -115,12 +154,17 @@
     <input id="zip" type="file" accept=".zip" hidden />
     <section id="dropzone" role="button" tabindex="0" aria-label="Load a reveal.js zip">
       <div>
-        <p class="dz-title">Drop a Reveal ZIP</p>
-        <p class="dz-sub">or click to choose a file</p>
-        <p id="status">Ready to load.</p>
+        <p class="dz-title">Drag and drop a reveal.js ZIP here</p>
+        <p class="dz-sub">or click to choose with a file picker.</p>
+        <p id="status">Ready to present when you are.</p>
       </div>
     </section>
     <iframe id="frame" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation" tabindex="0"></iframe>
+    <button id="reload" type="button" title="Hold to load a new ZIP" aria-label="Hold to load a new ZIP">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5a7 7 0 1 1-6.32 4H3l3.5-3.5L10 9H7.3A5.7 5.7 0 1 0 12 6.3V5z"/>
+      </svg>
+    </button>
   </main>
 
   <!-- Prefer vendoring this file locally for true offline use -->
@@ -131,6 +175,9 @@
     const status = (s)=>{ $('status').textContent = s; };
     const dropzone = $('dropzone');
     const frame = $('frame');
+    const reloadBtn = $('reload');
+    const HOLD_MS = 650;
+    let reloadTimer = null;
 
     frame.addEventListener('load', ()=>{
       try{
@@ -297,6 +344,40 @@
     dropzone.addEventListener('drop', (e)=>{
       const file = e.dataTransfer?.files?.[0];
       handleFile(file);
+    });
+
+    async function reloadFlow(){
+      await clearRevealCaches();
+      frame.src = 'about:blank';
+      document.body.classList.remove('is-loaded');
+      status('Ready to load.');
+      setTimeout(()=> $('zip').click(), 0);
+    }
+
+    function cancelReloadHold(){
+      if (reloadTimer) {
+        clearTimeout(reloadTimer);
+        reloadTimer = null;
+      }
+      reloadBtn.classList.remove('arming');
+    }
+
+    reloadBtn.addEventListener('pointerdown', (e)=>{
+      if (e.button !== 0) return;
+      if (!document.body.classList.contains('is-loaded')) return;
+      reloadBtn.setPointerCapture(e.pointerId);
+      cancelReloadHold();
+      reloadBtn.classList.add('arming');
+      reloadTimer = setTimeout(async ()=>{
+        reloadTimer = null;
+        reloadBtn.classList.remove('arming');
+        reloadBtn.classList.add('armed');
+        await reloadFlow();
+        setTimeout(()=> reloadBtn.classList.remove('armed'), 400);
+      }, HOLD_MS);
+    });
+    ['pointerup','pointercancel','pointerleave'].forEach((evt)=>{
+      reloadBtn.addEventListener(evt, cancelReloadHold);
     });
 
     clearRevealCaches().catch(()=>{});
