@@ -1,0 +1,305 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Offline Reveal JS Loader</title>
+  <style>
+    :root{
+      --bg-1:#0c1324;
+      --bg-2:#0f2338;
+      --accent:#f6c453;
+      --accent-2:#84d2f6;
+      --ink:#f7f4ef;
+      --muted:rgba(247,244,239,.7);
+      --panel:rgba(16,20,30,.75);
+      --ring:rgba(246,196,83,.45);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      font:16px/1.5 "Iowan Old Style","Palatino Linotype","Book Antiqua",serif;
+      color:var(--ink);
+      background:
+        radial-gradient(1200px 600px at 15% 10%, rgba(132,210,246,.16), transparent 60%),
+        radial-gradient(900px 500px at 85% 0%, rgba(246,196,83,.18), transparent 55%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    }
+    main{
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      padding:28px 22px 32px;
+    }
+    #dropzone{
+      position:relative;
+      border-radius:26px;
+      border:2px dashed rgba(246,196,83,.55);
+      background:var(--panel);
+      padding:34px;
+      min-height:70vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      cursor:pointer;
+      transition:transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+      box-shadow:0 20px 60px rgba(0,0,0,.35);
+      animation:rise .5s ease both;
+    }
+    #dropzone::after{
+      content:"";
+      position:absolute;
+      inset:14px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.08);
+      pointer-events:none;
+    }
+    #dropzone.dragging{
+      border-color:var(--accent);
+      transform:translateY(-2px) scale(1.01);
+      box-shadow:0 28px 70px rgba(0,0,0,.45);
+    }
+    .dz-title{
+      font-size:clamp(24px,4vw,36px);
+      margin:0 0 8px;
+      color:var(--accent);
+    }
+    .dz-sub{
+      margin:0;
+      color:var(--muted);
+      font-size:clamp(14px,2vw,18px);
+    }
+    #status{
+      margin-top:18px;
+      color:var(--accent-2);
+      font-size:15px;
+      letter-spacing:.02em;
+    }
+    #frame{
+      display:none;
+      width:100%;
+      height:72vh;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:18px;
+      background:#0b0f18;
+    }
+    body.is-loaded{
+      background:#000;
+    }
+    body.is-loaded main{
+      padding:0;
+    }
+    body.is-loaded #dropzone{
+      display:none;
+    }
+    body.is-loaded #frame{
+      display:block;
+      width:100vw;
+      height:100vh;
+      border:0;
+      border-radius:0;
+    }
+    @keyframes rise{
+      from{opacity:0;transform:translateY(12px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+    @media (max-width:720px){
+      #dropzone{min-height:60vh}
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <input id="zip" type="file" accept=".zip" hidden />
+    <section id="dropzone" role="button" tabindex="0" aria-label="Load a reveal.js zip">
+      <div>
+        <p class="dz-title">Drop a Reveal ZIP</p>
+        <p class="dz-sub">or click to choose a file</p>
+        <p id="status">Ready to load.</p>
+      </div>
+    </section>
+    <iframe id="frame" allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation" tabindex="0"></iframe>
+  </main>
+
+  <!-- Prefer vendoring this file locally for true offline use -->
+  <script src="./javascripts/vendor/jszip.min.js"></script>
+
+  <script>
+    const $ = (id)=>document.getElementById(id);
+    const status = (s)=>{ $('status').textContent = s; };
+    const dropzone = $('dropzone');
+    const frame = $('frame');
+
+    frame.addEventListener('load', ()=>{
+      try{
+        frame.contentWindow?.focus();
+        frame.focus();
+      }catch(_err){
+        frame.focus();
+      }
+    });
+
+    const MIME = (p)=>{
+      const ext = (p.split('.').pop()||'').toLowerCase();
+      return ({
+        html:'text/html; charset=utf-8',
+        htm:'text/html; charset=utf-8',
+        js:'text/javascript; charset=utf-8',
+        mjs:'text/javascript; charset=utf-8',
+        css:'text/css; charset=utf-8',
+        json:'application/json; charset=utf-8',
+        svg:'image/svg+xml',
+        png:'image/png',
+        jpg:'image/jpeg', jpeg:'image/jpeg',
+        gif:'image/gif',
+        webp:'image/webp',
+        mp4:'video/mp4',
+        woff:'font/woff', woff2:'font/woff2', ttf:'font/ttf',
+        txt:'text/plain; charset=utf-8'
+      })[ext] || 'application/octet-stream';
+    };
+
+    async function ensureSW(){
+      if (!('serviceWorker' in navigator)) throw new Error('No service worker support');
+      const reg = await navigator.serviceWorker.register('./javascripts/sw.js', { scope: './javascripts/' });
+
+      // The viewer page is outside the SW scope, so navigator.serviceWorker.ready may never resolve.
+      const scopePath = new URL('./javascripts/', location.href).pathname;
+      const pageInScope = location.pathname.startsWith(scopePath);
+      if (pageInScope) {
+        await navigator.serviceWorker.ready;
+      } else if (!reg.active) {
+        await new Promise((resolve) => {
+          const sw = reg.installing || reg.waiting;
+          if (!sw) return resolve();
+          const onState = () => {
+            if (sw.state === 'activated') {
+              sw.removeEventListener('statechange', onState);
+              resolve();
+            }
+          };
+          sw.addEventListener('statechange', onState);
+          setTimeout(resolve, 3000);
+        });
+      }
+      return reg;
+    }
+
+    function pickIndexPath(zip){
+      const names = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+      const candidates = names.filter(n => /(^|\/)index\.html$/i.test(n));
+      if (!candidates.length) throw new Error('No index.html found in zip');
+      // choose shortest (handles "presentation/index.html" vs nested copies)
+      candidates.sort((a,b)=>a.length-b.length);
+      return candidates[0];
+    }
+
+    function stripTopFolder(path){
+      // optional: if zip has a single top-level folder, remove it
+      const parts = path.split('/');
+      return (parts.length > 1) ? parts.slice(1).join('/') : path;
+    }
+
+    async function clearRevealCaches(keep){
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((k)=>k.startsWith('reveal-vfs-') && k !== keep)
+          .map((k)=>caches.delete(k))
+      );
+    }
+
+    async function handleFile(file){
+      try{
+        if (!file) return;
+        if (!/\.zip$/i.test(file.name || '')) {
+          throw new Error('Please choose a .zip file');
+        }
+        status('Registering service worker…');
+        await ensureSW();
+        await clearRevealCaches();
+
+        status('Reading zip…');
+        const buf = await file.arrayBuffer();
+
+        status('Unzipping…');
+        const zip = await JSZip.loadAsync(buf);
+
+        // If everything is under one top folder, normalize paths
+        const allFiles = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+        const top = allFiles.map(n=>n.split('/')[0]);
+        const singleTopFolder = top.every(t=>t===top[0]) && allFiles.some(n=>n.includes('/'));
+
+        const indexPathRaw = pickIndexPath(zip);
+        const indexPath = singleTopFolder ? stripTopFolder(indexPathRaw) : indexPathRaw;
+
+        const id = Date.now().toString(36);
+        const base = new URL(`./javascripts/__reveal/${id}/`, location.href).href; // stays inside SW scope
+        const cacheName = `reveal-vfs-${id}`;
+        const cache = await caches.open(cacheName);
+
+        status(`Caching ${allFiles.length} files…`);
+        let done = 0;
+
+        for (const nameRaw of allFiles){
+          const name = singleTopFolder ? stripTopFolder(nameRaw) : nameRaw;
+          if (!name) continue;
+
+          const entry = zip.files[nameRaw];
+          const data = await entry.async('uint8array');
+
+          const url = base + name;
+          const headers = new Headers({ 'Content-Type': MIME(name) });
+          await cache.put(url, new Response(data, { headers }));
+
+          done++;
+          if (done % 25 === 0) status(`Caching… ${done}/${allFiles.length}`);
+        }
+
+        status('Launching reveal…');
+        frame.src = base + indexPath;
+        await clearRevealCaches(cacheName);
+        document.body.classList.add('is-loaded');
+        status(`Loaded ${file.name}`);
+
+      } catch (err){
+        console.error(err);
+        status('Error: ' + (err?.message || String(err)));
+      }
+    }
+
+    $('zip').addEventListener('change', (e)=>{
+      handleFile(e.target.files?.[0]);
+      e.target.value = '';
+    });
+
+    dropzone.addEventListener('click', ()=> $('zip').click());
+    dropzone.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        $('zip').click();
+      }
+    });
+    ['dragenter','dragover'].forEach((evt)=>{
+      dropzone.addEventListener(evt, (e)=>{
+        e.preventDefault();
+        dropzone.classList.add('dragging');
+      });
+    });
+    ['dragleave','drop'].forEach((evt)=>{
+      dropzone.addEventListener(evt, (e)=>{
+        e.preventDefault();
+        dropzone.classList.remove('dragging');
+      });
+    });
+    dropzone.addEventListener('drop', (e)=>{
+      const file = e.dataTransfer?.files?.[0];
+      handleFile(file);
+    });
+
+    clearRevealCaches().catch(()=>{});
+  </script>
+</body>
+</html>
