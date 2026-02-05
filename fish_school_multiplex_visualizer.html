@@ -1,0 +1,2183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike) https://creativecommons.org/licenses/by-nc-sa/4.0/ -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fish School Multiplex</title>
+  <style>
+    :root{--bg:#0b0d12;--fg:#e8eaed;--muted:#9aa0a6;--acc:#8ab4f8;--panel:#0f131d;--border:#1f2937;--danger:#ef5350;--success:#4caf50}
+    html,body{height:100%;margin:0}
+    body{background:var(--bg);color:var(--fg);font:14px/1.4 "Inter",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    .app{display:grid;grid-template-columns:minmax(280px,360px) 1fr;grid-template-rows:auto 1fr;height:100%;min-height:0;transition:grid-template-columns .25s ease}
+    .app>*{min-width:0;min-height:0}
+    .app.collapsed{grid-template-columns:0 1fr}
+    header{grid-column:1 / -1;padding:12px 16px;border-bottom:1px solid var(--border);background:#0f1113}
+    header .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    header h1{font-size:18px;margin:0}
+    header small{color:var(--muted)}
+    main{grid-column:2 / -1;position:relative;background:#05070c;display:flex;align-items:stretch;justify-content:stretch}
+    aside{background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:16px;overflow:hidden;min-height:0;transition:padding .2s ease,border-color .2s ease,transform .25s ease;scrollbar-width:thin}
+    aside h2{margin:0;font-size:15px;color:var(--fg)}
+    .controls{flex:1;display:flex;flex-direction:column;gap:12px;overflow:auto;padding:0 4px 0 0;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;scroll-padding-bottom:120px;padding-bottom:max(72px,env(safe-area-inset-bottom,0px)+48px)}
+    .control{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,160px);gap:10px;align-items:center}
+    .control label{font-size:12px;color:var(--muted)}
+    .control span.value{color:var(--fg);font-variant-numeric:tabular-nums}
+    .control input[type=range]{width:100%}
+    .control input[type=checkbox]{justify-self:end}
+    .buttons{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+    button, .toggle{background:#1a2536;color:var(--fg);border:1px solid #233047;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;transition:background .2s ease,color .2s ease,border .2s ease}
+    button:hover, .toggle:hover{background:#223149}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .toggle.active{background:var(--acc);color:#041024;border-color:#5d8df4}
+    .toggle.disabled{opacity:.55;cursor:not-allowed;filter:saturate(0.6)}
+    .toggles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+    .btn-toggle{background:#10192a;color:var(--fg);border:1px solid #233047;border-radius:10px;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,border .2s ease,color .2s ease}
+    .btn-toggle:hover{background:#17253b}
+    .algo-note{margin:16px 4px 0;padding:12px 14px;border:1px solid rgba(143,160,181,.35);border-radius:12px;background:rgba(15,23,42,.55);color:var(--muted);font-size:12px;line-height:1.5}
+    .app.collapsed aside{pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
+    .app.collapsed main{grid-column:1 / -1}
+    .app:not(.collapsed) aside{pointer-events:auto;opacity:1;transform:translateX(0)}
+    .app.collapsed header .row{gap:10px}
+    .pill{padding:4px 8px;border-radius:999px;border:1px solid #233047;background:#0f1729;color:var(--muted);font-size:12px}
+    .sim-grid{--cols:1;--rows:1;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-template-rows:repeat(var(--rows),minmax(0,1fr));gap:12px;padding:12px;box-sizing:border-box;width:100%;height:100%}
+    .sim-tile{position:relative;display:flex;flex-direction:column;min-height:0;border:1px solid var(--border);border-radius:14px;background:#05070c;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+    .sim-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:rgba(10,15,24,.85);border-bottom:1px solid var(--border);font-size:12px;color:var(--muted)}
+    .sim-title{color:var(--fg);font-weight:600;letter-spacing:.02em}
+    .sim-actions{display:flex;align-items:center;gap:6px}
+    .sim-action{width:26px;height:26px;border-radius:8px;padding:0;border:1px solid rgba(148,163,184,.32);background:#0f1729;color:var(--fg);font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+    .sim-action:hover{background:#17253b;border-color:rgba(148,163,184,.55)}
+    .sim-add{border-color:rgba(138,180,248,.35);color:var(--acc)}
+    .sim-add:hover{border-color:rgba(138,180,248,.8)}
+    .sim-duplicate{font-size:13px}
+    .sim-reset{font-size:13px}
+    .sim-remove{width:26px;height:26px;border-radius:8px;padding:0;border:1px solid rgba(239,83,80,.35);background:rgba(60,20,20,.7);color:#ffd1d1;font-size:14px;line-height:1}
+    .sim-remove:hover{background:rgba(90,24,24,.85);border-color:#ef5350}
+    .sim-view{position:relative;flex:1;min-height:0}
+    .sim-canvas{width:100%;height:100%;display:block;background:#05070c;touch-action:none}
+    .sim-stats{position:absolute;left:12px;bottom:12px;padding:8px 10px;background:rgba(0,0,0,.45);border-radius:8px;font:12px ui-monospace;color:#cbd5e1;white-space:pre}
+    .sim-messages{position:absolute;right:12px;bottom:12px;padding:10px 14px;background:rgba(43,27,27,.85);color:#ffdcdc;border:1px solid #a55;border-radius:10px;font:12px ui-monospace;display:none;max-width:46ch}
+    .tutorial-note{position:absolute;right:16px;top:120px;width:min(280px,90vw);padding:12px 14px;background:rgba(15,23,42,.78);border:1px solid rgba(148,163,184,.35);border-radius:12px;color:var(--fg);font-size:12px;line-height:1.5;z-index:5;box-shadow:0 14px 38px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+    .tutorial-note header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+    .tutorial-note header strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .tutorial-note button[data-close]{background:transparent;border:1px solid rgba(148,163,184,.4);color:var(--muted);border-radius:6px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+    .tutorial-note button[data-close]:hover{color:var(--fg);border-color:rgba(148,163,184,.7)}
+    .tutorial-note ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+    .tutorial-note li{color:var(--fg)}
+    a{color:var(--acc)}
+    .sim-dpad{position:absolute;right:16px;top:16px;display:grid;grid-template-columns:28px 28px 28px;grid-template-rows:28px 28px 28px;gap:6px;user-select:none;z-index:4}
+    .sim-dpad button{width:28px;height:28px;border-radius:6px;border:1px solid #233047;background:#10192a;color:#e8eaed;cursor:pointer}
+    .sim-dpad button:hover{background:#17253b}
+    .sim-dpad.hidden{visibility:hidden;pointer-events:none}
+    .sim-tile.focused{border-color:rgba(138,180,248,.75);box-shadow:0 0 0 1px rgba(138,180,248,.28),0 10px 24px rgba(0,0,0,.35)}
+    .sim-placeholder{border:1px dashed var(--border);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);background:rgba(5,7,12,.35);cursor:pointer;padding:12px;box-sizing:border-box}
+    .sim-placeholder:hover{background:rgba(7,10,16,.55);border-color:rgba(148,163,184,.5)}
+    .sim-placeholder:focus-visible{outline:2px solid rgba(138,180,248,.65);outline-offset:2px}
+    .sim-placeholder-plus{font-size:72px;line-height:1;color:var(--acc);font-weight:700}
+    .sim-placeholder-label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    @media (max-width:960px){
+      .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+      .app.collapsed{grid-template-columns:1fr;grid-template-rows:auto 0 1fr}
+      aside{grid-column:1 / -1;max-height:min(420px,60vh)}
+      .app.collapsed aside{max-height:0 !important;height:0 !important;padding:0 !important;border:0 !important;overflow:hidden}
+      main{grid-column:1 / -1;min-height:55vh}
+    }
+    @media (max-width:640px){
+      header h1{font-size:16px}
+      .btn-toggle{width:34px;height:34px}
+      .control{grid-template-columns:1fr}
+      .control input[type=checkbox]{justify-self:start}
+      .toggles{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+      .sim-header{flex-wrap:wrap}
+    }
+    @media (max-width:520px){
+      .buttons{grid-template-columns:1fr}
+      .toggles{grid-template-columns:minmax(0,1fr)}
+      .toggle{text-align:center}
+    }
+  </style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="row">
+      <button id="togglePanel" class="btn-toggle" aria-label="Collapse controls" aria-expanded="true">&laquo;</button>
+      <h1>Fish School Multiplex</h1>
+      <button id="playPause">Pause All</button>
+      <button id="respawn">Reset All</button>
+      <button id="addInstance">Add instance <span class="pill" id="instanceCount">(1 running)</span></button>
+      <button id="recordToggle" title="Record states (binary) + composite timelapse">Record</button>
+      <button id="downloadRecordings" title="Download last recording" disabled>Download</button>
+      <span class="pill" id="recordStatus">REC idle</span>
+      <div class="toggle" data-key="bait" title="Toggle bait placement (click canvas to add)">Set baits</div>
+      <button id="clearBaits">Remove baits</button>
+      <div class="toggle" data-key="shark">Baskin' shark</div>
+      <div class="toggle" data-key="whale">Blue whale!</div>
+      <div class="toggle" data-key="goal">Shark target</div>
+      <div class="toggle" data-key="whaleFollow">Whale follows cursor</div>
+      <small>Potential-flow dipole swimmers with Voronoi vision control</small>
+    </div>
+  </header>
+  <aside id="panel" tabindex="-1">
+    <h2>Controls</h2>
+    <div class="controls">
+      <div class="control">
+        <label for="initMode">Initial condition</label>
+        <select id="initMode">
+          <option value="random">2D Gaussian</option>
+          <option value="line">Line formation</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="N">School size (force respawn): <span class="value" id="NVal">150</span></label>
+        <input id="N" type="range" min="10" max="10000" step="1" value="150">
+      </div>
+      <div class="control">
+        <label for="Ia">Alignment by vision I<sub>a</sub>: <span class="value" id="IpVal">1.50</span></label>
+        <input id="Ia" type="range" min="0.01" max="10" step="0.01" value="1.5">
+      </div>
+      <div class="control">
+        <label for="In">Free-will noise I<sub>n</sub>: <span class="value" id="InVal">0.30</span></label>
+        <input id="In" type="range" min="0" max="5" step="0.01" value="0.3">
+      </div>
+      <div class="control">
+        <label for="hydro">Regularized dipole-field hydrodynamic interactions</label>
+        <input id="hydro" type="checkbox" checked>
+      </div>
+      <div class="control">
+        <label for="hydroShell">Hydrodynamics for nearest Voronoi only</label>
+        <input id="hydroShell" type="checkbox" checked>
+      </div>
+      <div class="control">
+        <label for="hydroRange">Hydrodynamics with cutoff distance R <span class="value" id="hydroRVal">5.0</span></label>
+        <input id="hydroRange" type="checkbox">
+      </div>
+      <div class="control">
+        <label for="hydroRadius">Cutoff radius R</label>
+        <input id="hydroRadius" type="range" min="0.5" max="20" step="0.1" value="5.0">
+      </div>
+      <div class="toggles">
+        <div class="toggle active" data-key="mouse">Scary cursor</div>
+        <div class="toggle active" data-key="death">Enable death</div>
+        <div class="toggle active" data-key="evade">Auto evade</div>
+        <div class="toggle active" data-key="hard">Auto hunt</div>
+      </div>
+      <p class="algo-note">
+        Alignement torques are averaged over Delaunay neighbors with vision cone bias, dipole flow field shape hydrodynamic interactions, wrapped Gaussian turning noise injects 'agency' per fish, evasive behavior based on vision and orthogonal turning. Fish color indicates speed (shinier is faster).
+      </p>
+      <p class="algo-note">For more with geometric confinement see <a href="https://www.pnas.org/doi/full/10.1073/pnas.2406293121">our paper</a> in PNAS.</p>
+    </div>
+  </aside>
+  <main>
+    <div id="simGrid" class="sim-grid" style="--cols:1;--rows:1;"></div>
+    <template id="simTemplate">
+	      <section class="sim-tile">
+	        <div class="sim-header">
+	          <span class="sim-title">Sim 1</span>
+	          <div class="sim-actions">
+	            <button type="button" class="sim-action sim-duplicate" aria-label="Duplicate instance" title="Duplicate this instance">&#x29C9;</button>
+	            <button type="button" class="sim-action sim-reset" aria-label="Reset this instance" title="Reset this instance">&#x27F3;</button>
+	            <button type="button" class="sim-action sim-add" aria-label="Add instance" title="Add a new instance">+</button>
+	            <button type="button" class="sim-action sim-remove" aria-label="Remove instance" title="Close this instance">x</button>
+	          </div>
+	        </div>
+	        <div class="sim-view">
+          <canvas class="sim-canvas"></canvas>
+          <div class="sim-stats"></div>
+          <div class="sim-messages"></div>
+          <div class="sim-dpad" title="Pan view (arrow keys or buttons); center to follow">
+            <div></div>
+            <button type="button" data-pan="up" aria-label="Pan up">&uarr;</button>
+            <div></div>
+            <button type="button" data-pan="left" aria-label="Pan left">&larr;</button>
+            <button type="button" data-pan="center" aria-label="Center view">&bull;</button>
+            <button type="button" data-pan="right" aria-label="Pan right">&rarr;</button>
+            <div></div>
+            <button type="button" data-pan="down" aria-label="Pan down">&darr;</button>
+            <div></div>
+          </div>
+          <div class="tutorial-note sim-note">
+            <header>
+              <strong>Navigation tips</strong>
+              <button type="button" data-close aria-label="Hide navigation tips">&times;</button>
+            </header>
+            <ul>
+              <li>Pan the camera with arrow keys or the D-pad buttons (Shift = bigger step).</li>
+              <li>Zoom in/out with the mouse wheel to cursor position.</li>
+              <li>Use the center dot to focus on the school centroid.</li>
+              <li>Press Space or Pause/Play to halt the simulation.</li>
+              <li>Fish is scared of your (moving) cursor by default, turn off with "Scary Cursor" toggle.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </template>
+  </main>
+</div>
+<script type="module">
+// CDN-first import with local snapshot fallback for d3-delaunay
+async function importWithFallback(candidates){
+  for (const url of candidates){
+    try { return await import(url); } catch(e){ console.warn('Import failed:', url, e); }
+  }
+  throw new Error('All import candidates failed: ' + candidates.join(', '));
+}
+async function loadScript(src){
+  return new Promise((resolve, reject)=>{
+    const s=document.createElement('script');
+    s.src=src; s.async=true;
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('Script load failed: '+src));
+    document.head.appendChild(s);
+  });
+}
+let Delaunay;
+try {
+  const mod = await importWithFallback([
+    'https://cdn.skypack.dev/d3-delaunay@6',
+  ]);
+  Delaunay = mod.Delaunay ?? mod.default ?? mod;
+} catch (err) {
+  console.warn('Falling back to UMD d3-delaunay:', err);
+  await loadScript('/javascripts/vendor/d3-delaunay/6/d3-delaunay.min.js');
+  // UMD attaches to global d3
+  Delaunay = (window.d3 && window.d3.Delaunay) ? window.d3.Delaunay : undefined;
+  if (!Delaunay) throw new Error('Unable to load Delaunay from local UMD');
+}
+
+const appEl = document.getElementById('app');
+const togglePanelBtn = document.getElementById('togglePanel');
+const panelEl = document.getElementById('panel');
+const simGrid = document.getElementById('simGrid');
+const simTemplate = document.getElementById('simTemplate');
+const addInstanceBtn = document.getElementById('addInstance');
+const instanceCountEl = document.getElementById('instanceCount');
+const recordToggleBtn = document.getElementById('recordToggle');
+const downloadRecordingsBtn = document.getElementById('downloadRecordings');
+const recordStatusEl = document.getElementById('recordStatus');
+let recorder = null;
+
+// Keep JS breakpoint in sync with CSS media query (960px)
+const collapseQuery = window.matchMedia('(max-width: 960px)');
+let userLockedPanel = false;
+
+const focusPanel = () => {
+  if(!panelEl || typeof panelEl.focus !== 'function') return;
+  try {
+    panelEl.focus({preventScroll:true});
+  } catch (err) {
+    panelEl.focus();
+  }
+};
+
+const setCollapsed = (collapsed) => {
+  appEl.classList.toggle('collapsed', collapsed);
+  togglePanelBtn.setAttribute('aria-expanded', String(!collapsed));
+  togglePanelBtn.innerHTML = collapsed ? '&raquo;' : '&laquo;';
+  togglePanelBtn.setAttribute('aria-label', collapsed ? 'Expand controls' : 'Collapse controls');
+  requestAnimationFrame(() => {
+    updateGridLayout();
+    sims.forEach(sim => sim.resize());
+  });
+};
+
+togglePanelBtn.addEventListener('click', () => {
+  const collapsed = !appEl.classList.contains('collapsed');
+  userLockedPanel = true;
+  setCollapsed(collapsed);
+  if(!collapsed){
+    focusPanel();
+  }
+});
+
+const handleCollapseChange = (event) => {
+  if(userLockedPanel) return;
+  setCollapsed(event.matches);
+};
+
+collapseQuery.addEventListener?.('change', handleCollapseChange);
+collapseQuery.addListener?.(handleCollapseChange);
+setCollapsed(collapseQuery.matches);
+
+const controls = {
+  N: document.getElementById('N'),
+  NVal: document.getElementById('NVal'),
+  initMode: document.getElementById('initMode'),
+  Ia: document.getElementById('Ia'),
+  In: document.getElementById('In'),
+  IpVal: document.getElementById('IpVal'),
+  InVal: document.getElementById('InVal'),
+  hydro: document.getElementById('hydro'),
+  hydroShell: document.getElementById('hydroShell'),
+  hydroRange: document.getElementById('hydroRange'),
+  hydroRadius: document.getElementById('hydroRadius'),
+  hydroRVal: document.getElementById('hydroRVal'),
+  respawn: document.getElementById('respawn'),
+  clearBaits: document.getElementById('clearBaits'),
+};
+const playPauseBtn = document.getElementById('playPause');
+let isPlaying = true;
+
+const setPlaying = (playing) => {
+  isPlaying = playing;
+  if (playPauseBtn) {
+    playPauseBtn.textContent = isPlaying ? 'Pause All' : 'Play All';
+  }
+  recorder?.logEvent({type:'play_set', playing: !!isPlaying});
+  sims.forEach(sim => sim.resetTimer());
+};
+if (playPauseBtn){
+  playPauseBtn.addEventListener('click', () => {
+    setPlaying(!isPlaying);
+  });
+}
+
+const stateFlags = {
+  mouse: true,
+  shark: false,
+  whale: false,
+  evade: true,
+  death: true,
+  hard: true,
+  whaleFollow: false,
+};
+
+const armedPlacers = {bait:false, goal:false};
+const toggleButtons = new Map();
+document.querySelectorAll('.toggle').forEach(btn => {
+  const key = btn.dataset.key;
+  toggleButtons.set(key, btn);
+  if(btn.classList.contains('active')) stateFlags[key] = true;
+  btn.addEventListener('click', () => {
+    if(btn.classList.contains('disabled')) return;
+    if(key === 'goal'){
+      const active = btn.classList.toggle('active');
+      armedPlacers.goal = active;
+      recorder?.logEvent({type:'armed_set', tool:'goal', active: !!active});
+      if (!active) clearAllGoals();
+      return;
+    } else if (key === 'bait') {
+      const active = btn.classList.toggle('active');
+      armedPlacers.bait = active;
+      recorder?.logEvent({type:'armed_set', tool:'bait', active: !!active});
+      return;
+    }
+    const active = btn.classList.toggle('active');
+    stateFlags[key] = active;
+    recorder?.logEvent({type:'flag_set', key, active: !!active});
+    if(key === 'shark'){
+      updateGoalUiDisabled();
+      if(!active) clearAllGoals();
+    }
+  });
+});
+
+function updateGoalUiDisabled(){
+  const goalBtn = toggleButtons.get('goal');
+  if(!goalBtn) return;
+  const enabled = !!stateFlags.shark;
+  goalBtn.classList.toggle('disabled', !enabled);
+  if(!enabled){
+    armedPlacers.goal = false;
+    goalBtn.classList.remove('active');
+    clearAllGoals();
+  }
+}
+
+const params = {
+  dt: 0.05,
+  If: 1e-2,
+  attrS: 1,
+  fishL: 0.6,
+  fishH: 0.1,
+  replD: 0.6 * 2,
+  replS: 100,
+  sharkH: 3,
+  whaleH: 8,
+};
+
+const fishShape = {
+  x: [-0.5,-0.25,0,0.1,0.125,0.1,0,-0.25],
+  y: [0,0.075,0.1,0.05,0,-0.05,-0.1,-0.075].map(v => v/2),
+};
+
+const sharkShape = {
+  head: {
+    x: [0,0,-0.05,0.05,1,1.8,2.25,3,2.25,1.8,1,0.05,-0.05,0],
+    y: [0,1,1.85,2,1,0.9,0.5,0,-0.5,-0.9,-1,-2,-1.85,-1],
+  },
+  body: {
+    x: [-4,-3.33,-2,-1,0,1,2,1,0,-1,-2,-3.33,-4],
+    y: [0,0.48,0.75,0.85,1,1,0,-1,-1,-0.85,-0.75,-0.48,0],
+  },
+  tail: {
+    x: [-6.6,-6.5,-5.6,-4.6,-4,-2.5,-2.5,-4,-4.6,-5.6,-6.5],
+    y: [0,0.1,0.15,0.25,0.5,0.6,0,-0.6,-0.5,-0.25,-0.1],
+  },
+};
+
+const sharkHeadOffset = 1.5;
+const whaleHeadOffset = 0.8;
+
+const whaleShape = {
+  x: [-3.9,-4,-3.75,-3.5,-1.5,0,-0.15,-0.4,0.25,0.75,1.5,1.85,2,1.85,1.5,0.75,0.25,-0.4,-0.15,0,-1.5,-3.5,-3.75,-4,-3.9].map(v => v*2),
+  y: [0,0.9,0.67,0.2,0.75,1,1.5,2,1.5,1,0.75,0.45,0,-0.45,-0.75,-1,-1.5,-2,-1.5,-1,-0.75,-0.2,-0.67,-0.9,0].map(v => v*2),
+};
+
+let errTol = 1e-12;
+
+function gaussian(){
+  let u=0,v=0;
+  while(u===0) u=1-Math.random();
+  while(v===0) v=Math.random();
+  return Math.sqrt(-2.0*Math.log(u))*Math.cos(2.0*Math.PI*v);
+}
+
+function wrapAngle(a){
+  a = (a + Math.PI) % (Math.PI*2);
+  if(a < 0) a += Math.PI*2;
+  return a - Math.PI;
+}
+
+function getAngle(phi, dx, dy, dist){
+  const r = dist ?? Math.hypot(dx, dy);
+  if(!isFinite(r) || r === 0) {
+    console.log('overlapped fish or something wrong!', r);
+    return 0;
+  }
+  const rx = dx / r;
+  const ry = dy / r;
+  const ex = Math.cos(phi);
+  const ey = Math.sin(phi);
+  let cross = ex*ry - ey*rx;
+  let dot = ex*rx + ey*ry;
+  cross = Math.max(-1, Math.min(1, cross));
+  dot = Math.max(-1, Math.min(1, dot));
+  let theta = Math.acos(dot);
+  if(cross < 0) theta = -theta;
+  return theta;
+}
+
+function medianPoint(arr){
+  const xs = arr.map(p => p.x).sort((a,b) => a-b);
+  const ys = arr.map(p => p.y).sort((a,b) => a-b);
+  const mid = Math.floor(xs.length/2);
+  const medX = xs.length % 2 ? xs[mid] : (xs[mid-1]+xs[mid])/2;
+  const medY = ys.length % 2 ? ys[mid] : (ys[mid-1]+ys[mid])/2;
+  return {x:medX,y:medY};
+}
+
+function hotColor(t){
+  let r=0,g=0,b=0;
+  const third = 1/3;
+  if(t <= 0){ r = g = b = 0; }
+  else if(t < third){
+    r = 3*t; g = t; b = 0.5*t;
+  } else if(t < 2*third){
+    r = 1; g = 3*t - 1; b = 0;
+  } else if(t < 1){
+    r = 1; g = 1; b = 3*t - 2;
+  } else {
+    r = g = b = 1;
+  }
+  return `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+}
+
+function speedColor(speed){
+  const s2 = speed*speed;
+  const t = Math.max(0, Math.min(1, (s2 - 0.5) / 1.5));
+  return hotColor(t);
+}
+
+function hash32(ix, iy, salt){
+  let h = Math.imul(ix|0, 0x9e3779b1) ^ Math.imul((iy|0) + (salt|0), 0x85ebca6b);
+  h ^= h >>> 16; h = Math.imul(h, 0x7feb352d); h ^= h >>> 15; h = Math.imul(h, 0x846ca68b); h ^= h >>> 16;
+  return h >>> 0;
+}
+
+function rand2(ix, iy, salt){
+  const a = hash32(ix, iy, 0x1234abcd ^ salt);
+  const b = hash32(ix, iy, 0xdeadbeef ^ salt);
+  return [a/4294967296, b/4294967296];
+}
+function rand1(ix, iy, salt){
+  return hash32(ix, iy, salt) / 4294967296;
+}
+
+const sims = new Map();
+let simCounter = 0;
+let activeSimId = null;
+
+function setActiveSimId(simId){
+  activeSimId = simId;
+  sims.forEach(sim => sim.node.classList.toggle('focused', sim.id === activeSimId));
+}
+
+function normalizeInstanceParams(next){
+  const n = Math.max(10, Math.min(10000, Math.round(Number(next?.n ?? 150) || 150)));
+  const Ia = Math.max(0.01, Math.min(10, Number(next?.Ia ?? 1.5) || 1.5));
+  const In = Math.max(0, Math.min(5, Number(next?.In ?? 0.3) || 0.3));
+  return {n, Ia, In};
+}
+
+function readInstanceParamsFromControls(){
+  return normalizeInstanceParams({
+    n: parseInt(controls.N?.value ?? '150', 10),
+    Ia: parseFloat(controls.Ia?.value ?? '1.5'),
+    In: parseFloat(controls.In?.value ?? '0.3'),
+  });
+}
+
+let bufferedInstanceParams = readInstanceParamsFromControls();
+
+function updateInstanceCount(){
+  const count = sims.size;
+  if(instanceCountEl){
+    instanceCountEl.textContent = `(${count} running)`;
+  }
+}
+
+function clearAllGoals(){
+  recorder?.logEvent({type:'goal_clear_all'});
+  sims.forEach(sim => sim.clearGoal());
+}
+
+function clearAllBaits(){
+  recorder?.logEvent({type:'bait_clear_all'});
+  sims.forEach(sim => sim.clearBaits());
+}
+
+function resetAllSchools({applyBuffered=false} = {}){
+  if(applyBuffered){
+    sims.forEach(sim => sim.setInstanceParams(bufferedInstanceParams, {respawn:true}));
+    return;
+  }
+  sims.forEach(sim => sim.resetSchool());
+}
+
+function updateGridLayout(){
+  const count = sims.size;
+  const tileCount = Math.max(1, count);
+  const rect = simGrid.getBoundingClientRect();
+  const gridW = Math.max(1, rect.width);
+  const gridH = Math.max(1, rect.height);
+  const targetAspect = 1.15;
+  const minTileW = 280;
+  const minTileH = 220;
+
+  let bestCols = 1;
+  let bestRows = tileCount;
+  let bestScore = Infinity;
+  const maxCols = Math.min(tileCount, 16);
+  for(let cols=1; cols<=maxCols; cols++){
+    const rows = Math.ceil(tileCount / cols);
+    const tileW = gridW / cols;
+    const tileH = gridH / rows;
+    const aspect = tileW / Math.max(1, tileH);
+    const aspectPenalty = Math.abs(Math.log(aspect / targetAspect));
+    const wPenalty = Math.max(0, (minTileW - tileW) / minTileW);
+    const hPenalty = Math.max(0, (minTileH - tileH) / minTileH);
+    const sizePenalty = wPenalty*wPenalty + hPenalty*hPenalty;
+    const empties = cols*rows - tileCount;
+    const emptyPenalty = empties ? empties * 0.06 : 0;
+    const score = aspectPenalty*2.2 + sizePenalty*3.5 + emptyPenalty;
+    if(score < bestScore){
+      bestScore = score;
+      bestCols = cols;
+      bestRows = rows;
+    }
+  }
+
+  const cols = bestCols;
+  const rows = bestRows;
+  simGrid.style.setProperty('--cols', String(cols));
+  simGrid.style.setProperty('--rows', String(rows));
+  simGrid.querySelectorAll('.sim-placeholder').forEach(node => node.remove());
+  const totalSlots = rows * cols;
+  const placeholders = totalSlots - count;
+  if(placeholders > 0){
+    for(let i=0;i<placeholders;i++){
+      const ph = document.createElement('button');
+      ph.type = 'button';
+      ph.className = 'sim-placeholder';
+      ph.setAttribute('aria-label', 'Add instance');
+      const plus = document.createElement('div');
+      plus.className = 'sim-placeholder-plus';
+      plus.textContent = '+';
+      const label = document.createElement('div');
+      label.className = 'sim-placeholder-label';
+      label.textContent = 'Add instance';
+      ph.appendChild(plus);
+      ph.appendChild(label);
+      ph.addEventListener('click', () => addSimulation(undefined, {reason:'placeholder'}));
+      simGrid.appendChild(ph);
+    }
+  }
+}
+
+function getActiveSim(){
+  return sims.get(activeSimId) ?? sims.values().next().value;
+}
+
+function hideAllTutorialNotes(){
+  document.querySelectorAll('.sim-note').forEach(el => el.remove());
+}
+
+function formatBytes(bytes){
+  const units = ['B','KB','MB','GB'];
+  let v = Math.max(0, bytes);
+  let i = 0;
+  while(v >= 1024 && i < units.length-1){ v /= 1024; i++; }
+  return `${v.toFixed(i ? 1 : 0)} ${units[i]}`;
+}
+
+function chooseGrid(tileCount, W, H){
+  const targetAspect = 1.15;
+  const minTileW = 280;
+  const minTileH = 220;
+
+  let bestCols = 1;
+  let bestRows = tileCount;
+  let bestScore = Infinity;
+  const maxCols = Math.min(tileCount, 16);
+  for(let cols=1; cols<=maxCols; cols++){
+    const rows = Math.ceil(tileCount / cols);
+    const tileW = W / cols;
+    const tileH = H / rows;
+    const aspect = tileW / Math.max(1, tileH);
+    const aspectPenalty = Math.abs(Math.log(aspect / targetAspect));
+    const wPenalty = Math.max(0, (minTileW - tileW) / minTileW);
+    const hPenalty = Math.max(0, (minTileH - tileH) / minTileH);
+    const sizePenalty = wPenalty*wPenalty + hPenalty*hPenalty;
+    const empties = cols*rows - tileCount;
+    const emptyPenalty = empties ? empties * 0.06 : 0;
+    const score = aspectPenalty*2.2 + sizePenalty*3.5 + emptyPenalty;
+    if(score < bestScore){
+      bestScore = score;
+      bestCols = cols;
+      bestRows = rows;
+    }
+  }
+  return {cols: bestCols, rows: bestRows};
+}
+
+function createRecorder(){
+  const enc = new TextEncoder();
+  const fps = 2;
+  const intervalMs = 1000 / fps;
+  const maxBytesDefault = 250 * 1024 * 1024;
+  const videoW = 1280;
+  const videoH = 720;
+
+  let recording = false;
+  let startMs = 0;
+  let nextSampleMs = 0;
+  let approxBytes = 0;
+  let frames = 0;
+  let events = 0;
+  let chunks = [];
+
+  let compositeCanvas = null;
+  let compositeCtx = null;
+  let stream = null;
+  let videoTrack = null;
+  let mediaRecorder = null;
+  let videoMimeType = 'video/webm';
+  let videoChunks = [];
+
+  let logBlob = null;
+  let videoBlob = null;
+  let maxBytes = maxBytesDefault;
+
+  function timeSec(){
+    return (performance.now() - startMs) / 1000;
+  }
+
+  function pushChunk(type4, payload){
+    const typeBytes = enc.encode(type4);
+    const header = new Uint8Array(8);
+    header[0] = typeBytes[0] ?? 0;
+    header[1] = typeBytes[1] ?? 0;
+    header[2] = typeBytes[2] ?? 0;
+    header[3] = typeBytes[3] ?? 0;
+    new DataView(header.buffer).setUint32(4, payload.byteLength >>> 0, true);
+    chunks.push(header, payload);
+    approxBytes += header.byteLength + payload.byteLength;
+  }
+
+  function pushJson(type4, obj){
+    const payload = enc.encode(JSON.stringify(obj));
+    pushChunk(type4, payload);
+  }
+
+  function updateUi(){
+    if(!recordStatusEl) return;
+    if(recording){
+      recordStatusEl.textContent = `REC ${frames}f ${formatBytes(approxBytes)}`;
+    } else if(logBlob || videoBlob){
+      recordStatusEl.textContent = `REC ready ${frames}f`;
+    } else {
+      recordStatusEl.textContent = 'REC idle';
+    }
+    if(recordToggleBtn){
+      recordToggleBtn.textContent = recording ? 'Stop' : 'Record';
+    }
+    if(downloadRecordingsBtn){
+      downloadRecordingsBtn.disabled = !(logBlob || videoBlob) || recording;
+    }
+  }
+
+  function ensureCompositeCanvas(){
+    if(compositeCanvas) return;
+    compositeCanvas = document.createElement('canvas');
+    compositeCanvas.width = videoW;
+    compositeCanvas.height = videoH;
+    compositeCanvas.style.position = 'fixed';
+    compositeCanvas.style.left = '-99999px';
+    compositeCanvas.style.top = '0';
+    compositeCanvas.style.width = '1px';
+    compositeCanvas.style.height = '1px';
+    compositeCanvas.style.opacity = '0';
+    compositeCanvas.style.pointerEvents = 'none';
+    document.body.appendChild(compositeCanvas);
+    compositeCtx = compositeCanvas.getContext('2d', {alpha:false});
+  }
+
+  function pickMimeType(){
+    const candidates = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+    ];
+    for(const t of candidates){
+      if(window.MediaRecorder && MediaRecorder.isTypeSupported?.(t)) return t;
+    }
+    return '';
+  }
+
+  function startVideo(){
+    ensureCompositeCanvas();
+    if(!compositeCanvas.captureStream || !window.MediaRecorder) return;
+    stream = compositeCanvas.captureStream(fps);
+    videoTrack = stream.getVideoTracks?.()[0] ?? null;
+    const mimeType = pickMimeType();
+    videoMimeType = mimeType || 'video/webm';
+    try {
+      mediaRecorder = new MediaRecorder(stream, mimeType ? {mimeType} : undefined);
+    } catch (err) {
+      console.warn('MediaRecorder init failed', err);
+      mediaRecorder = null;
+      return;
+    }
+    videoChunks = [];
+    mediaRecorder.addEventListener('dataavailable', (e) => {
+      if(e.data && e.data.size) videoChunks.push(e.data);
+    });
+    mediaRecorder.start(2000);
+  }
+
+  function stopVideo(){
+    return new Promise((resolve) => {
+      if(!mediaRecorder){
+        resolve();
+        return;
+      }
+      const mr = mediaRecorder;
+      mr.addEventListener('stop', () => {
+        try { stream?.getTracks?.().forEach(t => t.stop()); } catch {}
+        stream = null;
+        videoTrack = null;
+        mediaRecorder = null;
+        resolve();
+      }, {once:true});
+      try { mr.stop(); } catch { resolve(); }
+    });
+  }
+
+  function drawComposite(){
+    if(!compositeCtx) return;
+    const list = Array.from(sims.values());
+    const count = list.length;
+    compositeCtx.setTransform(1,0,0,1,0,0);
+    compositeCtx.fillStyle = '#05070c';
+    compositeCtx.fillRect(0,0,videoW,videoH);
+    if(count === 0) return;
+    const {cols, rows} = chooseGrid(count, videoW, videoH);
+    const pad = 10;
+    const tileW = (videoW - pad*(cols+1)) / cols;
+    const tileH = (videoH - pad*(rows+1)) / rows;
+    for(let i=0;i<count;i++){
+      const sim = list[i];
+      const c = sim.canvas;
+      if(!c) continue;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x0 = pad + col*(tileW + pad);
+      const y0 = pad + row*(tileH + pad);
+      const sw = c.width;
+      const sh = c.height;
+      if(sw <= 0 || sh <= 0) continue;
+      const scale = Math.min(tileW / sw, tileH / sh);
+      const dw = sw * scale;
+      const dh = sh * scale;
+      const dx = x0 + (tileW - dw)/2;
+      const dy = y0 + (tileH - dh)/2;
+      compositeCtx.drawImage(c, dx, dy, dw, dh);
+      compositeCtx.strokeStyle = 'rgba(138,180,248,.25)';
+      compositeCtx.lineWidth = 2;
+      compositeCtx.strokeRect(x0, y0, tileW, tileH);
+    }
+    if(videoTrack && typeof videoTrack.requestFrame === 'function'){
+      try { videoTrack.requestFrame(); } catch {}
+    }
+  }
+
+  function pushFrame(tSec){
+    const list = Array.from(sims.values());
+    const simCount = list.length;
+    let totalBytes = 8 + 4;
+    const snaps = new Array(simCount);
+    for(let i=0;i<simCount;i++){
+      const snap = list[i].snapshotForRecording(tSec);
+      snaps[i] = snap;
+      totalBytes += 20 + snap.fish.byteLength + snap.shark.byteLength + snap.whale.byteLength;
+    }
+    const buf = new ArrayBuffer(totalBytes);
+    const dv = new DataView(buf);
+    let off = 0;
+    dv.setFloat64(off, tSec, true); off += 8;
+    dv.setUint32(off, simCount >>> 0, true); off += 4;
+    for(const s of snaps){
+      dv.setUint32(off, s.simId >>> 0, true); off += 4;
+      dv.setUint32(off, s.n >>> 0, true); off += 4;
+      const flags = (s.sharkOn ? 1 : 0) | (s.whaleOn ? 2 : 0);
+      dv.setUint32(off, flags >>> 0, true); off += 4;
+      dv.setFloat32(off, s.pol, true); off += 4;
+      dv.setFloat32(off, s.mill, true); off += 4;
+      new Float32Array(buf, off, s.fish.length).set(s.fish); off += s.fish.byteLength;
+      new Float32Array(buf, off, s.shark.length).set(s.shark); off += s.shark.byteLength;
+      new Float32Array(buf, off, s.whale.length).set(s.whale); off += s.whale.byteLength;
+    }
+    pushChunk('FRAM', new Uint8Array(buf));
+  }
+
+  function start(){
+    if(recording) return;
+    recording = true;
+    chunks = [];
+    approxBytes = 0;
+    frames = 0;
+    events = 0;
+    logBlob = null;
+    videoBlob = null;
+    videoChunks = [];
+    startMs = performance.now();
+    nextSampleMs = startMs;
+
+    pushJson('META', {
+      format: 'fish_school_multiplex_log_v1',
+      createdAt: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      fps,
+      dt: params.dt,
+      maxBytes,
+      video: {width: videoW, height: videoH, fps},
+      notes: {
+        fishState: 'per-frame float32 x,y,theta (interleaved)',
+        sharkWhaleState: 'per-frame float32 x,y,theta, NaN when disabled',
+        order: {
+          polarization: '|mean_i [cos(theta_i), sin(theta_i)]|',
+          milling: '|mean_i cross(rhat_i, ehat_i)| using ehat from theta',
+        },
+      },
+    });
+
+    startVideo();
+    updateUi();
+  }
+
+  async function stop(){
+    if(!recording) return;
+    recording = false;
+    pushJson('META', {type:'summary', frames, events, bytes: approxBytes});
+    await stopVideo();
+    logBlob = new Blob(chunks, {type:'application/octet-stream'});
+    videoBlob = videoChunks.length ? new Blob(videoChunks, {type: videoMimeType}) : null;
+    updateUi();
+  }
+
+  function maybeSample(nowMs){
+    if(!recording) return;
+    if(approxBytes >= maxBytes){
+      logEvent({type:'recording_stop', reason:'max_bytes'});
+      void stop();
+      return;
+    }
+    if(nowMs < nextSampleMs) return;
+    const tSec = (nowMs - startMs) / 1000;
+    pushFrame(tSec);
+    frames++;
+    drawComposite();
+    nextSampleMs = nowMs + intervalMs;
+    updateUi();
+  }
+
+  function logEvent(ev){
+    if(!recording) return;
+    events++;
+    pushJson('EVNT', {tSec: timeSec(), ...ev});
+  }
+
+  function download(){
+    if(recording) return;
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+    if(logBlob){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(logBlob);
+      a.download = `fish_school_log_${stamp}.fslog`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }
+    if(videoBlob){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(videoBlob);
+      a.download = `fish_school_timelapse_${stamp}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }
+  }
+
+  function toggle(){
+    if(recording) void stop();
+    else start();
+  }
+
+  return {start, stop, toggle, maybeSample, logEvent, download, get recording(){return recording;}};
+}
+
+recorder = createRecorder();
+recordToggleBtn?.addEventListener('click', () => recorder.toggle());
+downloadRecordingsBtn?.addEventListener('click', () => recorder.download());
+
+function createSimulation(initialParams){
+  const fragment = simTemplate.content.cloneNode(true);
+  const node = fragment.querySelector('.sim-tile');
+  const simId = ++simCounter;
+  node.dataset.simId = String(simId);
+  const titleEl = node.querySelector('.sim-title');
+  if(titleEl) titleEl.textContent = `Sim ${simId}`;
+  const removeBtn = node.querySelector('.sim-remove');
+  const addBtn = node.querySelector('.sim-add');
+  const duplicateBtn = node.querySelector('.sim-duplicate');
+  const resetBtn = node.querySelector('.sim-reset');
+  const viewEl = node.querySelector('.sim-view');
+  const canvas = node.querySelector('.sim-canvas');
+  const ctx = canvas.getContext('2d');
+  const statsEl = node.querySelector('.sim-stats');
+  const messageEl = node.querySelector('.sim-messages');
+  const noteEl = node.querySelector('.sim-note');
+  if(sims.size > 0 && noteEl) noteEl.remove();
+  const closeBtn = noteEl?.querySelector('[data-close]');
+  closeBtn?.addEventListener('click', () => noteEl.remove());
+
+  const dpad = node.querySelector('.sim-dpad');
+  const btnU = dpad?.querySelector('[data-pan="up"]');
+  const btnD = dpad?.querySelector('[data-pan="down"]');
+  const btnL = dpad?.querySelector('[data-pan="left"]');
+  const btnR = dpad?.querySelector('[data-pan="right"]');
+  const btnC = dpad?.querySelector('[data-pan="center"]');
+  let dpadHidden = false;
+
+  function setDpadHidden(hidden){
+    if(!dpad || dpadHidden === hidden) return;
+    dpadHidden = hidden;
+    dpad.classList.toggle('hidden', hidden);
+    dpad.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+    dpad.querySelectorAll('button').forEach(btn => { btn.tabIndex = hidden ? -1 : 0; });
+  }
+
+  let fishes = [];
+  let velocities = [];
+  let wBuffer = [];
+  let baits = [];
+  let sharkGoal = null;
+  let cp = {x:0,y:0};
+  let pointerActive = false;
+  let pointerInside = false;
+
+  let sharkState = {pos:{x:-25,y:0},theta:0};
+  let whaleState = {pos:{x:0,y:-25},theta:Math.PI/2};
+  let startTime = performance.now();
+
+  let viewState = {follow: true, centerX: 0, centerY: 0, worldHeight: 40};
+  const MIN_WORLD_H = 10;
+  const MAX_WORLD_H = 200;
+  const activePointers = new Map();
+  let pinchLastDist = 0;
+  let twoPanLastMidWorld = null;
+
+  let instanceParams = normalizeInstanceParams(initialParams ?? bufferedInstanceParams);
+
+  function getInstanceParams(){
+    return {...instanceParams};
+  }
+
+  function setInstanceParams(next, {respawn=false, log=false, reason=''} = {}){
+    instanceParams = normalizeInstanceParams(next);
+    if(log && recorder){
+      recorder.logEvent({
+        type: 'instance_params',
+        simId,
+        reason,
+        n: instanceParams.n,
+        Ia: instanceParams.Ia,
+        In: instanceParams.In,
+        respawn: !!respawn,
+      });
+    }
+    if(respawn) resetSchool();
+  }
+
+  function snapshotForRecording(tSec){
+    const n = fishes.length;
+    const fish = new Float32Array(n*3);
+    let cx = 0, cy = 0;
+    let sumCos = 0, sumSin = 0;
+    for(let i=0;i<n;i++){
+      const f = fishes[i];
+      const theta = f.theta;
+      cx += f.x; cy += f.y;
+      const c = Math.cos(theta);
+      const s = Math.sin(theta);
+      sumCos += c; sumSin += s;
+      const k = i*3;
+      fish[k] = f.x;
+      fish[k+1] = f.y;
+      fish[k+2] = theta;
+    }
+    if(n > 0){ cx /= n; cy /= n; }
+    const pol = n > 0 ? Math.hypot(sumCos/n, sumSin/n) : 0;
+
+    let millSum = 0;
+    if(n > 0){
+      for(let i=0;i<n;i++){
+        const f = fishes[i];
+        const rx = f.x - cx;
+        const ry = f.y - cy;
+        const r = Math.hypot(rx, ry);
+        if(r < 1e-9) continue;
+        const rhatx = rx / r;
+        const rhaty = ry / r;
+        const ex = Math.cos(f.theta);
+        const ey = Math.sin(f.theta);
+        millSum += (rhatx*ey - rhaty*ex);
+      }
+    }
+    const mill = n > 0 ? Math.abs(millSum / n) : 0;
+
+    const sharkOn = !!stateFlags.shark;
+    const whaleOn = !!stateFlags.whale;
+    const shark = new Float32Array([sharkOn ? sharkState.pos.x : NaN, sharkOn ? sharkState.pos.y : NaN, sharkOn ? sharkState.theta : NaN]);
+    const whale = new Float32Array([whaleOn ? whaleState.pos.x : NaN, whaleOn ? whaleState.pos.y : NaN, whaleOn ? whaleState.theta : NaN]);
+    return {tSec, simId, n, fish, pol, mill, shark, whale, sharkOn, whaleOn};
+  }
+
+  function meanX(){
+    if(!fishes.length) return 0;
+    return fishes.reduce((acc,f) => acc + f.x, 0)/fishes.length;
+  }
+  function meanY(){
+    if(!fishes.length) return 0;
+    return fishes.reduce((acc,f) => acc + f.y, 0)/fishes.length;
+  }
+
+  function getViewCenter(){
+    if(viewState.follow){ return {x: meanX(), y: meanY()}; }
+    return {x: viewState.centerX, y: viewState.centerY};
+  }
+
+  function nudgeView(dx, dy){
+    if(viewState.follow){
+      const c = {x: meanX(), y: meanY()};
+      viewState.centerX = c.x;
+      viewState.centerY = c.y;
+      viewState.follow = false;
+    }
+    viewState.centerX += dx;
+    viewState.centerY += dy;
+  }
+
+  function resetSchool(){
+    fishes = [];
+    velocities = [];
+    wBuffer = [];
+    const mode = controls.initMode?.value || 'random';
+    if(mode === 'line'){
+      const n = instanceParams.n;
+      for(let i=0;i<n;i++){
+        const t = n > 1 ? (i/(n-1)) : 0.5;
+        const y = -10 + 20*t+gaussian();
+        const x = gaussian();
+        const theta = 0;
+        fishes.push({x:x, y:y + gaussian(), theta});
+        velocities.push({x:0,y:0});
+        wBuffer.push(0);
+      }
+    } else {
+      for(let i=0;i<instanceParams.n;i++){
+        const theta = Math.random()*Math.PI*2;
+        fishes.push({x:gaussian()*10,y:gaussian()*10,theta});
+        velocities.push({x:0,y:0});
+        wBuffer.push(0);
+      }
+    }
+  }
+
+  function getSharkHeadPos(dir){
+    const ex = dir?.x ?? Math.cos(sharkState.theta);
+    const ey = dir?.y ?? Math.sin(sharkState.theta);
+    return {
+      x: sharkState.pos.x + ex * sharkHeadOffset,
+      y: sharkState.pos.y + ey * sharkHeadOffset,
+    };
+  }
+
+  function getWhaleHeadPos(dir){
+    const ex = dir?.x ?? Math.cos(whaleState.theta);
+    const ey = dir?.y ?? Math.sin(whaleState.theta);
+    return {
+      x: whaleState.pos.x + ex * whaleHeadOffset,
+      y: whaleState.pos.y + ey * whaleHeadOffset,
+    };
+  }
+
+  function computeStep(){
+    const dt = params.dt;
+    const Ia = instanceParams.Ia;
+    const In = instanceParams.In;
+    const n = fishes.length;
+    if(!n) return;
+
+    const hydroEnabled = controls.hydro.checked;
+    const hydroShellOnly = hydroEnabled && controls.hydroShell?.checked;
+    const hydroRangeOnly = hydroEnabled && controls.hydroRange?.checked;
+    const rCut = parseFloat(controls.hydroRadius?.value ?? '3');
+    const cosT = fishes.map(f => Math.cos(f.theta));
+    const sinT = fishes.map(f => Math.sin(f.theta));
+
+    const delaunay = n >= 3 ? Delaunay.from(fishes, f => f.x, f => f.y) : null;
+    const delaunayNeighbors = delaunay ? Array.from({length:n}, (_,i) => Array.from(delaunay.neighbors(i))) : null;
+    const wVision = new Float64Array(n).fill(0);
+    const minDist = new Float64Array(n).fill(Infinity);
+
+    if(delaunay){
+      for(let i=0;i<n;i++){
+        const neighbors = delaunayNeighbors[i];
+        let sum = 0;
+        let denom = 0;
+        let minR = Infinity;
+        for(const j of neighbors){
+          if(j === i) continue;
+          const dx = fishes[j].x - fishes[i].x;
+          const dy = fishes[j].y - fishes[i].y;
+          const dist = Math.hypot(dx, dy);
+          const theta = getAngle(fishes[i].theta, dx, dy, dist);
+          const phi = wrapAngle(fishes[j].theta - fishes[i].theta);
+          const weight = 1 + Math.cos(theta);
+          sum += (Ia*Math.sin(phi) + dist*Math.sin(theta))*weight;
+          denom += weight;
+          if(dist < minR) minR = dist;
+        }
+        wVision[i] = denom > errTol ? sum / denom : 0;
+        minDist[i] = minR;
+      }
+    }
+
+    if(baits.length){
+      const attrNum = Math.min(n, 5);
+      for(const bait of baits){
+        const distList = fishes.map((f,idx) => ({idx, dist: Math.hypot(bait.x - f.x, bait.y - f.y)}));
+        distList.sort((a,b) => a.dist - b.dist);
+        const attrD = (distList[0].dist + distList[Math.min(attrNum-1, distList.length-1)].dist)/2;
+        for(let k=0;k<attrNum && k<distList.length;k++){
+          const {idx, dist} = distList[k];
+          const dvx = bait.x - fishes[idx].x;
+          const dvy = bait.y - fishes[idx].y;
+          const wBait = getAngle(fishes[idx].theta, dvx, dvy, dist);
+          const blend = Math.exp(params.attrS * (dist - attrD));
+          wVision[idx] = (wVision[idx]*blend + wBait)/(1 + blend);
+        }
+      }
+    }
+
+    if(stateFlags.mouse && pointerActive){
+      for(let i=0;i<n;i++){
+        const dx = cp.x - fishes[i].x;
+        const dy = cp.y - fishes[i].y;
+        const dist = Math.hypot(dx, dy);
+        if(dist === 0) continue;
+        const wCp = getAngle(fishes[i].theta, -dy, -dx, dist);
+        const blend = Math.exp(params.replS * (params.replD - dist));
+        wVision[i] = (wVision[i] + wCp*blend)/(1 + blend);
+      }
+    }
+
+    const wNoise = new Array(n).fill(0).map(() => In*Math.sqrt(dt)*gaussian());
+    if(stateFlags.shark){
+      const head = getSharkHeadPos();
+      for(let i=0;i<n;i++){
+        const d = Math.hypot(head.x - fishes[i].x, head.y - fishes[i].y);
+        const sig = 1/(1 + Math.exp(-(params.sharkH - d)));
+        wNoise[i] *= (1 + 2*In*sig);
+      }
+    }
+    if(stateFlags.whale){
+      const head = getWhaleHeadPos();
+      for(let i=0;i<n;i++){
+        const d = Math.hypot(head.x - fishes[i].x, head.y - fishes[i].y);
+        const sig = 1/(1 + Math.exp(-(params.whaleH - d)));
+        wNoise[i] *= (1 + 2*In*sig);
+      }
+    }
+    const Ux = new Float64Array(n).fill(0);
+    const Uy = new Float64Array(n).fill(0);
+    const wHydro = new Float64Array(n).fill(0);
+
+    if(hydroEnabled){
+      if(hydroShellOnly && delaunayNeighbors){
+        for(let i=0;i<n;i++){
+          let uR = 0, uI = 0, wSum = 0;
+          const neighbors = delaunayNeighbors[i];
+          for(const j of neighbors){
+            if(i === j) continue;
+            const dx = fishes[i].x - fishes[j].x;
+            const dy = fishes[i].y - fishes[j].y;
+            const r2 = dx*dx + dy*dy;
+            if(r2 < errTol) continue;
+            const invr4 = 1/(r2*r2);
+            const invr6 = invr4/r2;
+            const c2r = dx*dx - dy*dy;
+            const c2i = -2*dx*dy;
+            const c3r = c2r*dx + c2i*dy;
+            const c3i = c2r*(-dy) + c2i*dx;
+            const expOjR = cosT[j];
+            const expOjI = sinT[j];
+            const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+            const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+            const termUr = expOjR*c2r - expOjI*c2i;
+            const termUi = expOjR*c2i + expOjI*c2r;
+            const termWr = expTermR*c3r - expTermI*c3i;
+            const termWi = expTermR*c3i + expTermI*c3r;
+            uR += termUr * invr4;
+            uI += termUi * invr4;
+            wSum += termWi * invr6 * 2;
+          }
+          const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+          Ux[i] = uR / Math.PI * params.If * avoid;
+          Uy[i] = -uI / Math.PI * params.If * avoid;
+          wHydro[i] = wSum / Math.PI * params.If * avoid;
+        }
+      } else if(hydroRangeOnly){
+        const cell = rCut > 0 ? rCut : 1.0;
+        const r2cut = rCut*rCut;
+        const grid = new Map();
+        const key = (ix,iy) => ix + ',' + iy;
+        for(let i=0;i<n;i++){
+          const ix = Math.floor(fishes[i].x / cell);
+          const iy = Math.floor(fishes[i].y / cell);
+          const k = key(ix,iy);
+          let arr = grid.get(k);
+          if(!arr){ arr = []; grid.set(k, arr); }
+          arr.push(i);
+        }
+        for(let i=0;i<n;i++){
+          let uR = 0, uI = 0, wSum = 0;
+          const ix = Math.floor(fishes[i].x / cell);
+          const iy = Math.floor(fishes[i].y / cell);
+          for(let gx=ix-1; gx<=ix+1; gx++){
+            for(let gy=iy-1; gy<=iy+1; gy++){
+              const arr = grid.get(key(gx,gy));
+              if(!arr) continue;
+              for(const j of arr){
+                if(i === j) continue;
+                const dx = fishes[i].x - fishes[j].x;
+                const dy = fishes[i].y - fishes[j].y;
+                const r2 = dx*dx + dy*dy;
+                if(r2 > r2cut || r2 < errTol) continue;
+                const invr4 = 1/(r2*r2);
+                const invr6 = invr4/r2;
+                const c2r = dx*dx - dy*dy;
+                const c2i = -2*dx*dy;
+                const c3r = c2r*dx + c2i*dy;
+                const c3i = c2r*(-dy) + c2i*dx;
+                const expOjR = cosT[j];
+                const expOjI = sinT[j];
+                const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+                const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+                const termUr = expOjR*c2r - expOjI*c2i;
+                const termUi = expOjR*c2i + expOjI*c2r;
+                const termWr = expTermR*c3r - expTermI*c3i;
+                const termWi = expTermR*c3i + expTermI*c3r;
+                uR += termUr * invr4;
+                uI += termUi * invr4;
+                wSum += termWi * invr6 * 2;
+              }
+            }
+          }
+          const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+          Ux[i] = uR / Math.PI * params.If * avoid;
+          Uy[i] = -uI / Math.PI * params.If * avoid;
+          wHydro[i] = wSum / Math.PI * params.If * avoid;
+        }
+      } else {
+        for(let i=0;i<n;i++){
+          let uR = 0, uI = 0, wSum = 0;
+          for(let j=0;j<n;j++){
+            if(i === j) continue;
+            const dx = fishes[i].x - fishes[j].x;
+            const dy = fishes[i].y - fishes[j].y;
+            const r2 = dx*dx + dy*dy;
+            if(r2 < errTol) continue;
+            const invr4 = 1/(r2*r2);
+            const invr6 = invr4/r2;
+            const c2r = dx*dx - dy*dy;
+            const c2i = -2*dx*dy;
+            const c3r = c2r*dx + c2i*dy;
+            const c3i = c2r*(-dy) + c2i*dx;
+            const expOjR = cosT[j];
+            const expOjI = sinT[j];
+            const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
+            const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
+            const termUr = expOjR*c2r - expOjI*c2i;
+            const termUi = expOjR*c2i + expOjI*c2r;
+            const termWr = expTermR*c3r - expTermI*c3i;
+            const termWi = expTermR*c3i + expTermI*c3r;
+            uR += termUr * invr4;
+            uI += termUi * invr4;
+            wSum += termWi * invr6 * 2;
+          }
+          const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
+          Ux[i] = uR / Math.PI * params.If * avoid;
+          Uy[i] = -uI / Math.PI * params.If * avoid;
+          wHydro[i] = wSum / Math.PI * params.If * avoid;
+        }
+      }
+    }
+
+    if(stateFlags.shark){
+      if(hydroEnabled){
+        addPredatorFlow(sharkState, params.sharkH, 1000, Ux, Uy, wHydro);
+      }
+    }else{
+      sharkState.pos = {x:meanX()-25, y:meanY()};
+      sharkState.theta = 0;
+    }
+    if(stateFlags.whale){
+      if(hydroEnabled){
+        addPredatorFlow(whaleState, params.whaleH, 6, Ux, Uy, wHydro);
+      }
+    }else{
+      whaleState.pos = {x:meanX(), y:meanY()-25};
+      whaleState.theta = Math.PI/2;
+    }
+
+    if(stateFlags.evade){
+      if(stateFlags.shark) applySharkEvade(wVision);
+      if(stateFlags.whale) applyWhaleEvade(wVision);
+    }
+
+    const thetaDot = new Float64Array(n);
+    for(let i=0;i<n;i++){
+      thetaDot[i] = wVision[i] + wNoise[i] + wHydro[i];
+    }
+    wBuffer = thetaDot.slice();
+
+    for(let i=0;i<n;i++){
+      fishes[i].x += (Math.cos(fishes[i].theta) + Ux[i]) * dt;
+      fishes[i].y += (Math.sin(fishes[i].theta) + Uy[i]) * dt;
+      fishes[i].theta = wrapAngle(fishes[i].theta + thetaDot[i] * dt);
+      velocities[i].x = Math.cos(fishes[i].theta) + Ux[i];
+      velocities[i].y = Math.sin(fishes[i].theta) + Uy[i];
+    }
+
+    if(stateFlags.shark){
+      updateShark(Ux, Uy);
+    }
+    if(stateFlags.whale){
+      updateWhale(Ux, Uy);
+    }
+
+    if(stateFlags.death && (stateFlags.shark || stateFlags.whale)){
+      const survivors = [];
+      const survivorVel = [];
+      const survivorTheta = [];
+      const sharkHead = stateFlags.shark ? getSharkHeadPos() : null;
+      const whaleHead = stateFlags.whale ? getWhaleHeadPos() : null;
+      for(let i=0;i<fishes.length;i++){
+        const fish = fishes[i];
+        let dead = false;
+        if(stateFlags.shark){
+          const d = Math.hypot(fish.x - sharkHead.x, fish.y - sharkHead.y);
+          if(d <= params.sharkH/3) dead = true;
+        }
+        if(!dead && stateFlags.whale){
+          const d = Math.hypot(fish.x - whaleHead.x, fish.y - whaleHead.y);
+          if(d <= params.whaleH/3) dead = true;
+        }
+        if(!dead){
+          survivors.push(fish);
+          survivorVel.push(velocities[i]);
+          survivorTheta.push(wBuffer[i]);
+        }
+      }
+      fishes = survivors;
+      velocities = survivorVel;
+      wBuffer = survivorTheta;
+      if(fishes.length <= 2){
+        showMessage('Game over - the school was eaten. Respawn to continue.');
+      }
+    }
+  }
+
+  function addPredatorFlow(predState, scaleH, factor, Ux, Uy, wHydro){
+    const n = fishes.length;
+    for(let i=0;i<n;i++){
+      const dx = fishes[i].x - predState.pos.x;
+      const dy = fishes[i].y - predState.pos.y;
+      const r2 = dx*dx + dy*dy;
+      if(r2 < errTol) continue;
+      const invr4 = 1/(r2*r2);
+      const invr6 = invr4 / r2;
+      const c2r = dx*dx - dy*dy;
+      const c2i = -2*dx*dy;
+      const c3r = c2r*dx + c2i*dy;
+      const c3i = c2r*(-dy) + c2i*dx;
+      const expR = Math.cos(predState.theta);
+      const expI = Math.sin(predState.theta);
+      const expTermR = Math.cos(2*fishes[i].theta + predState.theta);
+      const expTermI = Math.sin(2*fishes[i].theta + predState.theta);
+      const termUr = expR*c2r - expI*c2i;
+      const termUi = expR*c2i + expI*c2r;
+      const termWr = expTermR*c3r - expTermI*c3i;
+      const termWi = expTermR*c3i + expTermI*c3r;
+      Ux[i] += termUr * invr4 / Math.PI * params.If * factor;
+      Uy[i] += -termUi * invr4 / Math.PI * params.If * factor;
+      wHydro[i] += termWi * invr6 * 2 / Math.PI * params.If * factor;
+    }
+  }
+
+  function applySharkEvade(wVision){
+    const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+    const orth = {x: -esk.y, y: esk.x};
+    const Sharkhead = getSharkHeadPos(esk);
+    for(let i=0;i<fishes.length;i++){
+      const fish = fishes[i];
+      const d = Math.hypot(Sharkhead.x - fish.x, Sharkhead.y - fish.y);
+      if(d === 0) continue;
+      const dop1 = Math.hypot(Sharkhead.x - orth.x - fish.x, Sharkhead.y - orth.y - fish.y);
+      const dop2 = Math.hypot(Sharkhead.x + orth.x - fish.x, Sharkhead.y + orth.y - fish.y);
+      const sign = dop1 <= dop2 ? -1 : 1;
+      const wSk = getAngle(fish.theta, orth.x * sign, orth.y * sign);
+      const blend = Math.exp((params.sharkH - d));
+      wVision[i] = (wVision[i] + wSk*blend)/(1 + blend);
+    }
+  }
+
+  function applyWhaleEvade(wVision){
+    const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+    const orth = {x: -ewh.y, y: ewh.x};
+    for(let i=0;i<fishes.length;i++){
+      const fish = fishes[i];
+      const dVec = {x: whaleState.pos.x - fish.x, y: whaleState.pos.y - fish.y};
+      const d = Math.hypot(dVec.x, dVec.y);
+      if(d === 0) continue;
+      const dop1 = Math.hypot(whaleState.pos.x - orth.x - fish.x, whaleState.pos.y - orth.y - fish.y);
+      const dop2 = Math.hypot(whaleState.pos.x + orth.x - fish.x, whaleState.pos.y + orth.y - fish.y);
+      const sign = dop1 <= dop2 ? -1 : 1;
+      const unit = {x: dVec.x/d, y: dVec.y/d};
+      const wWh = getAngle(fish.theta, orth.x*sign - unit.x, orth.y*sign - unit.y);
+      const blend = Math.exp((params.whaleH - d));
+      wVision[i] = (wVision[i] + wWh*blend)/(1 + blend);
+    }
+  }
+
+  function updateShark(Ux, Uy){
+    const dt = params.dt;
+    const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+    const head = getSharkHeadPos(esk);
+    if(stateFlags.hard && fishes.length){
+      let best = null;
+      let bestDist = Infinity;
+      const phiC = Math.PI/2;
+      for(const fish of fishes){
+        const dx = fish.x - head.x;
+        const dy = fish.y - head.y;
+        const dist = Math.hypot(dx, dy);
+        const phi = getAngle(sharkState.theta, dx, dy, dist);
+        if(Math.abs(phi) < phiC && dist < bestDist){
+          best = {dx, dy, dist};
+          bestDist = dist;
+        }
+      }
+      if(!best){
+        for(const fish of fishes){
+          const dx = fish.x - head.x;
+          const dy = fish.y - head.y;
+          const dist = Math.hypot(dx, dy);
+          if(dist < bestDist){
+            best = {dx, dy, dist};
+            bestDist = dist;
+          }
+        }
+      }
+      if(best){
+        let w = getAngle(sharkState.theta, best.dx, best.dy, best.dist);
+        w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+        sharkState.theta = wrapAngle(sharkState.theta + w*dt);
+      }
+      sharkState.pos.x += esk.x * dt * 1.5;
+      sharkState.pos.y += esk.y * dt * 1.5;
+    }else if(sharkGoal){
+      const dx = sharkGoal.x - head.x;
+      const dy = sharkGoal.y - head.y;
+      const dist = Math.hypot(dx, dy);
+      let w = getAngle(sharkState.theta, dx, dy, dist);
+      w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+      sharkState.theta = wrapAngle(sharkState.theta + w*dt);
+      sharkState.pos.x += esk.x * dt * 1.5;
+      sharkState.pos.y += esk.y * dt * 1.5;
+    }else if(fishes.length){
+      const idx = Math.min(fishes.length-1, Math.floor(fishes.length*187/500));
+      const noise = gaussian()/Math.sqrt(dt);
+      sharkState.pos.x += esk.x * dt * 1.5 + Ux[idx] * dt;
+      sharkState.pos.y += esk.y * dt * 1.5 + Uy[idx] * dt;
+      sharkState.theta = wrapAngle(sharkState.theta + ((wBuffer[idx] ?? 0) + noise)*0.1*dt);
+    }
+  }
+
+  function updateWhale(Ux, Uy){
+    const dt = params.dt;
+    const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+    if(stateFlags.whale && stateFlags.whaleFollow && pointerInside){
+      const dx = cp.x - whaleState.pos.x;
+      const dy = cp.y - whaleState.pos.y;
+      const dist = Math.hypot(dx, dy);
+      if(dist > errTol){
+        let w = getAngle(whaleState.theta, dx, dy, dist);
+        w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+        whaleState.theta = wrapAngle(whaleState.theta + w*dt);
+      }
+      const e = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+      whaleState.pos.x += e.x * dt / 1.5;
+      whaleState.pos.y += e.y * dt / 1.5;
+      return;
+    }
+    if(stateFlags.hard && fishes.length){
+      const phiC = Math.PI/2;
+      const subset = fishes.filter(fish => {
+        const dx = fish.x - whaleState.pos.x;
+        const dy = fish.y - whaleState.pos.y;
+        const dist = Math.hypot(dx, dy);
+        const phi = getAngle(whaleState.theta, dx, dy, dist);
+        return Math.abs(phi) < phiC;
+      });
+      const targetSet = subset.length ? subset : fishes;
+      const target = medianPoint(targetSet);
+      const dx = target.x - whaleState.pos.x;
+      const dy = target.y - whaleState.pos.y;
+      const dist = Math.hypot(dx, dy);
+      let w = getAngle(whaleState.theta, dx, dy, dist);
+      w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
+      whaleState.theta = wrapAngle(whaleState.theta + w*dt);
+      whaleState.pos.x += ewh.x * dt;
+      whaleState.pos.y += ewh.y * dt;
+    }else if(fishes.length){
+      const idx = Math.min(fishes.length-1, Math.floor(fishes.length*234/500));
+      const noise = gaussian()/Math.sqrt(dt);
+      whaleState.pos.x += ewh.x * dt / 1.5 + Ux[idx] * dt;
+      whaleState.pos.y += ewh.y * dt / 1.5 + Uy[idx] * dt;
+      whaleState.theta = wrapAngle(whaleState.theta + ((wBuffer[idx] ?? 0) + noise)*0.1*dt);
+    }
+  }
+
+  function showMessage(msg){
+    messageEl.textContent = msg;
+    messageEl.style.display = 'block';
+    setTimeout(() => {
+      messageEl.style.display = 'none';
+    }, 4000);
+  }
+
+  function updateStats(){
+    const elapsed = (performance.now() - startTime);
+    statsEl.textContent = `N = ${fishes.length}\nIp = ${instanceParams.Ia.toFixed(2)}\nIn = ${instanceParams.In.toFixed(2)}\nRender time ${elapsed.toFixed(1)} ms`;
+  }
+
+  function resize(){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if(dpad){
+      const viewRect = viewEl.getBoundingClientRect();
+      const viewArea = viewRect.width * viewRect.height;
+      if(viewArea > 0){
+        const dpadRect = dpad.getBoundingClientRect();
+        const dpadArea = dpadRect.width * dpadRect.height;
+        setDpadHidden((dpadArea / viewArea) > 0.15);
+      }
+    }
+  }
+
+  function screenToWorld(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const worldHeight = viewState.worldHeight;
+    const c = getViewCenter();
+    const cx = c.x;
+    const cy = c.y;
+    const scale = rect.height/(worldHeight);
+    return {
+      x: cx + (clientX - rect.width/2)/scale,
+      y: cy - (clientY - rect.height/2)/scale,
+    };
+  }
+
+  function getLocalPosFromClient(e){
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function zoomAtLocal(localX, localY, zoom){
+    if(!isFinite(zoom) || zoom <= 0) return;
+    const c = getViewCenter();
+    if(viewState.follow){
+      viewState.centerX = c.x;
+      viewState.centerY = c.y;
+    }
+    const before = screenToWorld(localX, localY);
+    const prevH = viewState.worldHeight;
+    let nextH = prevH / zoom;
+    nextH = Math.max(MIN_WORLD_H, Math.min(MAX_WORLD_H, nextH));
+    viewState.worldHeight = nextH;
+    const after = screenToWorld(localX, localY);
+    viewState.centerX += (before.x - after.x);
+    viewState.centerY += (before.y - after.y);
+  }
+
+  function draw(){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const rect = canvas.getBoundingClientRect();
+    ctx.save();
+    const c = getViewCenter();
+    const cx = c.x;
+    const cy = c.y;
+    const scale = rect.height/(viewState.worldHeight);
+    ctx.translate(rect.width/2, rect.height/2);
+    ctx.scale(scale, -scale);
+    ctx.translate(-cx, -cy);
+
+    ctx.lineWidth = 1/scale;
+    drawBackdrop();
+    drawBaits();
+    if(!stateFlags.shark) sharkGoal = null;
+    if(sharkGoal) drawSharkGoal();
+    if(stateFlags.shark) drawShark();
+    if(stateFlags.whale) drawWhale();
+    drawFishes();
+    ctx.restore();
+  }
+
+  function drawBackdrop(){
+    const rect = canvas.getBoundingClientRect();
+    const worldH = viewState.worldHeight;
+    const worldW = worldH * (rect.width/rect.height);
+    const c = getViewCenter();
+    const cx = c.x, cy = c.y;
+    const minX = cx - worldW/2;
+    const maxX = cx + worldW/2;
+    const minY = cy - worldH/2;
+    const maxY = cy + worldH/2;
+
+    const dotLayers = [
+      { tile: 6,  baseRadius: 0.05, baseAlpha: 0.5, salt: 11,  baseColor: [80,190,220] },
+      { tile: 18, baseRadius: 0.07, baseAlpha: 0.2, salt: 27,  baseColor: [60,230,180] },
+    ];
+
+    for(const layer of dotLayers){
+      const T = layer.tile;
+      const ix0 = Math.floor(minX / T) - 1;
+      const ix1 = Math.floor(maxX / T) + 1;
+      const iy0 = Math.floor(minY / T) - 1;
+      const iy1 = Math.floor(maxY / T) + 1;
+      for(let iy = iy0; iy <= iy1; iy++){
+        for(let ix = ix0; ix <= ix1; ix++){
+          const [u1,v1] = rand2(ix, iy, layer.salt ^ 0x1111);
+          const x1 = ix*T + u1*T;
+          const y1 = iy*T + v1*T;
+          const rJ = rand1(ix, iy, layer.salt ^ 0x2222);
+          const aJ = rand1(ix, iy, layer.salt ^ 0x3333);
+          const cJ = rand1(ix, iy, layer.salt ^ 0x4444);
+          const radius1 = layer.baseRadius * (0.8 + rJ);
+          const alpha1 = layer.baseAlpha * (0.8 + 0.4*aJ);
+          const [br,bg,bb] = layer.baseColor;
+          const hueShift = (cJ - 0.5) * 16;
+          const cr = Math.max(0, Math.min(255, Math.round(br + hueShift*2)));
+          const cg = Math.max(0, Math.min(255, Math.round(bg + hueShift*2)));
+          const cb = Math.max(0, Math.min(255, Math.round(bb + hueShift*2)));
+          ctx.fillStyle = `rgba(${cr},${cg},${cb},${alpha1})`;
+          ctx.beginPath();
+          ctx.arc(x1, y1, radius1, 0, Math.PI*2);
+          ctx.fill();
+
+          if(((hash32(ix, iy, layer.salt ^ 0x51f2) | 0) & 7) === 0){
+            const [u2,v2] = rand2(ix+13, iy-7, layer.salt ^ 0xa5a5);
+            const x2 = ix*T + u2*T;
+            const y2 = iy*T + v2*T;
+            const rK = rand1(ix+5, iy-3, layer.salt ^ 0x5555);
+            const aK = rand1(ix-2, iy+9, layer.salt ^ 0x7777);
+            const cK = rand1(ix+7, iy+11, layer.salt ^ 0x9999);
+            const radius2 = layer.baseRadius * 0.6 * (0.8 + 0.6*rK);
+            const alpha2 = layer.baseAlpha * 0.7 * (0.75 + 0.5*aK);
+            const hueShift2 = (cK - 0.5) * 20;
+            const cr2 = Math.max(0, Math.min(255, Math.round(br + hueShift2*0.6)));
+            const cg2 = Math.max(0, Math.min(255, Math.round(bg + hueShift2)));
+            const cb2 = Math.max(0, Math.min(255, Math.round(bb + hueShift2*1.2)));
+            ctx.fillStyle = `rgba(${cr2},${cg2},${cb2},${alpha2})`;
+            ctx.beginPath();
+            ctx.arc(x2, y2, radius2, 0, Math.PI*2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+  }
+
+  function drawBaits(){
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 2/ctx.getTransform().a;
+    for(const bait of baits){
+      ctx.beginPath();
+      ctx.moveTo(bait.x-0.3, bait.y);
+      ctx.lineTo(bait.x+0.3, bait.y);
+      ctx.moveTo(bait.x, bait.y-0.3);
+      ctx.lineTo(bait.x, bait.y+0.3);
+      ctx.stroke();
+    }
+  }
+
+  function drawSharkGoal(){
+    const size = 0.8;
+    ctx.save();
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 3/ctx.getTransform().a;
+    ctx.beginPath();
+    ctx.moveTo(sharkGoal.x - size/2, sharkGoal.y - size/2);
+    ctx.lineTo(sharkGoal.x + size/2, sharkGoal.y + size/2);
+    ctx.moveTo(sharkGoal.x - size/2, sharkGoal.y + size/2);
+    ctx.lineTo(sharkGoal.x + size/2, sharkGoal.y - size/2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawShark(){
+    const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
+    const rot = (x,y) => ({x: x*esk.x - y*esk.y + sharkState.pos.x, y: x*esk.y + y*esk.x + sharkState.pos.y});
+    ctx.fillStyle = '#30333a';
+    ctx.beginPath();
+    const head = sharkShape.head;
+    head.x.forEach((x,i) => {
+      const p = rot(x, head.y[i]);
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    });
+    ctx.fill();
+    ctx.beginPath();
+    const body = sharkShape.body;
+    body.x.forEach((x,i) => {
+      const p = rot(x, body.y[i]);
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    });
+    ctx.fill();
+    ctx.beginPath();
+    const tail = sharkShape.tail;
+    tail.x.forEach((x,i) => {
+      const p = rot(x, tail.y[i]);
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    });
+    ctx.fill();
+  }
+
+  function drawWhale(){
+    const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
+    const rot = (x,y) => ({x: x*ewh.x - y*ewh.y + whaleState.pos.x, y: x*ewh.y + y*ewh.x + whaleState.pos.y});
+    ctx.fillStyle = '#4c6ef5';
+    ctx.beginPath();
+    whaleShape.x.forEach((x,i) => {
+      const p = rot(x, whaleShape.y[i]);
+      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+    });
+    ctx.fill();
+  }
+
+  function drawFishes(){
+    for(let i=0;i<fishes.length;i++){
+      const fish = fishes[i];
+      const speed = Math.hypot(velocities[i].x, velocities[i].y);
+      const color = speedColor(speed);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      for(let k=0;k<fishShape.x.length;k++){
+        const x = fishShape.x[k];
+        const y = fishShape.y[k];
+        const px = x*Math.cos(fish.theta) - y*Math.sin(fish.theta) + fish.x;
+        const py = x*Math.sin(fish.theta) + y*Math.cos(fish.theta) + fish.y;
+        if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function step(){
+    if(isPlaying){
+      computeStep();
+    }
+    updateStats();
+    draw();
+    startTime = performance.now();
+  }
+
+  function resetTimer(){
+    startTime = performance.now();
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    setActiveSimId(simId);
+    const pos = getLocalPosFromClient(e);
+    activePointers.set(e.pointerId, pos);
+    pinchLastDist = 0;
+    if(activePointers.size >= 2){
+      const it = activePointers.values();
+      const p1 = it.next().value; const p2 = it.next().value;
+      if(p1 && p2){
+        const midX = (p1.x + p2.x)/2;
+        const midY = (p1.y + p2.y)/2;
+        twoPanLastMidWorld = screenToWorld(midX, midY);
+        if(viewState.follow){
+          const c = {x: meanX(), y: meanY()};
+          viewState.centerX = c.x;
+          viewState.centerY = c.y;
+          viewState.follow = false;
+        }
+      }
+    }
+    try { canvas.setPointerCapture(e.pointerId); } catch {}
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    const pos = getLocalPosFromClient(e);
+    if(activePointers.has(e.pointerId)){
+      activePointers.set(e.pointerId, pos);
+    }
+    if(activePointers.size >= 2){
+      const it = activePointers.values();
+      const p1 = it.next().value;
+      const p2 = it.next().value;
+      if(p1 && p2){
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const dist = Math.hypot(dx, dy);
+        const midX = (p1.x + p2.x)/2;
+        const midY = (p1.y + p2.y)/2;
+        pointerActive = true;
+        pointerInside = true;
+        if(viewState.follow){
+          const c = {x: meanX(), y: meanY()};
+          viewState.centerX = c.x;
+          viewState.centerY = c.y;
+          viewState.follow = false;
+        }
+        const beforeWorld = twoPanLastMidWorld ?? screenToWorld(midX, midY);
+        if(pinchLastDist > 0){
+          const scale = dist / pinchLastDist;
+          zoomAtLocal(midX, midY, scale);
+        }
+        const afterWorld = screenToWorld(midX, midY);
+        viewState.centerX += (beforeWorld.x - afterWorld.x);
+        viewState.centerY += (beforeWorld.y - afterWorld.y);
+        twoPanLastMidWorld = screenToWorld(midX, midY);
+        pinchLastDist = dist;
+        e.preventDefault();
+        return;
+      }
+    }
+
+    const world = screenToWorld(pos.x, pos.y);
+    cp = world;
+    pointerActive = true;
+  });
+
+  canvas.addEventListener('pointerup', e => {
+    activePointers.delete(e.pointerId);
+    if(activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
+  });
+  canvas.addEventListener('pointercancel', e => {
+    activePointers.delete(e.pointerId);
+    if(activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
+  });
+  canvas.addEventListener('pointerenter', () => { pointerInside = true; setActiveSimId(simId); });
+  canvas.addEventListener('pointerleave', () => { pointerInside = false; });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoom = Math.exp(-e.deltaY * 0.001);
+    const hasOffset = Number.isFinite(e.offsetX) && Number.isFinite(e.offsetY);
+    if(hasOffset){
+      zoomAtLocal(e.offsetX, e.offsetY, zoom);
+    } else {
+      const pos = getLocalPosFromClient(e);
+      zoomAtLocal(pos.x, pos.y, zoom);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('click', e => {
+    const world = screenToWorld(e.offsetX, e.offsetY);
+    if(armedPlacers.bait){
+      baits.push(world);
+      recorder?.logEvent({type:'bait_add', simId, x: world.x, y: world.y});
+    }else if(armedPlacers.goal){
+      sharkGoal = world;
+      recorder?.logEvent({type:'goal_set', simId, x: world.x, y: world.y});
+    }
+  });
+
+  const panStep = (ev) => (ev && ev.shiftKey) ? 5 : 1;
+  if(btnU) btnU.addEventListener('click', ev => { nudgeView(0, panStep(ev)); });
+  if(btnD) btnD.addEventListener('click', ev => { nudgeView(0, -panStep(ev)); });
+  if(btnL) btnL.addEventListener('click', ev => { nudgeView(-panStep(ev), 0); });
+  if(btnR) btnR.addEventListener('click', ev => { nudgeView(panStep(ev), 0); });
+  if(btnC) btnC.addEventListener('click', () => { viewState.follow = true; });
+
+  const ro = new ResizeObserver(() => requestAnimationFrame(resize));
+  ro.observe(viewEl);
+
+  if(removeBtn){
+    removeBtn.addEventListener('click', () => removeSimulation(simId));
+  }
+  if(addBtn){
+    addBtn.addEventListener('click', () => addSimulation(undefined, {reason:'tile_add', sourceSimId: simId}));
+  }
+  if(duplicateBtn){
+    duplicateBtn.addEventListener('click', () => addSimulation(getInstanceParams(), {reason:'duplicate', sourceSimId: simId}));
+  }
+  if(resetBtn){
+    resetBtn.addEventListener('click', () => {
+      setActiveSimId(simId);
+      recorder?.logEvent({type:'sim_reset', simId, reason:'tile_reset', ...getInstanceParams()});
+      resetSchool();
+    });
+  }
+
+  resetSchool();
+  resize();
+
+  return {
+    id: simId,
+    node,
+    canvas,
+    step,
+    resize,
+    resetSchool,
+    resetTimer,
+    clearBaits: () => { baits = []; },
+    clearGoal: () => { sharkGoal = null; },
+    nudgeView,
+    getInstanceParams,
+    setInstanceParams,
+    snapshotForRecording,
+    dispose: () => ro.disconnect(),
+  };
+}
+
+function addSimulation(initialParams, {reason='add', sourceSimId=null} = {}){
+  if(sims.size > 0){
+    hideAllTutorialNotes();
+  }
+  const sim = createSimulation(initialParams);
+  sims.set(sim.id, sim);
+  simGrid.appendChild(sim.node);
+  setActiveSimId(sim.id);
+  updateGridLayout();
+  updateInstanceCount();
+  recorder?.logEvent({type:'sim_add', simId: sim.id, reason, sourceSimId, ...sim.getInstanceParams()});
+}
+
+function removeSimulation(simId){
+  const sim = sims.get(simId);
+  if(!sim) return;
+  recorder?.logEvent({type:'sim_remove', simId});
+  sim.dispose();
+  sim.node.remove();
+  sims.delete(simId);
+  if(activeSimId === simId){
+    setActiveSimId(null);
+    const next = sims.values().next().value;
+    if(next) setActiveSimId(next.id);
+  }
+  updateGridLayout();
+  updateInstanceCount();
+}
+
+addInstanceBtn?.addEventListener('click', () => addSimulation(undefined, {reason:'header_add'}));
+
+controls.Ia.addEventListener('input', () => {
+  controls.IpVal.textContent = parseFloat(controls.Ia.value).toFixed(2);
+  bufferedInstanceParams = readInstanceParamsFromControls();
+  const sim = getActiveSim();
+  sim?.setInstanceParams(bufferedInstanceParams);
+});
+controls.Ia.addEventListener('change', () => {
+  bufferedInstanceParams = readInstanceParamsFromControls();
+  const sim = getActiveSim();
+  sim?.setInstanceParams(bufferedInstanceParams, {log:true, reason:'slider_change'});
+});
+controls.In.addEventListener('input', () => {
+  controls.InVal.textContent = parseFloat(controls.In.value).toFixed(2);
+  bufferedInstanceParams = readInstanceParamsFromControls();
+  const sim = getActiveSim();
+  sim?.setInstanceParams(bufferedInstanceParams);
+});
+controls.In.addEventListener('change', () => {
+  bufferedInstanceParams = readInstanceParamsFromControls();
+  const sim = getActiveSim();
+  sim?.setInstanceParams(bufferedInstanceParams, {log:true, reason:'slider_change'});
+});
+controls.hydroRadius?.addEventListener('input', () => {
+  if(controls.hydroRVal){
+    controls.hydroRVal.textContent = parseFloat(controls.hydroRadius.value).toFixed(1);
+  }
+});
+controls.hydroRadius?.addEventListener('change', () => {
+  recorder?.logEvent({
+    type:'hydro_set',
+    hydro: !!controls.hydro?.checked,
+    shell: !!controls.hydroShell?.checked,
+    range: !!controls.hydroRange?.checked,
+    rCut: parseFloat(controls.hydroRadius?.value ?? '0'),
+  });
+});
+
+function updateHydroUiDisabled(){
+  const hydroOn = !!controls.hydro?.checked;
+  if(controls.hydroShell) controls.hydroShell.disabled = !hydroOn;
+  if(controls.hydroRange) controls.hydroRange.disabled = !hydroOn;
+  if(controls.hydroRadius) controls.hydroRadius.disabled = !hydroOn || !controls.hydroRange?.checked;
+}
+
+controls.hydro?.addEventListener('change', () => {
+  updateHydroUiDisabled();
+  recorder?.logEvent({
+    type:'hydro_set',
+    hydro: !!controls.hydro?.checked,
+    shell: !!controls.hydroShell?.checked,
+    range: !!controls.hydroRange?.checked,
+    rCut: parseFloat(controls.hydroRadius?.value ?? '0'),
+  });
+});
+controls.hydroShell?.addEventListener('change', () => {
+  if(controls.hydroShell.checked && controls.hydroRange) controls.hydroRange.checked = false;
+  updateHydroUiDisabled();
+  recorder?.logEvent({
+    type:'hydro_set',
+    hydro: !!controls.hydro?.checked,
+    shell: !!controls.hydroShell?.checked,
+    range: !!controls.hydroRange?.checked,
+    rCut: parseFloat(controls.hydroRadius?.value ?? '0'),
+  });
+});
+controls.hydroRange?.addEventListener('change', () => {
+  if(controls.hydroRange.checked && controls.hydroShell) controls.hydroShell.checked = false;
+  updateHydroUiDisabled();
+  recorder?.logEvent({
+    type:'hydro_set',
+    hydro: !!controls.hydro?.checked,
+    shell: !!controls.hydroShell?.checked,
+    range: !!controls.hydroRange?.checked,
+    rCut: parseFloat(controls.hydroRadius?.value ?? '0'),
+  });
+});
+updateHydroUiDisabled();
+
+controls.respawn.addEventListener('click', () => {
+  bufferedInstanceParams = readInstanceParamsFromControls();
+  recorder?.logEvent({type:'reset_all', ...bufferedInstanceParams});
+  resetAllSchools({applyBuffered:true});
+});
+controls.clearBaits.addEventListener('click', () => {
+  clearAllBaits();
+});
+
+controls.N.addEventListener('input', () => {
+  controls.NVal.textContent = String(parseInt(controls.N.value, 10));
+  bufferedInstanceParams = readInstanceParamsFromControls();
+  const sim = getActiveSim();
+  sim?.setInstanceParams(bufferedInstanceParams);
+  updateHydroUiDisabled();
+});
+controls.N.addEventListener('change', () => {
+  bufferedInstanceParams = readInstanceParamsFromControls();
+  const sim = getActiveSim();
+  sim?.setInstanceParams(bufferedInstanceParams, {respawn:true, log:true, reason:'slider_change'});
+  updateHydroUiDisabled();
+});
+
+updateGoalUiDisabled();
+
+document.addEventListener('keydown', e => {
+  const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+  const typing = tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable);
+  if(typing) return;
+  if(e.key === ' '){
+    e.preventDefault();
+    setPlaying(!isPlaying);
+  } else if(e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+    const step = e.shiftKey ? 5 : 1;
+    const sim = getActiveSim();
+    if(!sim) return;
+    if(e.key === 'ArrowUp') sim.nudgeView(0, step);
+    if(e.key === 'ArrowDown') sim.nudgeView(0, -step);
+    if(e.key === 'ArrowLeft') sim.nudgeView(-step, 0);
+    if(e.key === 'ArrowRight') sim.nudgeView(step, 0);
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('resize', () => {
+  updateGridLayout();
+  sims.forEach(sim => sim.resize());
+});
+
+addSimulation();
+updateInstanceCount();
+updateGridLayout();
+
+function tick(){
+  sims.forEach(sim => sim.step());
+  recorder?.maybeSample(performance.now());
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
