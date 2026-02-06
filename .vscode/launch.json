@@ -3,12 +3,21 @@
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
+    "inputs": [
+        {
+            "id": "chromiumExecutable",
+            "type": "promptString",
+            "description": "Browser executable/path to launch (Chromium-family recommended for the \"chrome\" debugger)",
+            "default": "chrome"
+        }
+    ],
     "configurations": [
 
         {
-            "name": "Jekyll: Launch (Chrome)",
+            "name": "Jekyll: Launch (Browser)",
             "type": "chrome",
             "request": "launch",
+            "runtimeExecutable": "${input:chromiumExecutable}",
             "url": "http://127.0.0.1:4000/index.html",
             "webRoot": "${workspaceFolder}",
             "preLaunchTask": "jekyll:serve",
@@ -18,42 +27,49 @@
             "type": "chrome",
             "request": "launch",
             "name": "Open Cilia Bundle Sim",
+            "runtimeExecutable": "${input:chromiumExecutable}",
             "file": "./cilia_bundle_visualizer.html"
         },
         {
             "type": "chrome",
             "request": "launch",
             "name": "Open ciliary carpet Sim",
+            "runtimeExecutable": "${input:chromiumExecutable}",
             "file": "./ciliary_clearance_visualizer.html"
         },
         {
             "type": "chrome",
             "request": "launch",
             "name": "Open fBm Sim",
+            "runtimeExecutable": "${input:chromiumExecutable}",
             "file": "./fBm_visualizer.html"
         },
         {
             "type": "chrome",
             "request": "launch",
             "name": "Open filament hand tracer",
+            "runtimeExecutable": "${input:chromiumExecutable}",
             "file": "./filament.html"
         },
         {
             "type": "chrome",
             "request": "launch",
             "name": "Open Fish School Sim",
+            "runtimeExecutable": "${input:chromiumExecutable}",
             "file": "./dipole_school_visualizer.html"
         },
         {
             "type": "chrome",
             "request": "launch",
             "name": "Open Synth",
+            "runtimeExecutable": "${input:chromiumExecutable}",
             "file": "./synchronizedSynthesis.html"
         },
         {
             "type": "chrome",
             "request": "launch",
             "name": "Open Network Sim",
+            "runtimeExecutable": "${input:chromiumExecutable}",
             "file": "./brownian_small_world.html"
         }
     ],
