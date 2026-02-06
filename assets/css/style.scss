@@ -1,0 +1,16 @@
+---
+---
+/*
+ * CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike)
+ * https://creativecommons.org/licenses/by-nc-sa/4.0/
+ *
+ * Cloudflare Pages (and some other CI builders) may run Jekyll under a US-ASCII
+ * locale. When Jekyll's SCSS pipeline pulls in `jekyll-theme-primer` SCSS, Ruby
+ * Sass can crash on Unicode characters in the theme sources.
+ *
+ * This file intentionally shadows the theme's `assets/css/style.scss` so the
+ * build no longer imports the theme SCSS tree.
+ */
+
+@charset "UTF-8";
+
