@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- CC BY-NC-SA 4.0 (Attribution-NonCommercial-ShareAlike) https://creativecommons.org/licenses/by-nc-sa/4.0/ -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Flipboard Photo Editor</title>
+<style>
+  :root{
+    --bg:#0b0d12;--fg:#e8eaed;--muted:#9aa0a6;--acc:#8ab4f8;
+    --panel:#0f131d;--border:#1f2937;--canvas-bg:#121620;--overlay:rgba(8,10,12,.55);
+    --card:#111827;--card-edge:#1f2a3a;--good:#24d48b;--warn:#fbbf24;
+  }
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .app{display:grid;grid-template-columns:minmax(260px,360px) 1fr;grid-template-rows:auto 1fr;height:100%}
+  .app>*{min-width:0;min-height:0}
+  header{grid-column:1 / -1;padding:8px 12px;border-bottom:1px solid var(--border);background:#0f1113;color:#e5e7eb}
+  header .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0 12px 0 0;color:#e5e7eb}
+  header small{color:#9aa0a6}
+  .btn-toggle{background:#10192a;color:#e5e7eb;border:1px solid #2c3a4d;padding:6px;border-radius:8px;cursor:pointer;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center}
+  .btn-toggle:hover{background:#162236}
+  .btn{background:#10192a;color:#fff;border:0;border-radius:10px;padding:8px 10px;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn.ghost{background:transparent;border:1px solid #2c3a4d}
+  .btn.mode{background:#0e1a2c;border:1px solid #2c3a4d}
+  .btn.mode.active{background:#153054;border-color:#3a4e6a}
+  .btn.mode[aria-pressed="true"]{background:#153054;border-color:#3a4e6a}
+  .panel{background:var(--panel);color:#e5e7eb;border-right:1px solid var(--border);padding:12px;overflow:auto}
+  .panel h2{margin:0 0 8px 0;font-size:15px}
+  .panel .group{margin:8px 0 14px}
+  .panel .row{display:grid;grid-template-columns:1fr minmax(120px,160px);gap:8px;align-items:center;margin:6px 0}
+  .panel .row label{font-size:12px;color:var(--muted)}
+  .panel .row label .val{margin-left:6px;color:#cbd5e1;font-variant-numeric:tabular-nums;opacity:.85}
+  .panel .row input[type=range]{width:100%}
+  .panel .row input[type=number], .panel .row select{
+    width:100%;background:#111827;color:#e5e7eb;border:1px solid #2f3847;border-radius:8px;padding:6px
+  }
+  .panel .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  .panel .stack{display:flex;gap:6px;flex-wrap:wrap}
+  .panel .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border-radius:10px;background:#0f172a;border:1px solid #1f2937;color:#cbd5e1;font-size:12px}
+  .panel .toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+  .panel .toggle input{accent-color:var(--acc)}
+  .app.collapsed{grid-template-columns:0 1fr}
+  .app.collapsed .panel{padding:0;overflow:hidden;pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
+  main.canvas-wrap{position:relative;display:grid;grid-template-rows:auto 1fr;background:var(--panel)}
+  .carousel{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border);background:#0f1624}
+  .car-btn{background:#10192a;border:1px solid #223046;color:#cbd5e1;border-radius:10px;width:34px;height:34px;cursor:pointer}
+  .car-track{display:flex;gap:10px;overflow:auto;scroll-snap-type:x mandatory;padding-bottom:4px;flex:1}
+  .thumb-card{position:relative;min-width:140px;background:var(--card);border:1px solid var(--card-edge);border-radius:12px;overflow:hidden;scroll-snap-align:start}
+  .thumb-card.selected{border-color:var(--acc);box-shadow:0 0 0 1px rgba(138,180,248,.6) inset}
+  .thumb-card.finalized::after{
+    content:"PRINT";position:absolute;left:8px;top:8px;background:rgba(36,212,139,.15);
+    color:var(--good);border:1px solid rgba(36,212,139,.45);font-size:10px;padding:2px 6px;border-radius:10px
+  }
+  .thumb-select{display:block;width:100%;background:transparent;border:0;padding:0;cursor:pointer;color:inherit;text-align:left}
+  .thumb-select img{width:100%;height:72px;object-fit:cover;display:block}
+  .thumb-meta{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;gap:8px}
+  .thumb-meta span{font-size:11px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .thumb-finalize{background:#10192a;border:1px solid #223046;color:#cbd5e1;border-radius:8px;padding:4px 6px;font-size:11px;cursor:pointer}
+  .thumb-card.finalized .thumb-finalize{border-color:rgba(36,212,139,.6);color:var(--good)}
+  #view{position:relative;display:flex;align-items:center;justify-content:center;background:var(--canvas-bg);min-height:clamp(280px,60vh,740px)}
+  #view canvas{display:block;max-width:100%;max-height:100%;touch-action:none}
+  #emptyState{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#94a3b8;font-size:14px;pointer-events:none}
+  #emptyState strong{color:#e2e8f0;font-size:16px}
+  #hint{position:absolute;left:12px;bottom:12px;font-size:12px;color:#cbd5e1;background:rgba(0,0,0,.35);padding:6px 8px;border-radius:8px;white-space:pre}
+  #status{position:absolute;right:12px;bottom:12px;font-size:12px;color:#cbd5e1;background:rgba(0,0,0,.35);padding:6px 8px;border-radius:8px;white-space:pre}
+  #toast{position:fixed;right:12px;bottom:12px;max-width:42ch;background:#1b2435;color:#e2e8f0;border:1px solid #2f3847;padding:8px 10px;border-radius:10px;font:12px ui-monospace;display:none;z-index:100}
+  #printArea{display:none}
+  #printArea .print-item{break-inside:avoid;page-break-inside:avoid;border:0}
+  #printArea img{width:calc(var(--print-width) * 1mm);height:calc(var(--print-height) * 1mm);display:block}
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+    .panel{grid-column:1 / -1}
+    .app.collapsed{grid-template-columns:1fr;grid-template-rows:auto 0 1fr}
+    .app.collapsed .panel{max-height:0 !important;height:0 !important;padding:0 !important;border:0 !important;overflow:hidden}
+  }
+  @media print{
+    body{background:#fff;color:#000}
+    header,.panel,main.canvas-wrap,#toast{display:none !important}
+    #printArea{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(calc(var(--print-width) * 1mm),1fr));
+      gap:calc(var(--print-gap) * 1mm);
+      align-content:start;
+    }
+    @page{size:auto;margin:8mm}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="row">
+      <button id="togglePanel" class="btn-toggle" title="Collapse/expand panel">&lt;&lt;</button>
+      <h1>Flipboard Photo Editor</h1>
+      <button id="loadBtn" class="btn">Add photos</button>
+      <button id="prevBtn" class="btn ghost">Prev</button>
+      <button id="nextBtn" class="btn ghost">Next</button>
+      <button id="fitBtn" class="btn">Fit to windows</button>
+      <button id="resetBtn" class="btn ghost">Reset</button>
+      <button id="printBtn" class="btn">Print / Save PDF</button>
+      <small id="queueCount">0 in print queue</small>
+    </div>
+  </header>
+
+  <aside class="panel">
+    <h2>Transform</h2>
+    <div class="group">
+      <div class="badge" id="selectedInfo">No photo loaded</div>
+      <div class="toggle"><input id="finalizeToggle" type="checkbox" />Include selected in print</div>
+      <div class="stack">
+        <button id="finalizeAll" class="btn ghost">Finalize all</button>
+        <button id="clearAll" class="btn ghost">Clear queue</button>
+      </div>
+      <p class="hint">The two 85x40 windows stay fixed. Move/rotate/scale the photo relative to them.</p>
+    </div>
+
+    <div class="group">
+      <div class="row">
+        <label for="posX">X offset <span class="val" id="posXVal">0.0mm</span></label>
+        <input id="posX" type="range" min="-80" max="80" step="0.1" />
+      </div>
+      <div class="row">
+        <label for="posY">Y offset <span class="val" id="posYVal">0.0mm</span></label>
+        <input id="posY" type="range" min="-80" max="80" step="0.1" />
+      </div>
+      <div class="row">
+        <label for="rot">Rotation <span class="val" id="rotVal">0deg</span></label>
+        <input id="rot" type="range" min="-180" max="180" step="0.5" />
+      </div>
+      <div class="row">
+        <label for="scale">Scale <span class="val" id="scaleVal">100%</span></label>
+        <input id="scale" type="range" min="0.2" max="3" step="0.01" />
+      </div>
+      <div class="stack">
+        <button class="btn mode active" data-mode="move" aria-pressed="true">Move</button>
+        <button class="btn mode" data-mode="rotate" aria-pressed="false">Rotate</button>
+        <button class="btn mode" data-mode="scale" aria-pressed="false">Scale</button>
+      </div>
+      <p class="hint">Drag in the window area. Hold Shift=rotate, Alt=scale. Pinch to zoom/pan.</p>
+    </div>
+
+    <h2>Print</h2>
+    <div class="group">
+      <div class="row">
+        <label for="printGap">Spacing <span class="val" id="printGapVal">6mm</span></label>
+        <input id="printGap" type="range" min="2" max="16" step="1" />
+      </div>
+      <div class="row">
+        <label for="printDpi">Quality</label>
+        <select id="printDpi">
+          <option value="150">Draft (150 dpi)</option>
+          <option value="300" selected>Standard (300 dpi)</option>
+          <option value="600">High (600 dpi)</option>
+        </select>
+      </div>
+      <div class="toggle"><input id="cutLines" type="checkbox" checked />Show cut lines</div>
+      <p class="hint">Print uses A4/Letter with system dialog. Output size is 85mm x 82mm (40+2+40).</p>
+    </div>
+  </aside>
+
+  <main class="canvas-wrap">
+    <section class="carousel">
+      <button class="car-btn" data-dir="-1" title="Scroll left">&lt;</button>
+      <div class="car-track" id="carouselTrack"></div>
+      <button class="car-btn" data-dir="1" title="Scroll right">&gt;</button>
+    </section>
+    <div id="view">
+      <canvas id="editor" aria-label="Photo editor canvas"></canvas>
+      <div id="emptyState">
+        <strong>Drop photos here</strong>
+        <div>Or use "Add photos" in the top bar.</div>
+      </div>
+      <div id="hint">Drag to move / Shift-drag rotate / Alt-drag scale / Pinch or wheel to zoom</div>
+      <div id="status">Window: 85x40mm x2 vertical, gap 2mm</div>
+    </div>
+  </main>
+</div>
+
+<div id="printArea" style="--print-width:85;--print-height:82;--print-gap:6"></div>
+<input id="fileInput" type="file" accept="image/*" multiple hidden />
+<div id="toast"></div>
+
+<script type="module">
+const WINDOW_W_MM = 85;
+const WINDOW_H_MM = 40;
+const GAP_MM = 2;
+const TOTAL_H_MM = WINDOW_H_MM * 2 + GAP_MM;
+
+const app = document.getElementById("app");
+const canvas = document.getElementById("editor");
+const view = document.getElementById("view");
+const ctx = canvas.getContext("2d");
+const fileInput = document.getElementById("fileInput");
+const loadBtn = document.getElementById("loadBtn");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const fitBtn = document.getElementById("fitBtn");
+const resetBtn = document.getElementById("resetBtn");
+const printBtn = document.getElementById("printBtn");
+const togglePanel = document.getElementById("togglePanel");
+const carouselTrack = document.getElementById("carouselTrack");
+const emptyState = document.getElementById("emptyState");
+const status = document.getElementById("status");
+const queueCount = document.getElementById("queueCount");
+const selectedInfo = document.getElementById("selectedInfo");
+const finalizeToggle = document.getElementById("finalizeToggle");
+const finalizeAll = document.getElementById("finalizeAll");
+const clearAll = document.getElementById("clearAll");
+const posX = document.getElementById("posX");
+const posY = document.getElementById("posY");
+const rot = document.getElementById("rot");
+const scale = document.getElementById("scale");
+const posXVal = document.getElementById("posXVal");
+const posYVal = document.getElementById("posYVal");
+const rotVal = document.getElementById("rotVal");
+const scaleVal = document.getElementById("scaleVal");
+const printGap = document.getElementById("printGap");
+const printGapVal = document.getElementById("printGapVal");
+const printDpi = document.getElementById("printDpi");
+const cutLines = document.getElementById("cutLines");
+const printArea = document.getElementById("printArea");
+const toast = document.getElementById("toast");
+
+const modeButtons = Array.from(document.querySelectorAll(".btn.mode"));
+
+const state = {
+  images: [],
+  selectedIndex: -1,
+  mmToPx: 4,
+  drag: null,
+  pointers: new Map(),
+  mode: "move",
+  printGap: 6,
+  printDpi: 300,
+  showCutLines: true
+};
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const rad = (deg) => deg * Math.PI / 180;
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.style.display = "block";
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => { toast.style.display = "none"; }, 2400);
+}
+
+function updateQueueCount() {
+  const count = state.images.filter((img) => img.finalized).length;
+  queueCount.textContent = `${count} in print queue`;
+}
+
+function updateSelectedInfo() {
+  const item = state.images[state.selectedIndex];
+  if (!item) {
+    selectedInfo.textContent = "No photo loaded";
+    finalizeToggle.checked = false;
+    finalizeToggle.disabled = true;
+    return;
+  }
+  selectedInfo.textContent = item.name;
+  finalizeToggle.disabled = false;
+  finalizeToggle.checked = item.finalized;
+}
+
+function setSliderValue(el, value, unit, outEl) {
+  el.value = value;
+  outEl.textContent = `${value}${unit}`;
+}
+
+function updateSlidersFromImage() {
+  const item = state.images[state.selectedIndex];
+  const disabled = !item;
+  [posX, posY, rot, scale].forEach((el) => el.disabled = disabled);
+  if (!item) {
+    posXVal.textContent = "0.0mm";
+    posYVal.textContent = "0.0mm";
+    rotVal.textContent = "0deg";
+    scaleVal.textContent = "100%";
+    return;
+  }
+  setSliderValue(posX, item.x.toFixed(1), "mm", posXVal);
+  setSliderValue(posY, item.y.toFixed(1), "mm", posYVal);
+  setSliderValue(rot, item.rotation.toFixed(1), "deg", rotVal);
+  scaleVal.textContent = `${Math.round(item.scale * 100)}%`;
+  scale.value = item.scale;
+}
+
+function updateUI() {
+  const hasImages = state.images.length > 0;
+  emptyState.style.display = hasImages ? "none" : "flex";
+  prevBtn.disabled = state.selectedIndex <= 0;
+  nextBtn.disabled = state.selectedIndex >= state.images.length - 1 || state.selectedIndex < 0;
+  fitBtn.disabled = state.selectedIndex < 0;
+  resetBtn.disabled = state.selectedIndex < 0;
+  printBtn.disabled = state.images.length === 0;
+  updateQueueCount();
+  updateSelectedInfo();
+  updateSlidersFromImage();
+  updateCarousel();
+}
+
+function updateCarousel() {
+  carouselTrack.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  state.images.forEach((item, index) => {
+    const card = document.createElement("div");
+    card.className = "thumb-card";
+    if (index === state.selectedIndex) card.classList.add("selected");
+    if (item.finalized) card.classList.add("finalized");
+
+    const selectBtn = document.createElement("button");
+    selectBtn.className = "thumb-select";
+    selectBtn.type = "button";
+    selectBtn.addEventListener("click", () => selectImage(index));
+
+    const img = new Image();
+    img.src = item.url;
+    img.alt = item.name;
+    selectBtn.appendChild(img);
+
+    const meta = document.createElement("div");
+    meta.className = "thumb-meta";
+    const label = document.createElement("span");
+    label.textContent = item.name;
+    const finalizeBtn = document.createElement("button");
+    finalizeBtn.className = "thumb-finalize";
+    finalizeBtn.textContent = item.finalized ? "Included" : "Include";
+    finalizeBtn.type = "button";
+    finalizeBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      item.finalized = !item.finalized;
+      updateUI();
+    });
+    meta.append(label, finalizeBtn);
+    card.append(selectBtn, meta);
+    frag.appendChild(card);
+  });
+  carouselTrack.appendChild(frag);
+}
+
+function selectImage(index) {
+  state.selectedIndex = index;
+  updateUI();
+  render();
+}
+
+function resizeCanvas() {
+  const rect = view.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  canvas.style.width = `${rect.width}px`;
+  canvas.style.height = `${rect.height}px`;
+  const cssPxPerMm = Math.min((rect.width * 0.82) / WINDOW_W_MM, (rect.height * 0.82) / TOTAL_H_MM);
+  state.mmToPx = cssPxPerMm * dpr;
+  render();
+}
+
+function clipWindowPath(ctx2, pxPerMm) {
+  const topY = -TOTAL_H_MM / 2;
+  const bottomY = GAP_MM / 2;
+  const leftX = -WINDOW_W_MM / 2;
+  ctx2.rect(leftX * pxPerMm, topY * pxPerMm, WINDOW_W_MM * pxPerMm, WINDOW_H_MM * pxPerMm);
+  ctx2.rect(leftX * pxPerMm, bottomY * pxPerMm, WINDOW_W_MM * pxPerMm, WINDOW_H_MM * pxPerMm);
+}
+
+function drawImageInWindows(item, pxPerMm) {
+  if (!item) return;
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.beginPath();
+  clipWindowPath(ctx, pxPerMm);
+  ctx.clip();
+  ctx.translate(item.x * pxPerMm, item.y * pxPerMm);
+  ctx.rotate(rad(item.rotation));
+  const scalePx = pxPerMm * item.baseMmPerPx * item.scale;
+  ctx.scale(scalePx, scalePx);
+  ctx.drawImage(item.img, -item.img.width / 2, -item.img.height / 2);
+  ctx.restore();
+}
+
+function drawOverlay(pxPerMm) {
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.strokeStyle = "rgba(226,232,240,.75)";
+  ctx.lineWidth = Math.max(1, 1.2 * (window.devicePixelRatio || 1));
+  ctx.beginPath();
+  clipWindowPath(ctx, pxPerMm);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--canvas-bg") || "#121620";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const item = state.images[state.selectedIndex];
+  drawImageInWindows(item, state.mmToPx);
+  drawOverlay(state.mmToPx);
+}
+
+async function handleFiles(files) {
+  const list = Array.from(files).filter((file) => file.type.startsWith("image/"));
+  if (!list.length) {
+    showToast("No supported image files found.");
+    return;
+  }
+  for (const file of list) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = url;
+    try {
+      await img.decode();
+    } catch (err) {
+      URL.revokeObjectURL(url);
+      showToast(`Could not load ${file.name}`);
+      continue;
+    }
+    const entry = {
+      id: crypto.randomUUID(),
+      name: file.name,
+      url,
+      img,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      scale: 1,
+      baseMmPerPx: WINDOW_W_MM / img.width,
+      finalized: true
+    };
+    state.images.push(entry);
+  }
+  if (state.selectedIndex < 0 && state.images.length) {
+    state.selectedIndex = 0;
+  }
+  fileInput.value = "";
+  updateUI();
+  render();
+}
+
+function applySliderChange() {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  item.x = parseFloat(posX.value);
+  item.y = parseFloat(posY.value);
+  item.rotation = parseFloat(rot.value);
+  item.scale = parseFloat(scale.value);
+  updateSlidersFromImage();
+  render();
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  modeButtons.forEach((btn) => {
+    const active = btn.dataset.mode === mode;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function fitToWindows() {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  item.x = 0;
+  item.y = 0;
+  item.rotation = 0;
+  item.scale = 1;
+  updateSlidersFromImage();
+  render();
+}
+
+function resetTransform() {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  item.x = 0;
+  item.y = 0;
+  item.rotation = 0;
+  item.scale = 1;
+  updateSlidersFromImage();
+  render();
+}
+
+function clientToMm(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const px = (clientX - rect.left) * dpr;
+  const py = (clientY - rect.top) * dpr;
+  return {
+    x: (px - canvas.width / 2) / state.mmToPx,
+    y: (py - canvas.height / 2) / state.mmToPx
+  };
+}
+
+function startSingleDrag(pointer, overrideMode) {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  const mode = overrideMode || state.mode;
+  state.drag = {
+    type: "single",
+    mode,
+    startX: item.x,
+    startY: item.y,
+    startRotation: item.rotation,
+    startScale: item.scale,
+    startPointer: pointer,
+    startAngle: Math.atan2(pointer.y, pointer.x),
+    startDist: Math.hypot(pointer.x, pointer.y)
+  };
+}
+
+function startPinch(p1, p2) {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  const center = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+  state.drag = {
+    type: "pinch",
+    startX: item.x,
+    startY: item.y,
+    startScale: item.scale,
+    startCenter: center,
+    startDist: Math.hypot(p2.x - p1.x, p2.y - p1.y)
+  };
+}
+
+function onPointerDown(event) {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  event.preventDefault();
+  canvas.setPointerCapture(event.pointerId);
+  state.pointers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+  const pointers = Array.from(state.pointers.values()).map((p) => clientToMm(p.clientX, p.clientY));
+  if (state.pointers.size === 1) {
+    const pointer = pointers[0];
+    const mode = event.shiftKey ? "rotate" : event.altKey ? "scale" : state.mode;
+    startSingleDrag(pointer, mode);
+  } else if (state.pointers.size >= 2) {
+    startPinch(pointers[0], pointers[1]);
+  }
+}
+
+function onPointerMove(event) {
+  if (!state.drag) return;
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  if (state.pointers.has(event.pointerId)) {
+    state.pointers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+  }
+  if (state.drag.type === "pinch" && state.pointers.size >= 2) {
+    const pointers = Array.from(state.pointers.values()).slice(0, 2).map((p) => clientToMm(p.clientX, p.clientY));
+    const center = { x: (pointers[0].x + pointers[1].x) / 2, y: (pointers[0].y + pointers[1].y) / 2 };
+    const dist = Math.max(0.01, Math.hypot(pointers[1].x - pointers[0].x, pointers[1].y - pointers[0].y));
+    item.x = state.drag.startX + (center.x - state.drag.startCenter.x);
+    item.y = state.drag.startY + (center.y - state.drag.startCenter.y);
+    item.scale = clamp(state.drag.startScale * (dist / Math.max(0.01, state.drag.startDist)), 0.2, 3);
+  } else if (state.drag.type === "single" && state.pointers.size === 1) {
+    const pointer = clientToMm(event.clientX, event.clientY);
+    const dx = pointer.x - state.drag.startPointer.x;
+    const dy = pointer.y - state.drag.startPointer.y;
+    if (state.drag.mode === "move") {
+      item.x = state.drag.startX + dx;
+      item.y = state.drag.startY + dy;
+    } else if (state.drag.mode === "rotate") {
+      const angle = Math.atan2(pointer.y, pointer.x);
+      item.rotation = state.drag.startRotation + (angle - state.drag.startAngle) * 180 / Math.PI;
+    } else if (state.drag.mode === "scale") {
+      const dist = Math.max(0.01, Math.hypot(pointer.x, pointer.y));
+      const ratio = dist / Math.max(0.01, state.drag.startDist);
+      item.scale = clamp(state.drag.startScale * ratio, 0.2, 3);
+    }
+  }
+  updateSlidersFromImage();
+  render();
+}
+
+function onPointerUp(event) {
+  if (!state.drag) return;
+  canvas.releasePointerCapture(event.pointerId);
+  state.pointers.delete(event.pointerId);
+  if (state.drag.type === "pinch" && state.pointers.size === 1) {
+    const remaining = Array.from(state.pointers.values())[0];
+    const pointer = clientToMm(remaining.clientX, remaining.clientY);
+    startSingleDrag(pointer);
+  } else if (state.pointers.size === 0) {
+    state.drag = null;
+  }
+}
+
+function onWheel(event) {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  event.preventDefault();
+  const zoom = Math.exp(-event.deltaY * 0.0015);
+  item.scale = clamp(item.scale * zoom, 0.2, 3);
+  updateSlidersFromImage();
+  render();
+}
+
+function buildPrintCanvas(item, dpi) {
+  const mmToPx = dpi / 25.4;
+  const widthPx = Math.round(WINDOW_W_MM * mmToPx);
+  const heightPx = Math.round(TOTAL_H_MM * mmToPx);
+  const printCanvas = document.createElement("canvas");
+  printCanvas.width = widthPx;
+  printCanvas.height = heightPx;
+  const ctx2 = printCanvas.getContext("2d");
+  ctx2.fillStyle = "#ffffff";
+  ctx2.fillRect(0, 0, widthPx, heightPx);
+  ctx2.save();
+  ctx2.translate(widthPx / 2, heightPx / 2);
+  ctx2.beginPath();
+  clipWindowPath(ctx2, mmToPx);
+  ctx2.clip();
+  ctx2.translate(item.x * mmToPx, item.y * mmToPx);
+  ctx2.rotate(rad(item.rotation));
+  const scalePx = mmToPx * item.baseMmPerPx * item.scale;
+  ctx2.scale(scalePx, scalePx);
+  ctx2.drawImage(item.img, -item.img.width / 2, -item.img.height / 2);
+  ctx2.restore();
+  if (state.showCutLines) {
+    ctx2.save();
+    ctx2.translate(widthPx / 2, heightPx / 2);
+    ctx2.strokeStyle = "#1f2937";
+    ctx2.lineWidth = Math.max(1, 0.2 * mmToPx);
+    ctx2.beginPath();
+    clipWindowPath(ctx2, mmToPx);
+    ctx2.stroke();
+    ctx2.restore();
+  }
+  return printCanvas;
+}
+
+function buildPrintSheets() {
+  const selected = state.images.filter((img) => img.finalized);
+  if (!selected.length) {
+    showToast("No photos marked for print.");
+    return false;
+  }
+  printArea.innerHTML = "";
+  printArea.style.setProperty("--print-gap", state.printGap);
+  selected.forEach((item) => {
+    const canvasOut = buildPrintCanvas(item, state.printDpi);
+    const imgEl = new Image();
+    imgEl.src = canvasOut.toDataURL("image/png");
+    imgEl.alt = item.name;
+    const wrapper = document.createElement("div");
+    wrapper.className = "print-item";
+    wrapper.appendChild(imgEl);
+    printArea.appendChild(wrapper);
+  });
+  return true;
+}
+
+function onKeyDown(event) {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+  const step = event.shiftKey ? 2 : 0.5;
+  if (event.key === "ArrowLeft") item.x -= step;
+  else if (event.key === "ArrowRight") item.x += step;
+  else if (event.key === "ArrowUp") item.y -= step;
+  else if (event.key === "ArrowDown") item.y += step;
+  else if (event.key === "[") item.rotation -= 1;
+  else if (event.key === "]") item.rotation += 1;
+  else if (event.key === "-" || event.key === "_") item.scale = clamp(item.scale - 0.02, 0.2, 3);
+  else if (event.key === "+" || event.key === "=") item.scale = clamp(item.scale + 0.02, 0.2, 3);
+  else return;
+  event.preventDefault();
+  updateSlidersFromImage();
+  render();
+}
+
+loadBtn.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", (event) => handleFiles(event.target.files));
+prevBtn.addEventListener("click", () => selectImage(Math.max(0, state.selectedIndex - 1)));
+nextBtn.addEventListener("click", () => selectImage(Math.min(state.images.length - 1, state.selectedIndex + 1)));
+fitBtn.addEventListener("click", fitToWindows);
+resetBtn.addEventListener("click", resetTransform);
+printBtn.addEventListener("click", () => {
+  if (buildPrintSheets()) {
+    requestAnimationFrame(() => setTimeout(() => window.print(), 60));
+  }
+});
+togglePanel.addEventListener("click", () => app.classList.toggle("collapsed"));
+finalizeToggle.addEventListener("change", (event) => {
+  const item = state.images[state.selectedIndex];
+  if (!item) return;
+  item.finalized = event.target.checked;
+  updateUI();
+});
+finalizeAll.addEventListener("click", () => {
+  state.images.forEach((item) => item.finalized = true);
+  updateUI();
+});
+clearAll.addEventListener("click", () => {
+  state.images.forEach((item) => item.finalized = false);
+  updateUI();
+});
+posX.addEventListener("input", applySliderChange);
+posY.addEventListener("input", applySliderChange);
+rot.addEventListener("input", applySliderChange);
+scale.addEventListener("input", applySliderChange);
+modeButtons.forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
+printGap.addEventListener("input", (event) => {
+  state.printGap = parseInt(event.target.value, 10);
+  printGapVal.textContent = `${state.printGap}mm`;
+});
+printDpi.addEventListener("change", (event) => {
+  state.printDpi = parseInt(event.target.value, 10);
+});
+cutLines.addEventListener("change", (event) => {
+  state.showCutLines = event.target.checked;
+});
+document.addEventListener("keydown", onKeyDown);
+canvas.addEventListener("pointerdown", onPointerDown);
+canvas.addEventListener("pointermove", onPointerMove);
+canvas.addEventListener("pointerup", onPointerUp);
+canvas.addEventListener("pointerleave", onPointerUp);
+canvas.addEventListener("pointercancel", onPointerUp);
+canvas.addEventListener("wheel", onWheel, { passive: false });
+
+document.querySelectorAll(".car-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const dir = parseInt(btn.dataset.dir, 10);
+    carouselTrack.scrollBy({ left: dir * 180, behavior: "smooth" });
+  });
+});
+
+["dragenter", "dragover"].forEach((name) => {
+  view.addEventListener(name, (event) => {
+    event.preventDefault();
+    view.classList.add("dragging");
+  });
+});
+["dragleave", "drop"].forEach((name) => {
+  view.addEventListener(name, (event) => {
+    event.preventDefault();
+    view.classList.remove("dragging");
+  });
+});
+view.addEventListener("drop", (event) => handleFiles(event.dataTransfer.files));
+
+window.addEventListener("resize", resizeCanvas);
+window.addEventListener("afterprint", () => { printArea.innerHTML = ""; });
+
+printGap.value = state.printGap;
+printGapVal.textContent = `${state.printGap}mm`;
+cutLines.checked = state.showCutLines;
+
+resizeCanvas();
+updateUI();
+render();
+</script>
+</body>
+</html>

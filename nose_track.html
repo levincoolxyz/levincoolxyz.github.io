@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>鼻炎触发记录（本地版）</title>
+  <style>
+    :root { --bg:#0b0e14; --card:#121826; --muted:#9aa4b2; --fg:#e6edf3; --acc:#6ee7b7; --bad:#fb7185; }
+    * { box-sizing: border-box; }
+    body{
+      margin:0; background:linear-gradient(180deg,#070a11, #0b0e14);
+      color:var(--fg); font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC","Noto Sans SC", sans-serif;
+      padding:16px; max-width:760px; margin-inline:auto;
+    }
+    h1{ font-size:18px; margin:6px 0 10px; font-weight:700; }
+    .sub{ color:var(--muted); font-size:12px; margin-bottom:14px; line-height:1.35; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .card{
+      background:rgba(18,24,38,.92); border:1px solid rgba(255,255,255,.06);
+      border-radius:14px; padding:12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.35);
+    }
+    .grow{ flex:1 1 320px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+    input, select, textarea{
+      width:100%; padding:10px 10px; border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.04); color:var(--fg);
+      outline:none;
+    }
+    textarea{ min-height:66px; resize:vertical; }
+    input[type="number"]{ appearance:textfield; }
+    input[type="range"]{ padding:0; }
+    .btnrow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    button{
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.06);
+      color:var(--fg);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:650;
+      cursor:pointer;
+      touch-action: manipulation;
+    }
+    button.primary{ background: rgba(110,231,183,.14); border-color: rgba(110,231,183,.35); }
+    button.danger{ background: rgba(251,113,133,.12); border-color: rgba(251,113,133,.35); }
+    button:active{ transform: translateY(1px); }
+    .tiny{ font-size:11px; color:var(--muted); margin-top:8px; }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.04);
+      padding:6px 10px; border-radius:999px; font-size:12px; color:var(--muted);
+    }
+    .ok{ color:var(--acc); }
+    .bad{ color:var(--bad); }
+    table{
+      width:100%; border-collapse:collapse; font-size:12px;
+    }
+    th, td{
+      padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.08);
+      vertical-align:top;
+    }
+    th{ text-align:left; color:var(--muted); font-weight:650; }
+    .tools{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .right{ margin-left:auto; }
+    .kpi{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:baseline;
+    }
+    .kpi .big{ font-size:18px; font-weight:800; }
+    .kpi .muted{ color:var(--muted); font-size:12px; }
+    .divider{ height:1px; background: rgba(255,255,255,.08); margin:10px 0; }
+    .hide{ display:none !important; }
+  </style>
+</head>
+<body>
+  <h1>鼻炎触发记录（手机本地 / 无需网络）</h1>
+  <div class="sub">
+    用来做你那个 A/B “脚部保暖触发”自实验：记录 <span class="mono">0–30min</span> 的纸巾/喷嚏/鼻塞等。
+    数据保存在浏览器 <span class="mono">localStorage</span>，可导出 CSV。
+  </div>
+
+  <div class="row">
+    <div class="card grow">
+      <div class="tools">
+        <span class="pill">当前时间：<span id="now" class="mono"></span></span>
+        <span class="pill">建议条件：<span id="suggest" class="mono"></span></span>
+        <button id="flip" class="primary">随机 A/B（硬币）</button>
+        <button id="startTimer">开始 30min 计时</button>
+        <span id="timerPill" class="pill right hide"><span>剩余：</span><span id="timer" class="mono ok">30:00</span></span>
+      </div>
+
+      <label>条件（你定义的 A/B）</label>
+      <select id="cond">
+        <option value="A">A：更保暖（厚袜 + 包跟 / 更厚底）</option>
+        <option value="B">B：对照（你当前状态）</option>
+      </select>
+
+      <div class="row">
+        <div class="grow">
+          <label>纸巾张数（0–30min）</label>
+          <input id="tissues" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 3" />
+        </div>
+        <div class="grow">
+          <label>擤鼻次数（0–30min）</label>
+          <input id="blows" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 2" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="grow">
+          <label>喷嚏次数（0–30min）</label>
+          <input id="sneezes" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 5" />
+        </div>
+        <div class="grow">
+          <label>鼻塞评分（0–10）</label>
+          <input id="cong" type="range" min="0" max="10" step="1" value="0" />
+          <div class="tiny">当前：<span id="congVal" class="mono">0</span></div>
+        </div>
+      </div>
+
+      <label>鼻涕类型</label>
+      <select id="rtype">
+        <option value="清水">清水样</option>
+        <option value="偏黏">偏黏</option>
+        <option value="黄绿">黄绿/脓样</option>
+        <option value="无">几乎没有</option>
+      </select>
+
+      <label>脚部接触/环境（可选）</label>
+      <select id="env">
+        <option value="室温正常">室温正常</option>
+        <option value="地板偏冷">地板偏冷</option>
+        <option value="冷风/空调">冷风/空调</option>
+        <option value="刚洗手脸冷水">刚洗手/脸冷水</option>
+        <option value="其他">其他</option>
+      </select>
+
+      <label>备注（可选）</label>
+      <textarea id="note" placeholder="例如：刚从室外进来 / 运动后 / 换了拖鞋 / 觉得明显触发等"></textarea>
+
+      <div class="btnrow">
+        <button id="save" class="primary">保存记录</button>
+        <button id="reset">清空输入</button>
+        <button id="wipe" class="danger right">清空全部数据</button>
+      </div>
+
+      <div class="tiny" id="status"></div>
+    </div>
+
+    <div class="card grow">
+      <div class="kpi">
+        <div><span class="big mono" id="nAll">0</span><span class="muted"> 条记录</span></div>
+        <div class="pill">A 平均纸巾：<span id="avgA" class="mono ok">–</span></div>
+        <div class="pill">B 平均纸巾：<span id="avgB" class="mono bad">–</span></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="tools">
+        <button id="export">导出 CSV</button>
+        <button id="copy">复制 CSV 到剪贴板</button>
+      </div>
+      <div class="tiny">导出后可直接丢进 Excel / Sheets 做 A vs B 对比。</div>
+
+      <div class="divider"></div>
+
+      <div class="tools">
+        <input id="search" placeholder="搜索备注/类型/环境…" />
+        <button id="sort">按时间排序：新→旧</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="overflow:auto; max-height: 52vh;">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>条件</th>
+              <th>纸巾</th>
+              <th>擤鼻</th>
+              <th>喷嚏</th>
+              <th>鼻塞</th>
+              <th>类型</th>
+              <th>环境</th>
+              <th>备注</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  const KEY = "rhinitis_log_v1";
+  let data = load();
+  let newestFirst = true;
+  let timerInt = null;
+  let timerLeft = 30 * 60;
+
+  // ----- time ticker -----
+  function fmtTime(d){
+    const pad = (n)=> String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  setInterval(()=> { $("now").textContent = fmtTime(new Date()); }, 250);
+  $("now").textContent = fmtTime(new Date());
+
+  // ----- suggest A/B (roughly alternating by date) -----
+  function suggestCond(){
+    const day = new Date().getDate();
+    const sug = (day % 2 === 0) ? "A（偶数日）" : "B（奇数日）";
+    $("suggest").textContent = sug;
+  }
+  suggestCond();
+
+  // ----- UI binding -----
+  $("cong").addEventListener("input", () => $("congVal").textContent = $("cong").value);
+
+  $("flip").addEventListener("click", () => {
+    const c = (Math.random() < 0.5) ? "A" : "B";
+    $("cond").value = c;
+    flashStatus(`随机结果：${c}`, "ok");
+  });
+
+  $("startTimer").addEventListener("click", () => {
+    if (timerInt) { stopTimer(); return; }
+    timerLeft = 30 * 60;
+    $("timerPill").classList.remove("hide");
+    $("startTimer").textContent = "停止计时";
+    tickTimer();
+    timerInt = setInterval(tickTimer, 1000);
+  });
+
+  function tickTimer(){
+    timerLeft = Math.max(0, timerLeft);
+    const m = Math.floor(timerLeft/60), s = timerLeft%60;
+    $("timer").textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    $("timer").className = "mono " + (timerLeft <= 10 ? "bad" : "ok");
+    if (timerLeft === 0){
+      stopTimer();
+      try { navigator.vibrate && navigator.vibrate([200,100,200]); } catch(e){}
+      flashStatus("30 分钟到了：现在把 0–30min 指标填一下", "ok");
+    } else {
+      timerLeft--;
+    }
+  }
+
+  function stopTimer(){
+    clearInterval(timerInt);
+    timerInt = null;
+    $("timerPill").classList.add("hide");
+    $("startTimer").textContent = "开始 30min 计时";
+  }
+
+  $("save").addEventListener("click", () => {
+    const rec = getForm();
+    const err = validate(rec);
+    if (err) return flashStatus(err, "bad");
+
+    rec.id = cryptoId();
+    rec.ts = Date.now();
+    data.push(rec);
+    persist();
+    render();
+    resetForm(false);
+    flashStatus("已保存 ✅", "ok");
+  });
+
+  $("reset").addEventListener("click", () => resetForm(true));
+  $("wipe").addEventListener("click", () => {
+    if (!confirm("确定清空全部数据？（不可撤销）")) return;
+    data = [];
+    persist();
+    render();
+    flashStatus("已清空", "bad");
+  });
+
+  $("export").addEventListener("click", () => {
+    const csv = toCSV(filteredSorted());
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rhinitis_log_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  $("copy").addEventListener("click", async () => {
+    const csv = toCSV(filteredSorted());
+    try {
+      await navigator.clipboard.writeText(csv);
+      flashStatus("CSV 已复制到剪贴板", "ok");
+    } catch(e) {
+      flashStatus("复制失败（浏览器权限问题）。用“导出 CSV”更稳。", "bad");
+    }
+  });
+
+  $("sort").addEventListener("click", () => {
+    newestFirst = !newestFirst;
+    $("sort").textContent = `按时间排序：${newestFirst ? "新→旧" : "旧→新"}`;
+    render();
+  });
+
+  $("search").addEventListener("input", render);
+
+  // ----- form helpers -----
+  function getForm(){
+    return {
+      cond: $("cond").value,
+      tissues: num($("tissues").value),
+      blows: num($("blows").value),
+      sneezes: num($("sneezes").value),
+      congestion: Number($("cong").value),
+      rtype: $("rtype").value,
+      env: $("env").value,
+      note: $("note").value.trim(),
+      timeStr: fmtTime(new Date()),
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown",
+      ver: 1
+    };
+  }
+
+  function validate(r){
+    // allow blanks for some counts, but at least one metric should be present
+    const hasAny = [r.tissues, r.blows, r.sneezes].some(v => v !== null) || r.congestion !== null;
+    if (!hasAny) return "至少填一个指标（纸巾/擤鼻/喷嚏/鼻塞）";
+    return null;
+  }
+
+  function resetForm(clearCond){
+    if (clearCond) $("cond").value = "A";
+    $("tissues").value = "";
+    $("blows").value = "";
+    $("sneezes").value = "";
+    $("cong").value = "0"; $("congVal").textContent = "0";
+    $("rtype").value = "清水";
+    $("env").value = "室温正常";
+    $("note").value = "";
+  }
+
+  function num(v){
+    if (v === "" || v === null || v === undefined) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function cryptoId(){
+    // short unique-ish id
+    return Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
+  }
+
+  // ----- storage -----
+  function load(){
+    try { return JSON.parse(localStorage.getItem(KEY) || "[]"); }
+    catch(e){ return []; }
+  }
+  function persist(){
+    localStorage.setItem(KEY, JSON.stringify(data));
+  }
+
+  // ----- render & stats -----
+  function filteredSorted(){
+    const q = $("search").value.trim().toLowerCase();
+    let arr = [...data];
+    if (q){
+      arr = arr.filter(r => {
+        const blob = `${r.timeStr} ${r.cond} ${r.rtype} ${r.env} ${r.note||""}`.toLowerCase();
+        return blob.includes(q);
+      });
+    }
+    arr.sort((a,b) => newestFirst ? (b.ts - a.ts) : (a.ts - b.ts));
+    return arr;
+  }
+
+  function avgTissues(cond){
+    const xs = data.filter(r => r.cond === cond && r.tissues !== null).map(r => r.tissues);
+    if (!xs.length) return null;
+    return xs.reduce((s,x)=>s+x,0)/xs.length;
+  }
+
+  function render(){
+    const arr = filteredSorted();
+    $("nAll").textContent = String(data.length);
+
+    const a = avgTissues("A"), b = avgTissues("B");
+    $("avgA").textContent = (a===null) ? "–" : a.toFixed(2);
+    $("avgB").textContent = (b===null) ? "–" : b.toFixed(2);
+
+    const tb = $("tbody");
+    tb.innerHTML = "";
+    for (const r of arr){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(r.timeStr || "")}</td>
+        <td><span class="pill">${escapeHtml(r.cond)}</span></td>
+        <td class="mono">${fmtNull(r.tissues)}</td>
+        <td class="mono">${fmtNull(r.blows)}</td>
+        <td class="mono">${fmtNull(r.sneezes)}</td>
+        <td class="mono">${fmtNull(r.congestion)}</td>
+        <td>${escapeHtml(r.rtype || "")}</td>
+        <td>${escapeHtml(r.env || "")}</td>
+        <td>${escapeHtml(r.note || "")}</td>
+        <td><button class="danger" data-del="${r.id}">删</button></td>
+      `;
+      tb.appendChild(tr);
+    }
+    // delete binding
+    tb.querySelectorAll("button[data-del]").forEach(btn=>{
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-del");
+        if (!confirm("删除这条记录？")) return;
+        data = data.filter(r => r.id !== id);
+        persist();
+        render();
+        flashStatus("已删除", "bad");
+      });
+    });
+  }
+
+  function fmtNull(v){ return (v===null || v===undefined) ? "–" : String(v); }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, (c)=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    })[c]);
+  }
+
+  function toCSV(arr){
+    const cols = [
+      "timeStr","cond","tissues","blows","sneezes","congestion","rtype","env","note","tz","ts"
+    ];
+    const header = cols.join(",");
+    const lines = arr.map(r => cols.map(k => csvCell(r[k])).join(","));
+    return [header, ...lines].join("\n");
+  }
+
+  function csvCell(v){
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    // quote if needed
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+    return s;
+  }
+
+  function flashStatus(msg, kind){
+    $("status").innerHTML = `<span class="${kind==="ok"?"ok":"bad"}">${escapeHtml(msg)}</span>`;
+    setTimeout(()=> { $("status").textContent=""; }, 2200);
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
