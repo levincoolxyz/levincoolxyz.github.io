@@ -369,8 +369,388 @@
   var optics = {
     N:0, px:0, lam:0, NA:0, z0:0, dn:0, kappa:0, Rpx:0,
     ft:null, P:null, H0r:null, H0i:null, Mr:null, Mi:null, f2:null,
-    FTtRe:null, FTtIm:null
+    FTtRe:null, FTtIm:null,
+    version:0
   };
+
+  // ===== optics worker (async FFT path with sync fallback) =====
+  var opticsWorker = {
+    enabled: (typeof Worker !== 'undefined'),
+    worker:null,
+    inflight:false,
+    pendingJob:null,
+    nextJobId:1,
+    syncedVersion:-1,
+    metaByJobId:new Map(),
+    initAttempted:false
+  };
+
+  function buildOpticsWorkerSource(){
+    return `
+let FFTCtor = null;
+let ft = null;
+let optics = null;
+
+async function loadFFT(){
+  const candidates = [
+    'https://esm.sh/fft.js@4.0.4',
+    '/javascripts/vendor/fftjs/4.0.4/fft.esm.mjs',
+  ];
+  for (const url of candidates){
+    try {
+      const mod = await import(url);
+      FFTCtor = mod?.default ?? mod?.FFT ?? mod;
+      if (FFTCtor) return;
+    } catch (_) {}
+  }
+  throw new Error('Worker FFT import failed');
+}
+
+function makeFFT(n){
+  const fft = new FFTCtor(n);
+  return {
+    size: n,
+    cpx: function(){ return new Float64Array(n * 2); },
+    toCpx: function(re, im){
+      const out = new Float64Array(n * 2);
+      for (let i=0;i<n;i++){
+        out[2*i] = Number.isFinite(re[i]) ? re[i] : 0;
+        out[2*i+1] = (im && Number.isFinite(im[i])) ? im[i] : 0;
+      }
+      return out;
+    },
+    inv: function(out, inp){ fft.inverseTransform(out, inp); }
+  };
+}
+
+function ifft2D(re, im, n, ftObj){
+  const rRe = new Float64Array(n);
+  const rIm = new Float64Array(n);
+  for (let y=0; y<n; y++){
+    for (let x=0; x<n; x++){
+      const i = y*n + x;
+      rRe[x] = re[i];
+      rIm[x] = im[i];
+    }
+    const cin = ftObj.toCpx(rRe, rIm);
+    const cout = ftObj.cpx();
+    ftObj.inv(cout, cin);
+    for (let x=0; x<n; x++){
+      const i = y*n + x;
+      re[i] = cout[2*x];
+      im[i] = cout[2*x+1];
+    }
+  }
+  for (let x=0; x<n; x++){
+    for (let y=0; y<n; y++){
+      const i = y*n + x;
+      rRe[y] = re[i];
+      rIm[y] = im[i];
+    }
+    const cin = ftObj.toCpx(rRe, rIm);
+    const cout = ftObj.cpx();
+    ftObj.inv(cout, cin);
+    for (let y=0; y<n; y++){
+      const i = y*n + x;
+      re[i] = cout[2*y];
+      im[i] = cout[2*y+1];
+    }
+  }
+}
+
+const ready = loadFFT();
+
+self.onmessage = async function(ev){
+  const msg = ev.data || {};
+  try {
+    await ready;
+    if (msg.type === 'setOptics'){
+      optics = {
+        version: msg.version,
+        N: msg.N|0,
+        P: msg.P,
+        f2: msg.f2,
+        H0r: msg.H0r,
+        H0i: msg.H0i,
+        Mr: msg.Mr,
+        Mi: msg.Mi,
+        FTtRe: msg.FTtRe,
+        FTtIm: msg.FTtIm,
+      };
+      if (!ft || ft.size !== optics.N){
+        ft = makeFFT(optics.N);
+      }
+      return;
+    }
+    if (msg.type !== 'render') return;
+    if (!optics || !ft || optics.N !== (msg.N|0)){
+      throw new Error('Worker optics are out of sync');
+    }
+
+    const t0 = performance.now();
+    const N = msg.N|0;
+    const lam_um = Number(msg.lam_um);
+    const dn = Number(msg.dn);
+    const kappa = Number(msg.kappa);
+    const cohI = Number(msg.cohI);
+    const xi = msg.xi;
+    const yi = msg.yi;
+    const zi = msg.zi;
+    const P = optics.P;
+    const f2 = optics.f2;
+    const FTtRe = optics.FTtRe;
+    const FTtIm = optics.FTtIm;
+    const H0r = optics.H0r;
+    const H0i = optics.H0i;
+    const Mr = optics.Mr;
+    const Mi = optics.Mi;
+
+    const FRe = new Float64Array(N*N);
+    const FIm = new Float64Array(N*N);
+    FRe[0] = N*N;
+    const k0 = 2*Math.PI / lam_um;
+    const alpha = 4*Math.PI * kappa / lam_um;
+    const beta_r = -0.5 * alpha;
+    const beta_i = k0 * dn;
+
+    for (let y=0; y<N; y++){
+      const ky = (y <= N/2) ? y : y - N;
+      for (let x=0; x<N; x++){
+        const kx = (x <= N/2) ? x : x - N;
+        const idx = y*N + x;
+        if (P[idx] === 0) continue;
+        let Sr = 0, Si = 0;
+        for (let j=0; j<xi.length; j++){
+          const ang = -2 * Math.PI * ((kx*xi[j] + ky*yi[j]) / N);
+          const sh_r = Math.cos(ang), sh_i = Math.sin(ang);
+          const ph = Math.PI * lam_um * zi[j] * f2[idx];
+          const hz_r = Math.cos(ph), hz_i = Math.sin(ph);
+          const tr = sh_r*hz_r - sh_i*hz_i;
+          const ti = sh_r*hz_i + sh_i*hz_r;
+          const A_r = FTtRe[idx]*tr - FTtIm[idx]*ti;
+          const A_i = FTtRe[idx]*ti + FTtIm[idx]*tr;
+          Sr += beta_r*A_r - beta_i*A_i;
+          Si += beta_r*A_i + beta_i*A_r;
+        }
+        FRe[idx] += Sr;
+        FIm[idx] += Si;
+      }
+    }
+
+    for (let i=0; i<FRe.length; i++){
+      if (P[i] === 0){ FRe[i] = 0; FIm[i] = 0; continue; }
+      const h_r = H0r[i]*Mr[i] - H0i[i]*Mi[i];
+      const h_i = H0r[i]*Mi[i] + H0i[i]*Mr[i];
+      const ar = FRe[i], ai = FIm[i];
+      FRe[i] = ar*h_r - ai*h_i;
+      FIm[i] = ar*h_i + ai*h_r;
+    }
+
+    const uRe = FRe.slice(0);
+    const uIm = FIm.slice(0);
+    let maxF = 0;
+    for (let i=0; i<FRe.length; i++){
+      const mag = Math.sqrt(FRe[i]*FRe[i] + FIm[i]*FIm[i]);
+      if (Number.isFinite(mag) && mag > maxF) maxF = mag;
+    }
+    const preScale = maxF > 0 ? (1 / maxF) : 1;
+    for (let i=0; i<uRe.length; i++){
+      uRe[i] *= preScale;
+      uIm[i] *= preScale;
+    }
+    ifft2D(uRe, uIm, N, ft);
+    for (let i=0; i<uRe.length; i++){
+      uRe[i] /= preScale;
+      uIm[i] /= preScale;
+    }
+
+    const norm = Math.sqrt(cohI);
+    const I = new Float32Array(N*N);
+    for (let i=0; i<uRe.length; i++){
+      let re = uRe[i]*norm;
+      let im = uIm[i]*norm;
+      if (!Number.isFinite(re)) re = 0;
+      if (!Number.isFinite(im)) im = 0;
+      let v = re*re + im*im;
+      if (!Number.isFinite(v)) v = 0;
+      I[i] = v;
+    }
+    let maxI = 0;
+    for (let i=0; i<I.length; i++){
+      const v = I[i];
+      if (Number.isFinite(v) && v > maxI) maxI = v;
+    }
+    if (!(maxI > 0)){
+      for (let i=0; i<I.length; i++) I[i] = 1;
+    }
+    const rgba = new Uint8Array(4*N*N);
+    for (let i=0; i<I.length; i++){
+      const v = Math.min(255, Math.max(0, Math.round(I[i] * 255)));
+      const j = i << 2;
+      rgba[j] = v;
+      rgba[j+1] = v;
+      rgba[j+2] = v;
+      rgba[j+3] = 255;
+    }
+    self.postMessage({
+      id: msg.id,
+      N: N,
+      renderMs: performance.now() - t0,
+      rgba: rgba
+    }, [rgba.buffer]);
+  } catch (err){
+    self.postMessage({ id: msg.id, error: String(err && err.message ? err.message : err) });
+  }
+};
+`;
+  }
+
+  function disableOpticsWorker(reason){
+    if (opticsWorker.worker){
+      try { opticsWorker.worker.terminate(); } catch (_) {}
+    }
+    opticsWorker.worker = null;
+    opticsWorker.enabled = false;
+    opticsWorker.inflight = false;
+    opticsWorker.pendingJob = null;
+    opticsWorker.syncedVersion = -1;
+    opticsWorker.metaByJobId.clear();
+    if (reason) console.warn('Optics worker disabled:', reason);
+  }
+
+  function ensureOpticsWorker(){
+    if (!opticsWorker.enabled) return null;
+    if (opticsWorker.worker) return opticsWorker.worker;
+    if (opticsWorker.initAttempted) return null;
+    opticsWorker.initAttempted = true;
+    try {
+      const src = buildOpticsWorkerSource();
+      const blob = new Blob([src], { type:'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      const worker = new Worker(url, { type:'module' });
+      URL.revokeObjectURL(url);
+      worker.onmessage = function(ev){
+        const msg = ev.data || {};
+        if (msg && msg.error){
+          disableOpticsWorker(msg.error);
+          return;
+        }
+        if (!msg || typeof msg.id !== 'number') return;
+        opticsWorker.inflight = false;
+        const meta = opticsWorker.metaByJobId.get(msg.id);
+        opticsWorker.metaByJobId.delete(msg.id);
+        if (meta && msg.rgba){
+          applyOpticsFrame(new Uint8Array(msg.rgba), msg.N|0, meta, Number(msg.renderMs) || 0);
+        }
+        flushPendingOpticsJob();
+      };
+      worker.onerror = function(err){
+        disableOpticsWorker(err && err.message ? err.message : 'Worker runtime error');
+      };
+      opticsWorker.worker = worker;
+      return worker;
+    } catch (err){
+      disableOpticsWorker(err && err.message ? err.message : 'Worker creation failed');
+      return null;
+    }
+  }
+
+  function syncOpticsToWorker(){
+    const worker = ensureOpticsWorker();
+    if (!worker) return false;
+    if (!optics || !optics.P || !optics.FTtRe || !optics.H0r) return false;
+    if (opticsWorker.syncedVersion === optics.version) return true;
+    try {
+      worker.postMessage({
+        type:'setOptics',
+        version: optics.version,
+        N: optics.N|0,
+        P: optics.P,
+        f2: optics.f2,
+        H0r: optics.H0r,
+        H0i: optics.H0i,
+        Mr: optics.Mr,
+        Mi: optics.Mi,
+        FTtRe: optics.FTtRe,
+        FTtIm: optics.FTtIm,
+      });
+      opticsWorker.syncedVersion = optics.version;
+      return true;
+    } catch (err){
+      disableOpticsWorker(err && err.message ? err.message : 'Failed to sync optics');
+      return false;
+    }
+  }
+
+  function applyOpticsFrame(rgba, N, meta, renderMs){
+    if (!rgba || !N) return;
+    if (!bf.tex || bf.texSize !== N){
+      bf.tex = new THREE.DataTexture(new Uint8Array(4*N*N), N, N, THREE.RGBAFormat);
+      bf.tex.needsUpdate = true;
+      bf.texSize = N;
+      bf.quad.material.map = bf.tex;
+      bf.quad.material.needsUpdate = true;
+    }
+    bf.tex.image.data.set(rgba);
+    bf.tex.needsUpdate = true;
+    bf.renderer.render(bf.scene, bf.cam);
+    bf.savePixels = new Uint8ClampedArray(rgba);
+    bf.saveSize = N;
+    const statsEl = document.getElementById('stats');
+    if (statsEl && meta){
+      statsEl.textContent = `N=${N}  px=${meta.px_um.toFixed(3)} μm  λ=${(meta.lam_um*1e3).toFixed(0)} nm  NA=${meta.NA.toFixed(2)}  z0=${meta.z0.toFixed(2)} μm  pan=(${meta.panX|0},${meta.panY|0}) px\nspots=${sim.total}, cilia=${sim.totalCiliated}, beads=${meta.beadCount}: render ${renderMs.toFixed(1)} ms`;
+    }
+    updateScaleBarWidth();
+  }
+
+  function postOpticsWorkerJob(job){
+    if (!job || !job.payload) return false;
+    if (!syncOpticsToWorker()) return false;
+    try {
+      opticsWorker.inflight = true;
+      opticsWorker.metaByJobId.set(job.id, job.meta);
+      opticsWorker.worker.postMessage(job.payload);
+      return true;
+    } catch (err){
+      disableOpticsWorker(err && err.message ? err.message : 'Failed to post optics job');
+      return false;
+    }
+  }
+
+  function flushPendingOpticsJob(){
+    if (opticsWorker.inflight) return;
+    if (!opticsWorker.pendingJob) return;
+    const next = opticsWorker.pendingJob;
+    opticsWorker.pendingJob = null;
+    postOpticsWorkerJob(next);
+  }
+
+  function tryRenderBFWithWorker(frame){
+    const worker = ensureOpticsWorker();
+    if (!worker) return false;
+    const jobId = opticsWorker.nextJobId++;
+    const job = {
+      id: jobId,
+      meta: frame.meta,
+      payload: {
+        type:'render',
+        id: jobId,
+        N: frame.N|0,
+        xi: frame.xi,
+        yi: frame.yi,
+        zi: frame.zi,
+        lam_um: frame.lam_um,
+        dn: frame.dn,
+        kappa: frame.kappa,
+        cohI: frame.cohI,
+      }
+    };
+    if (opticsWorker.inflight){
+      opticsWorker.pendingJob = job;
+      return true;
+    }
+    return postOpticsWorkerJob(job);
+  }
 
   // (removed FPS HUD; render timer replaces FPS display)
 
@@ -1265,6 +1645,9 @@
     }
     // store dn,kappa for completeness
     optics.dn = dn; optics.kappa = kappa;
+    if (anyKeyChanged || needNewH0){
+      optics.version = (optics.version|0) + 1;
+    }
   }
 
   // ===== orientation mapping (use azimuth/elevation to rotate sample relative to optical axis) =====
@@ -1382,6 +1765,28 @@
       xi[i] = xi0[i] + (params.panX||0);
       yi[i] = yi0[i] + (params.panY||0);
     }
+    const frameMeta = {
+      px_um: px_um,
+      lam_um: lam_um,
+      NA: NA,
+      z0: z0,
+      panX: (params.panX|0),
+      panY: (params.panY|0),
+      beadCount: beads.length
+    };
+    if (tryRenderBFWithWorker({
+      N: N,
+      xi: xi,
+      yi: yi,
+      zi: zi,
+      lam_um: lam_um,
+      dn: dn,
+      kappa: kappa,
+      cohI: cohI,
+      meta: frameMeta
+    })){
+      return;
+    }
 
     const FRe=new Float64Array(N*N), FIm=new Float64Array(N*N);
     // DC baseline (FFT of all-ones)
@@ -1485,17 +1890,8 @@
     const rgba = new Uint8Array(4*N*N);
     for(let i=0;i<I.length;i++){ const v=Math.min(255, Math.max(0, Math.round(I[i]*scale))); const j=i<<2; rgba[j]=v; rgba[j+1]=v; rgba[j+2]=v; rgba[j+3]=255; }
 
-    // Present texture (reuse DataTexture)
-    if (!bf.tex || bf.texSize !== N){ bf.tex = new THREE.DataTexture(new Uint8Array(4*N*N), N, N, THREE.RGBAFormat); bf.tex.needsUpdate=true; bf.texSize=N; bf.quad.material.map=bf.tex; bf.quad.material.needsUpdate=true; }
-    bf.tex.image.data.set(rgba); bf.tex.needsUpdate=true; bf.renderer.render(bf.scene, bf.cam);
-    // store for snapshot save
-    bf.savePixels = new Uint8ClampedArray(rgba); // copy
-    bf.saveSize = N;
-
     const t1 = performance.now();
-    const statsEl = document.getElementById('stats'); if (statsEl) statsEl.textContent = `N=${N}  px=${px_um.toFixed(3)} μm  λ=${(lam_um*1e3).toFixed(0)} nm  NA=${NA.toFixed(2)}  z0=${z0.toFixed(2)} μm  pan=(${params.panX|0},${params.panY|0}) px\nspots=${sim.total}, cilia=${sim.totalCiliated}, beads=${beads.length}: render ${(t1-t0).toFixed(1)} ms`;
-
-    updateScaleBarWidth();
+    applyOpticsFrame(rgba, N, frameMeta, (t1 - t0));
   }
 
   // ===== animation =====
