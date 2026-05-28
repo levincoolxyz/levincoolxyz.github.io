@@ -501,12 +501,12 @@ function computeStep(){
   if(stateFlags.shark){ if(hydroEnabled){ addPredatorFlow(sharkState, params.sharkH, 1000, Ux, Uy, wHydro);} } else { sharkState.pos={x:meanX()-25,y:meanY()}; sharkState.theta=0; }
   if(stateFlags.whale){ if(hydroEnabled){ addPredatorFlow(whaleState, params.whaleH, 6, Ux, Uy, wHydro);} } else { whaleState.pos={x:meanX(),y:meanY()-25}; whaleState.theta=Math.PI/2; }
   if(stateFlags.evade){ if(stateFlags.shark) applySharkEvade(wVision); if(stateFlags.whale) applyWhaleEvade(wVision); }
-  const thetaDot = new Float64Array(n); for(let i=0;i<n;i++){ thetaDot[i] = wVision[i] + wNoise[i] + wHydro[i]; }
+  const thetaDot = new Float64Array(n); for(let i=0;i<n;i++){ thetaDot[i] = wVision[i] + wHydro[i]; }
   wBuffer = thetaDot.slice();
   for(let i=0;i<n;i++){
     fishes[i].x += (Math.cos(fishes[i].theta) + Ux[i]) * dt;
     fishes[i].y += (Math.sin(fishes[i].theta) + Uy[i]) * dt;
-    fishes[i].theta = wrapAngle(fishes[i].theta + thetaDot[i] * dt);
+    fishes[i].theta = wrapAngle(fishes[i].theta + thetaDot[i] * dt + wNoise[i]);
     velocities[i].x = Math.cos(fishes[i].theta) + Ux[i];
     velocities[i].y = Math.sin(fishes[i].theta) + Uy[i];
   }

@@ -841,14 +841,14 @@ function computeStep(){
 
   const thetaDot = new Float64Array(n);
   for(let i=0;i<n;i++){
-    thetaDot[i] = wVision[i] + wNoise[i] + wHydro[i];
+    thetaDot[i] = wVision[i] + wHydro[i];
   }
   wBuffer = thetaDot.slice();
 
   for(let i=0;i<n;i++){
     fishes[i].x += (Math.cos(fishes[i].theta) + Ux[i]) * dt;
     fishes[i].y += (Math.sin(fishes[i].theta) + Uy[i]) * dt;
-    fishes[i].theta = wrapAngle(fishes[i].theta + thetaDot[i] * dt);
+    fishes[i].theta = wrapAngle(fishes[i].theta + thetaDot[i] * dt + wNoise[i]);
     velocities[i].x = Math.cos(fishes[i].theta) + Ux[i];
     velocities[i].y = Math.sin(fishes[i].theta) + Uy[i];
   }

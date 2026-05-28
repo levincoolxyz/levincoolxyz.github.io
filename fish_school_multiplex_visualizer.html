@@ -41,9 +41,18 @@
     .app.collapsed header .row{gap:10px}
     .pill{padding:4px 8px;border-radius:999px;border:1px solid #233047;background:#0f1729;color:var(--muted);font-size:12px}
     .sim-grid{--cols:1;--rows:1;display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-template-rows:repeat(var(--rows),minmax(0,1fr));gap:12px;padding:12px;box-sizing:border-box;width:100%;height:100%}
+    .sim-grid.expanded{grid-template-columns:minmax(0,1fr) !important;grid-template-rows:minmax(0,1fr) !important;gap:0;padding:0}
     .sim-tile{position:relative;display:flex;flex-direction:column;min-height:0;border:1px solid var(--border);border-radius:14px;background:#05070c;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.35)}
+    .sim-grid.expanded .sim-tile.sim-expanded{border:0;border-radius:0;box-shadow:none}
+    .sim-grid.expanded .sim-tile.sim-hidden{display:none}
     .sim-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:rgba(10,15,24,.85);border-bottom:1px solid var(--border);font-size:12px;color:var(--muted)}
-    .sim-title{color:var(--fg);font-weight:600;letter-spacing:.02em}
+    .sim-header-main{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+    .sim-title{color:var(--fg);font-weight:600;letter-spacing:.02em;cursor:help;touch-action:manipulation;user-select:none}
+    .sim-thread{display:flex;align-items:center;gap:6px;min-width:0}
+    .sim-thread-select{appearance:none;background:#0f1729;color:var(--fg);border:1px solid rgba(148,163,184,.35);border-radius:8px;padding:4px 8px;font-size:11px}
+    .sim-thread-status{padding:3px 7px;border-radius:999px;border:1px solid rgba(148,163,184,.28);background:#0b1322;color:#a5b4c7;font-size:11px;white-space:nowrap}
+    .sim-thread-status[data-backend="worker"]{border-color:rgba(138,180,248,.5);color:#bcd3ff}
+    .sim-thread-status[data-pending="true"]{color:#ffd166}
     .sim-actions{display:flex;align-items:center;gap:6px}
     .sim-action{width:26px;height:26px;border-radius:8px;padding:0;border:1px solid rgba(148,163,184,.32);background:#0f1729;color:var(--fg);font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
     .sim-action:hover{background:#17253b;border-color:rgba(148,163,184,.55)}
@@ -51,12 +60,25 @@
     .sim-add:hover{border-color:rgba(138,180,248,.8)}
     .sim-duplicate{font-size:13px}
     .sim-reset{font-size:13px}
+    .sim-expand{position:relative;font-size:0}
+    .sim-expand::before,.sim-expand::after{position:absolute;font:15px/1 "Segoe UI Symbol","Apple Symbols",system-ui,sans-serif;color:currentColor}
+    .sim-expand::before{content:"↖";left:4px;top:3px}
+    .sim-expand::after{content:"↘";right:4px;bottom:3px}
+    .sim-expand.restore::before{content:"↘"}
+    .sim-expand.restore::after{content:"↖"}
     .sim-remove{width:26px;height:26px;border-radius:8px;padding:0;border:1px solid rgba(239,83,80,.35);background:rgba(60,20,20,.7);color:#ffd1d1;font-size:14px;line-height:1}
     .sim-remove:hover{background:rgba(90,24,24,.85);border-color:#ef5350}
     .sim-view{position:relative;flex:1;min-height:0}
     .sim-canvas{width:100%;height:100%;display:block;background:#05070c;touch-action:none}
     .sim-stats{position:absolute;left:12px;bottom:12px;padding:8px 10px;background:rgba(0,0,0,.45);border-radius:8px;font:12px ui-monospace;color:#cbd5e1;white-space:pre}
     .sim-messages{position:absolute;right:12px;bottom:12px;padding:10px 14px;background:rgba(43,27,27,.85);color:#ffdcdc;border:1px solid #a55;border-radius:10px;font:12px ui-monospace;display:none;max-width:46ch}
+    .order-panel{position:absolute;left:12px;top:12px;width:clamp(148px,calc(100% - 132px),236px);height:140px;padding:10px 12px;background:rgba(255,255,255,.9);border:1px solid rgba(16,24,39,.18);border-radius:4px;box-sizing:border-box;color:#111827;box-shadow:0 12px 28px rgba(0,0,0,.28);z-index:3;pointer-events:none;opacity:0;visibility:hidden;transform:translateY(-4px);transition:opacity .14s ease,visibility .14s ease,transform .14s ease}
+    .sim-tile.order-panel-visible .order-panel{opacity:1;visibility:visible;transform:translateY(0)}
+    .order-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font:11px ui-monospace,Menlo,Consolas,monospace;color:#111827}
+    .order-state{font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    .order-canvas{display:block;width:100%;height:78px;background:#fff;border-left:1px solid #111827;border-bottom:1px solid #111827}
+    .order-readout{margin-top:5px;display:flex;justify-content:space-between;font:11px ui-monospace,Menlo,Consolas,monospace;color:#111827}
+    .order-readout span{font-weight:700}
     .tutorial-note{position:absolute;right:16px;top:120px;width:min(280px,90vw);padding:12px 14px;background:rgba(15,23,42,.78);border:1px solid rgba(148,163,184,.35);border-radius:12px;color:var(--fg);font-size:12px;line-height:1.5;z-index:5;box-shadow:0 14px 38px rgba(0,0,0,.45);backdrop-filter:blur(4px)}
     .tutorial-note header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
     .tutorial-note header strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -106,8 +128,8 @@
       <button id="playPause">Pause All</button>
       <button id="respawn">Reset All</button>
       <button id="addInstance">Add instance <span class="pill" id="instanceCount">(1 running)</span></button>
-      <button id="recordToggle" title="Record states (binary) + composite timelapse">Record</button>
-      <button id="downloadRecordings" title="Download last recording" disabled>Download</button>
+      <button id="recordToggle" title="Save binary state log from rolling buffer">Save recent 2 min</button>
+      <button id="downloadRecordings" title="Download last state log again" disabled>Download</button>
       <span class="pill" id="recordStatus">REC idle</span>
       <div class="toggle" data-key="bait" title="Toggle bait placement (click canvas to add)">Set baits</div>
       <button id="clearBaits">Remove baits</button>
@@ -173,16 +195,38 @@
     <template id="simTemplate">
 	      <section class="sim-tile">
 	        <div class="sim-header">
-	          <span class="sim-title">Sim 1</span>
+            <div class="sim-header-main">
+	            <span class="sim-title">Sim 1</span>
+              <label class="sim-thread" title="Per-sim compute backend">
+                <select class="sim-thread-select" aria-label="Simulation thread mode">
+                  <option value="auto">Auto</option>
+                  <option value="main">Main</option>
+                  <option value="worker">Worker</option>
+                </select>
+                <span class="sim-thread-status" data-backend="main" data-pending="false">Main</span>
+              </label>
+            </div>
 	          <div class="sim-actions">
 	            <button type="button" class="sim-action sim-duplicate" aria-label="Duplicate instance" title="Duplicate this instance">&#x29C9;</button>
 	            <button type="button" class="sim-action sim-reset" aria-label="Reset this instance" title="Reset this instance">&#x27F3;</button>
+	            <button type="button" class="sim-action sim-expand" aria-label="Expand this instance" aria-pressed="false" title="Expand this instance"></button>
 	            <button type="button" class="sim-action sim-add" aria-label="Add instance" title="Add a new instance">+</button>
 	            <button type="button" class="sim-action sim-remove" aria-label="Remove instance" title="Close this instance">x</button>
 	          </div>
 	        </div>
 	        <div class="sim-view">
           <canvas class="sim-canvas"></canvas>
+          <div class="order-panel">
+            <div class="order-head">
+              <span>P and Π(t)</span>
+              <span class="order-state">initializing</span>
+            </div>
+            <canvas class="order-canvas"></canvas>
+            <div class="order-readout">
+              <span>P 0.00</span>
+              <span>Π 0.00</span>
+            </div>
+          </div>
           <div class="sim-stats"></div>
           <div class="sim-messages"></div>
           <div class="sim-dpad" title="Pan view (arrow keys or buttons); center to follow">
@@ -215,13 +259,6 @@
   </main>
 </div>
 <script type="module">
-// CDN-first import with local snapshot fallback for d3-delaunay
-async function importWithFallback(candidates){
-  for (const url of candidates){
-    try { return await import(url); } catch(e){ console.warn('Import failed:', url, e); }
-  }
-  throw new Error('All import candidates failed: ' + candidates.join(', '));
-}
 async function loadScript(src){
   return new Promise((resolve, reject)=>{
     const s=document.createElement('script');
@@ -232,18 +269,21 @@ async function loadScript(src){
   });
 }
 let Delaunay;
-try {
-  const mod = await importWithFallback([
-    'https://cdn.skypack.dev/d3-delaunay@6',
-  ]);
-  Delaunay = mod.Delaunay ?? mod.default ?? mod;
-} catch (err) {
-  console.warn('Falling back to UMD d3-delaunay:', err);
-  await loadScript('/javascripts/vendor/d3-delaunay/6/d3-delaunay.min.js');
-  // UMD attaches to global d3
-  Delaunay = (window.d3 && window.d3.Delaunay) ? window.d3.Delaunay : undefined;
-  if (!Delaunay) throw new Error('Unable to load Delaunay from local UMD');
-}
+await loadScript('./javascripts/vendor/d3-delaunay/6/d3-delaunay.min.js');
+Delaunay = (window.d3 && window.d3.Delaunay) ? window.d3.Delaunay : undefined;
+if (!Delaunay) throw new Error('Unable to load Delaunay from local UMD');
+const computeCore = await import('./javascripts/fish_school_compute_core.js');
+const {
+  cloneStatePayload,
+  computeFrameMetrics,
+  computeStep: computeStateStep,
+  createSimulationState,
+  getTransferListFromPayload,
+  meanPoint,
+  resetSimulationState,
+  snapshotForRecording: buildRecordingSnapshot,
+  stateFromPayload,
+} = computeCore;
 
 const appEl = document.getElementById('app');
 const togglePanelBtn = document.getElementById('togglePanel');
@@ -256,6 +296,42 @@ const recordToggleBtn = document.getElementById('recordToggle');
 const downloadRecordingsBtn = document.getElementById('downloadRecordings');
 const recordStatusEl = document.getElementById('recordStatus');
 let recorder = null;
+const workerSupported = typeof Worker !== 'undefined';
+const workerScriptUrl = './javascripts/fish_school_compute_worker.js';
+const maxAutoWorkers = Math.max(1, (navigator.hardwareConcurrency || 2) - 1);
+const LOG_FORMAT_VERSION = 'fish_school_multiplex_log_v3';
+const LOG_EVENT_VOCABULARY = 'fish_school_multiplex_event_v1';
+const LOG_FRAME_SCHEMA = 'fish_school_multiplex_frame_v2';
+
+const ROLLING_BUFFER_SECONDS = 120;
+const LOG_SAMPLE_FPS = 4;
+const ORDER_HISTORY_LIMIT = ROLLING_BUFFER_SECONDS * LOG_SAMPLE_FPS;
+const ORDER_SAMPLE_INTERVAL_MS = 1000 / LOG_SAMPLE_FPS;
+const ORDER_THRESHOLDS = {
+  high: 0.65,
+  low: 0.35,
+  dominance: 0.10,
+};
+const ORDER_STATES = {
+  swarming: {label: 'Swarming', color: '#83c95b'},
+  schooling: {label: 'Schooling', color: '#f03b2f'},
+  milling: {label: 'Milling', color: '#2d7fc1'},
+  turning: {label: 'Turning', color: '#a6a6a6'},
+  transition: {label: 'Transition', color: '#f0d264'},
+};
+const ORDER_P_COLOR = ORDER_STATES.schooling.color;
+const ORDER_PI_COLOR = ORDER_STATES.milling.color;
+
+function classifyOrderState(metrics){
+  const p = Math.max(0, Math.min(1, Number(metrics?.pol) || 0));
+  const pi = Math.max(0, Math.min(1, Number(metrics?.pi) || 0));
+  if(p >= ORDER_THRESHOLDS.high && p - pi >= ORDER_THRESHOLDS.dominance) return ORDER_STATES.schooling;
+  if(pi >= ORDER_THRESHOLDS.high && pi - p >= ORDER_THRESHOLDS.dominance) return ORDER_STATES.milling;
+  if(p < ORDER_THRESHOLDS.low && pi < ORDER_THRESHOLDS.low) return ORDER_STATES.swarming;
+  if(p >= ORDER_THRESHOLDS.high && pi >= ORDER_THRESHOLDS.high) return ORDER_STATES.turning;
+  if(p >= ORDER_THRESHOLDS.low && pi >= ORDER_THRESHOLDS.low) return ORDER_STATES.turning;
+  return ORDER_STATES.transition;
+}
 
 // Keep JS breakpoint in sync with CSS media query (960px)
 const collapseQuery = window.matchMedia('(max-width: 960px)');
@@ -319,7 +395,7 @@ const playPauseBtn = document.getElementById('playPause');
 let isPlaying = true;
 
 const setPlaying = (playing) => {
-  isPlaying = playing;
+  isPlaying = !!playing;
   if (playPauseBtn) {
     playPauseBtn.textContent = isPlaying ? 'Pause All' : 'Play All';
   }
@@ -364,6 +440,8 @@ document.querySelectorAll('.toggle').forEach(btn => {
     }
     const active = btn.classList.toggle('active');
     stateFlags[key] = active;
+    invalidateAllWorkerResults(`flag_${key}`);
+    refreshThreadAssignments();
     recorder?.logEvent({type:'flag_set', key, active: !!active});
     if(key === 'shark'){
       updateGoalUiDisabled();
@@ -416,56 +494,10 @@ const sharkShape = {
   },
 };
 
-const sharkHeadOffset = 1.5;
-const whaleHeadOffset = 0.8;
-
 const whaleShape = {
   x: [-3.9,-4,-3.75,-3.5,-1.5,0,-0.15,-0.4,0.25,0.75,1.5,1.85,2,1.85,1.5,0.75,0.25,-0.4,-0.15,0,-1.5,-3.5,-3.75,-4,-3.9].map(v => v*2),
   y: [0,0.9,0.67,0.2,0.75,1,1.5,2,1.5,1,0.75,0.45,0,-0.45,-0.75,-1,-1.5,-2,-1.5,-1,-0.75,-0.2,-0.67,-0.9,0].map(v => v*2),
 };
-
-let errTol = 1e-12;
-
-function gaussian(){
-  let u=0,v=0;
-  while(u===0) u=1-Math.random();
-  while(v===0) v=Math.random();
-  return Math.sqrt(-2.0*Math.log(u))*Math.cos(2.0*Math.PI*v);
-}
-
-function wrapAngle(a){
-  a = (a + Math.PI) % (Math.PI*2);
-  if(a < 0) a += Math.PI*2;
-  return a - Math.PI;
-}
-
-function getAngle(phi, dx, dy, dist){
-  const r = dist ?? Math.hypot(dx, dy);
-  if(!isFinite(r) || r === 0) {
-    console.log('overlapped fish or something wrong!', r);
-    return 0;
-  }
-  const rx = dx / r;
-  const ry = dy / r;
-  const ex = Math.cos(phi);
-  const ey = Math.sin(phi);
-  let cross = ex*ry - ey*rx;
-  let dot = ex*rx + ey*ry;
-  cross = Math.max(-1, Math.min(1, cross));
-  dot = Math.max(-1, Math.min(1, dot));
-  let theta = Math.acos(dot);
-  if(cross < 0) theta = -theta;
-  return theta;
-}
-
-function medianPoint(arr){
-  const xs = arr.map(p => p.x).sort((a,b) => a-b);
-  const ys = arr.map(p => p.y).sort((a,b) => a-b);
-  const mid = Math.floor(xs.length/2);
-  const medX = xs.length % 2 ? xs[mid] : (xs[mid-1]+xs[mid])/2;
-  const medY = ys.length % 2 ? ys[mid] : (ys[mid-1]+ys[mid])/2;
-  return {x:medX,y:medY};
-}
 
 function hotColor(t){
   let r=0,g=0,b=0;
@@ -507,16 +539,38 @@ function rand1(ix, iy, salt){
 const sims = new Map();
 let simCounter = 0;
 let activeSimId = null;
+let expandedSimId = null;
 
 function setActiveSimId(simId){
   activeSimId = simId;
   sims.forEach(sim => sim.node.classList.toggle('focused', sim.id === activeSimId));
+  refreshThreadAssignments();
+}
+
+function syncExpandedLayout(){
+  if(expandedSimId !== null && !sims.has(expandedSimId)) expandedSimId = null;
+  const expanded = expandedSimId !== null;
+  simGrid.classList.toggle('expanded', expanded);
+  sims.forEach(sim => sim.setExpandedView(expanded && sim.id === expandedSimId, expanded && sim.id !== expandedSimId));
+}
+
+function setExpandedSimId(simId, reason = 'tile_toggle'){
+  expandedSimId = expandedSimId === simId ? null : simId;
+  syncExpandedLayout();
+  updateGridLayout();
+  requestAnimationFrame(() => {
+    sims.forEach(sim => sim.resize());
+  });
+  recorder?.logEvent({type:'sim_view_set', simId, expanded: expandedSimId === simId, reason});
 }
 
 function normalizeInstanceParams(next){
-  const n = Math.max(10, Math.min(10000, Math.round(Number(next?.n ?? 150) || 150)));
-  const Ia = Math.max(0.01, Math.min(10, Number(next?.Ia ?? 1.5) || 1.5));
-  const In = Math.max(0, Math.min(5, Number(next?.In ?? 0.3) || 0.3));
+  const rawN = Number(next?.n ?? 150);
+  const rawIa = Number(next?.Ia ?? 1.5);
+  const rawIn = Number(next?.In ?? 0.3);
+  const n = Math.max(10, Math.min(10000, Math.round(Number.isFinite(rawN) ? rawN : 150)));
+  const Ia = Math.max(0.01, Math.min(10, Number.isFinite(rawIa) ? rawIa : 1.5));
+  const In = Math.max(0, Math.min(5, Number.isFinite(rawIn) ? rawIn : 0.3));
   return {n, Ia, In};
 }
 
@@ -550,14 +604,23 @@ function clearAllBaits(){
 function resetAllSchools({applyBuffered=false} = {}){
   if(applyBuffered){
     sims.forEach(sim => sim.setInstanceParams(bufferedInstanceParams, {respawn:true}));
+    refreshThreadAssignments();
     return;
   }
   sims.forEach(sim => sim.resetSchool());
+  refreshThreadAssignments();
 }
 
 function updateGridLayout(){
+  syncExpandedLayout();
   const count = sims.size;
   const tileCount = Math.max(1, count);
+  simGrid.querySelectorAll('.sim-placeholder').forEach(node => node.remove());
+  if(expandedSimId !== null){
+    simGrid.style.setProperty('--cols', '1');
+    simGrid.style.setProperty('--rows', '1');
+    return;
+  }
   const rect = simGrid.getBoundingClientRect();
   const gridW = Math.max(1, rect.width);
   const gridH = Math.max(1, rect.height);
@@ -592,7 +655,6 @@ function updateGridLayout(){
   const rows = bestRows;
   simGrid.style.setProperty('--cols', String(cols));
   simGrid.style.setProperty('--rows', String(rows));
-  simGrid.querySelectorAll('.sim-placeholder').forEach(node => node.remove());
   const totalSlots = rows * cols;
   const placeholders = totalSlots - count;
   if(placeholders > 0){
@@ -615,6 +677,19 @@ function updateGridLayout(){
   }
 }
 
+function isSimVisibleInCurrentLayout(sim){
+  const expanded = expandedSimId !== null && sims.has(expandedSimId);
+  return !expanded || sim.id === expandedSimId;
+}
+
+function stepAllSims({advance = true, sampleOrder = true} = {}){
+  sims.forEach(sim => sim.step({
+    visible: isSimVisibleInCurrentLayout(sim),
+    advance,
+    sampleOrder,
+  }));
+}
+
 function getActiveSim(){
   return sims.get(activeSimId) ?? sims.values().next().value;
 }
@@ -631,69 +706,40 @@ function formatBytes(bytes){
   return `${v.toFixed(i ? 1 : 0)} ${units[i]}`;
 }
 
-function chooseGrid(tileCount, W, H){
-  const targetAspect = 1.15;
-  const minTileW = 280;
-  const minTileH = 220;
-
-  let bestCols = 1;
-  let bestRows = tileCount;
-  let bestScore = Infinity;
-  const maxCols = Math.min(tileCount, 16);
-  for(let cols=1; cols<=maxCols; cols++){
-    const rows = Math.ceil(tileCount / cols);
-    const tileW = W / cols;
-    const tileH = H / rows;
-    const aspect = tileW / Math.max(1, tileH);
-    const aspectPenalty = Math.abs(Math.log(aspect / targetAspect));
-    const wPenalty = Math.max(0, (minTileW - tileW) / minTileW);
-    const hPenalty = Math.max(0, (minTileH - tileH) / minTileH);
-    const sizePenalty = wPenalty*wPenalty + hPenalty*hPenalty;
-    const empties = cols*rows - tileCount;
-    const emptyPenalty = empties ? empties * 0.06 : 0;
-    const score = aspectPenalty*2.2 + sizePenalty*3.5 + emptyPenalty;
-    if(score < bestScore){
-      bestScore = score;
-      bestCols = cols;
-      bestRows = rows;
-    }
-  }
-  return {cols: bestCols, rows: bestRows};
-}
-
 function createRecorder(){
   const enc = new TextEncoder();
-  const fps = 2;
-  const intervalMs = 1000 / fps;
-  const maxBytesDefault = 250 * 1024 * 1024;
-  const videoW = 1280;
-  const videoH = 720;
+  const fps = LOG_SAMPLE_FPS;
+  const intervalMs = ORDER_SAMPLE_INTERVAL_MS;
+  const prebufferSeconds = ROLLING_BUFFER_SECONDS;
+  const prebufferFrameLimit = ORDER_HISTORY_LIMIT;
+  const maxBytesDefault = 500 * 1024 * 1024;
+  const maxPrebufferBytesDefault = 320 * 1024 * 1024;
 
   let recording = false;
-  let startMs = 0;
-  let nextSampleMs = 0;
+  const sessionStartMs = performance.now();
+  let nextSampleMs = sessionStartMs;
   let approxBytes = 0;
   let frames = 0;
+  let prebufferFrames = 0;
+  let liveFrames = 0;
   let events = 0;
   let chunks = [];
-
-  let compositeCanvas = null;
-  let compositeCtx = null;
-  let stream = null;
-  let videoTrack = null;
-  let mediaRecorder = null;
-  let videoMimeType = 'video/webm';
-  let videoChunks = [];
+  let rollingEntries = [];
+  let rollingBytes = 0;
+  let rollingFrames = 0;
 
   let logBlob = null;
-  let videoBlob = null;
   let maxBytes = maxBytesDefault;
+  let maxPrebufferBytes = maxPrebufferBytesDefault;
+  let recordPressedSec = NaN;
+  let bufferedStartSec = NaN;
+  let recordingStopSec = NaN;
 
-  function timeSec(){
-    return (performance.now() - startMs) / 1000;
+  function timeSec(nowMs = performance.now()){
+    return (nowMs - sessionStartMs) / 1000;
   }
 
-  function pushChunk(type4, payload){
+  function makeChunk(type4, payload, tSec = NaN){
     const typeBytes = enc.encode(type4);
     const header = new Uint8Array(8);
     header[0] = typeBytes[0] ?? 0;
@@ -701,138 +747,93 @@ function createRecorder(){
     header[2] = typeBytes[2] ?? 0;
     header[3] = typeBytes[3] ?? 0;
     new DataView(header.buffer).setUint32(4, payload.byteLength >>> 0, true);
-    chunks.push(header, payload);
-    approxBytes += header.byteLength + payload.byteLength;
+    return {
+      type: type4,
+      header,
+      payload,
+      bytes: header.byteLength + payload.byteLength,
+      tSec,
+    };
   }
 
-  function pushJson(type4, obj){
-    const payload = enc.encode(JSON.stringify(obj));
-    pushChunk(type4, payload);
+  function appendActiveEntry(entry){
+    chunks.push(entry.header, entry.payload);
+    approxBytes += entry.bytes;
+    if(entry.type === 'FRAM') frames++;
+    if(entry.type === 'EVNT') events++;
+  }
+
+  function pushActiveChunk(type4, payload, tSec = NaN){
+    appendActiveEntry(makeChunk(type4, payload, tSec));
+  }
+
+  function pushActiveJson(type4, obj, tSec = Number(obj?.tSec)){
+    pushActiveChunk(type4, enc.encode(JSON.stringify(obj)), tSec);
+  }
+
+  function firstRollingFrameSec(){
+    const entry = rollingEntries.find(item => item.type === 'FRAM');
+    return entry ? entry.tSec : NaN;
+  }
+
+  function trimRollingBuffer(){
+    while(rollingEntries.length && (rollingFrames > prebufferFrameLimit || rollingBytes > maxPrebufferBytes)){
+      const removed = rollingEntries.shift();
+      rollingBytes -= removed.bytes;
+      if(removed.type === 'FRAM') rollingFrames = Math.max(0, rollingFrames - 1);
+    }
+    const firstFrame = firstRollingFrameSec();
+    while(
+      rollingEntries.length &&
+      rollingEntries[0].type !== 'FRAM' &&
+      Number.isFinite(firstFrame) &&
+      rollingEntries[0].tSec < firstFrame
+    ){
+      const removed = rollingEntries.shift();
+      rollingBytes -= removed.bytes;
+    }
+  }
+
+  function addRollingEntry(entry){
+    rollingEntries.push(entry);
+    rollingBytes += entry.bytes;
+    if(entry.type === 'FRAM') rollingFrames++;
+    trimRollingBuffer();
+  }
+
+  function pushEvent(ev, {active = recording, rolling = true, tSec = timeSec()} = {}){
+    const event = {...ev, tSec};
+    const entry = makeChunk('EVNT', enc.encode(JSON.stringify(event)), tSec);
+    if(rolling) addRollingEntry(entry);
+    if(active) appendActiveEntry(entry);
+  }
+
+  function currentBufferLabel(){
+    const span = rollingFrames / fps;
+    return `Buffer ${rollingFrames}/${prebufferFrameLimit}f (${Math.round(span)}s) ${formatBytes(rollingBytes)}`;
   }
 
   function updateUi(){
     if(!recordStatusEl) return;
     if(recording){
-      recordStatusEl.textContent = `REC ${frames}f ${formatBytes(approxBytes)}`;
-    } else if(logBlob || videoBlob){
-      recordStatusEl.textContent = `REC ready ${frames}f`;
+      recordStatusEl.textContent = `REC ${frames}f ${formatBytes(approxBytes)} (+${prebufferFrames}f)`;
+    } else if(logBlob){
+      recordStatusEl.textContent = `Saved ${frames}f; ${currentBufferLabel()}`;
     } else {
-      recordStatusEl.textContent = 'REC idle';
+      recordStatusEl.textContent = currentBufferLabel();
     }
     if(recordToggleBtn){
-      recordToggleBtn.textContent = recording ? 'Stop' : 'Record';
+      recordToggleBtn.textContent = recording ? 'Stop and download' : 'Save recent 2 min';
+      recordToggleBtn.title = recording
+        ? 'Stop recording and immediately download the current log'
+        : 'Start a recording that includes the rolling 2-minute state buffer';
     }
     if(downloadRecordingsBtn){
-      downloadRecordingsBtn.disabled = !(logBlob || videoBlob) || recording;
+      downloadRecordingsBtn.disabled = !logBlob || recording;
     }
   }
 
-  function ensureCompositeCanvas(){
-    if(compositeCanvas) return;
-    compositeCanvas = document.createElement('canvas');
-    compositeCanvas.width = videoW;
-    compositeCanvas.height = videoH;
-    compositeCanvas.style.position = 'fixed';
-    compositeCanvas.style.left = '-99999px';
-    compositeCanvas.style.top = '0';
-    compositeCanvas.style.width = '1px';
-    compositeCanvas.style.height = '1px';
-    compositeCanvas.style.opacity = '0';
-    compositeCanvas.style.pointerEvents = 'none';
-    document.body.appendChild(compositeCanvas);
-    compositeCtx = compositeCanvas.getContext('2d', {alpha:false});
-  }
-
-  function pickMimeType(){
-    const candidates = [
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm',
-    ];
-    for(const t of candidates){
-      if(window.MediaRecorder && MediaRecorder.isTypeSupported?.(t)) return t;
-    }
-    return '';
-  }
-
-  function startVideo(){
-    ensureCompositeCanvas();
-    if(!compositeCanvas.captureStream || !window.MediaRecorder) return;
-    stream = compositeCanvas.captureStream(fps);
-    videoTrack = stream.getVideoTracks?.()[0] ?? null;
-    const mimeType = pickMimeType();
-    videoMimeType = mimeType || 'video/webm';
-    try {
-      mediaRecorder = new MediaRecorder(stream, mimeType ? {mimeType} : undefined);
-    } catch (err) {
-      console.warn('MediaRecorder init failed', err);
-      mediaRecorder = null;
-      return;
-    }
-    videoChunks = [];
-    mediaRecorder.addEventListener('dataavailable', (e) => {
-      if(e.data && e.data.size) videoChunks.push(e.data);
-    });
-    mediaRecorder.start(2000);
-  }
-
-  function stopVideo(){
-    return new Promise((resolve) => {
-      if(!mediaRecorder){
-        resolve();
-        return;
-      }
-      const mr = mediaRecorder;
-      mr.addEventListener('stop', () => {
-        try { stream?.getTracks?.().forEach(t => t.stop()); } catch {}
-        stream = null;
-        videoTrack = null;
-        mediaRecorder = null;
-        resolve();
-      }, {once:true});
-      try { mr.stop(); } catch { resolve(); }
-    });
-  }
-
-  function drawComposite(){
-    if(!compositeCtx) return;
-    const list = Array.from(sims.values());
-    const count = list.length;
-    compositeCtx.setTransform(1,0,0,1,0,0);
-    compositeCtx.fillStyle = '#05070c';
-    compositeCtx.fillRect(0,0,videoW,videoH);
-    if(count === 0) return;
-    const {cols, rows} = chooseGrid(count, videoW, videoH);
-    const pad = 10;
-    const tileW = (videoW - pad*(cols+1)) / cols;
-    const tileH = (videoH - pad*(rows+1)) / rows;
-    for(let i=0;i<count;i++){
-      const sim = list[i];
-      const c = sim.canvas;
-      if(!c) continue;
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const x0 = pad + col*(tileW + pad);
-      const y0 = pad + row*(tileH + pad);
-      const sw = c.width;
-      const sh = c.height;
-      if(sw <= 0 || sh <= 0) continue;
-      const scale = Math.min(tileW / sw, tileH / sh);
-      const dw = sw * scale;
-      const dh = sh * scale;
-      const dx = x0 + (tileW - dw)/2;
-      const dy = y0 + (tileH - dh)/2;
-      compositeCtx.drawImage(c, dx, dy, dw, dh);
-      compositeCtx.strokeStyle = 'rgba(138,180,248,.25)';
-      compositeCtx.lineWidth = 2;
-      compositeCtx.strokeRect(x0, y0, tileW, tileH);
-    }
-    if(videoTrack && typeof videoTrack.requestFrame === 'function'){
-      try { videoTrack.requestFrame(); } catch {}
-    }
-  }
-
-  function pushFrame(tSec){
+  function buildFrameEntry(tSec){
     const list = Array.from(sims.values());
     const simCount = list.length;
     let totalBytes = 8 + 4;
@@ -853,12 +854,12 @@ function createRecorder(){
       const flags = (s.sharkOn ? 1 : 0) | (s.whaleOn ? 2 : 0);
       dv.setUint32(off, flags >>> 0, true); off += 4;
       dv.setFloat32(off, s.pol, true); off += 4;
-      dv.setFloat32(off, s.mill, true); off += 4;
+      dv.setFloat32(off, s.pi, true); off += 4;
       new Float32Array(buf, off, s.fish.length).set(s.fish); off += s.fish.byteLength;
       new Float32Array(buf, off, s.shark.length).set(s.shark); off += s.shark.byteLength;
       new Float32Array(buf, off, s.whale.length).set(s.whale); off += s.whale.byteLength;
     }
-    pushChunk('FRAM', new Uint8Array(buf));
+    return makeChunk('FRAM', new Uint8Array(buf), tSec);
   }
 
   function start(){
@@ -867,65 +868,124 @@ function createRecorder(){
     chunks = [];
     approxBytes = 0;
     frames = 0;
+    prebufferFrames = 0;
+    liveFrames = 0;
     events = 0;
     logBlob = null;
-    videoBlob = null;
-    videoChunks = [];
-    startMs = performance.now();
-    nextSampleMs = startMs;
+    const nowMs = performance.now();
+    recordPressedSec = timeSec(nowMs);
+    recordingStopSec = NaN;
+    trimRollingBuffer();
+    const bufferedEntries = rollingEntries.slice();
+    prebufferFrames = bufferedEntries.reduce((sum, entry) => sum + (entry.type === 'FRAM' ? 1 : 0), 0);
+    bufferedStartSec = firstRollingFrameSec();
+    if(!Number.isFinite(bufferedStartSec)) bufferedStartSec = recordPressedSec;
 
-    pushJson('META', {
-      format: 'fish_school_multiplex_log_v1',
+    pushActiveJson('META', {
+      format: LOG_FORMAT_VERSION,
+      schemaVersion: 2,
+      eventVocabulary: LOG_EVENT_VOCABULARY,
+      frameSchema: LOG_FRAME_SCHEMA,
       createdAt: new Date().toISOString(),
       userAgent: navigator.userAgent,
       fps,
       dt: params.dt,
       maxBytes,
-      video: {width: videoW, height: videoH, fps},
+      prebuffer: {
+        seconds: prebufferSeconds,
+        frameLimit: prebufferFrameLimit,
+        maxBytes: maxPrebufferBytes,
+        bufferedStartSec,
+        recordPressedSec,
+        frames: prebufferFrames,
+        video: 'disabled_replay_from_fslog',
+      },
+      docs: [
+        'docs/fish_school_multiplex_log_format.md',
+        'tools/fish_school_log_parser.py',
+        'tools/fish_school_log_parser.m',
+      ],
+      video: null,
       notes: {
         fishState: 'per-frame float32 x,y,theta (interleaved)',
         sharkWhaleState: 'per-frame float32 x,y,theta, NaN when disabled',
         order: {
           polarization: '|mean_i [cos(theta_i), sin(theta_i)]|',
-          milling: '|mean_i cross(rhat_i, ehat_i)| using ehat from theta',
+          angularMomentum: 'Π = |mean_i cross(rhat_i, vhat_i)|',
         },
       },
     });
 
-    startVideo();
+    sims.forEach(sim => {
+      pushEvent({
+        type: 'instance_params',
+        simId: sim.id,
+        reason: 'prebuffer_context',
+        ...sim.getInstanceParams(),
+        respawn: false,
+      }, {active: true, rolling: false, tSec: bufferedStartSec});
+    });
+    for(const entry of bufferedEntries){
+      appendActiveEntry(entry);
+    }
+    pushEvent({
+      type: 'record_start_from_buffer',
+      bufferedStartSec,
+      recordPressedSec,
+      prebufferSeconds,
+      prebufferFrameLimit,
+      prebufferFrames,
+      prebufferBytes: rollingBytes,
+      video: 'disabled_replay_from_fslog',
+    }, {active: true, rolling: false, tSec: recordPressedSec});
+
     updateUi();
+    if(approxBytes >= maxBytes){
+      logEvent({type:'recording_stop', reason:'max_bytes_after_prebuffer'});
+      void stop({autoDownload:true});
+    }
   }
 
-  async function stop(){
+  async function stop({autoDownload = true} = {}){
     if(!recording) return;
     recording = false;
-    pushJson('META', {type:'summary', frames, events, bytes: approxBytes});
-    await stopVideo();
+    recordingStopSec = timeSec();
+    pushActiveJson('META', {
+      type:'summary',
+      frames,
+      prebufferFrames,
+      liveFrames,
+      events,
+      bytes: approxBytes,
+      bufferedStartSec,
+      recordPressedSec,
+      stopSec: recordingStopSec,
+    });
     logBlob = new Blob(chunks, {type:'application/octet-stream'});
-    videoBlob = videoChunks.length ? new Blob(videoChunks, {type: videoMimeType}) : null;
     updateUi();
+    if(autoDownload) download();
   }
 
   function maybeSample(nowMs){
-    if(!recording) return;
-    if(approxBytes >= maxBytes){
-      logEvent({type:'recording_stop', reason:'max_bytes'});
-      void stop();
-      return;
-    }
     if(nowMs < nextSampleMs) return;
-    const tSec = (nowMs - startMs) / 1000;
-    pushFrame(tSec);
-    frames++;
-    drawComposite();
-    nextSampleMs = nowMs + intervalMs;
+    const tSec = timeSec(nowMs);
+    const entry = buildFrameEntry(tSec);
+    addRollingEntry(entry);
+    if(recording){
+      appendActiveEntry(entry);
+      liveFrames++;
+      if(approxBytes >= maxBytes){
+        logEvent({type:'recording_stop', reason:'max_bytes'});
+        void stop({autoDownload:true});
+      }
+    }
+    nextSampleMs = Math.max(nowMs + intervalMs, nextSampleMs + intervalMs);
     updateUi();
   }
 
   function logEvent(ev){
-    if(!recording) return;
-    events++;
-    pushJson('EVNT', {tSec: timeSec(), ...ev});
+    pushEvent(ev);
+    updateUi();
   }
 
   function download(){
@@ -940,19 +1000,10 @@ function createRecorder(){
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     }
-    if(videoBlob){
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(videoBlob);
-      a.download = `fish_school_timelapse_${stamp}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    }
   }
 
   function toggle(){
-    if(recording) void stop();
+    if(recording) void stop({autoDownload:true});
     else start();
   }
 
@@ -963,6 +1014,42 @@ recorder = createRecorder();
 recordToggleBtn?.addEventListener('click', () => recorder.toggle());
 downloadRecordingsBtn?.addEventListener('click', () => recorder.download());
 
+function getHydroOptions(){
+  return {
+    hydroEnabled: !!controls.hydro?.checked,
+    hydroShellOnly: !!controls.hydro?.checked && !!controls.hydroShell?.checked,
+    hydroRangeOnly: !!controls.hydro?.checked && !!controls.hydroRange?.checked,
+    rCut: parseFloat(controls.hydroRadius?.value ?? '0'),
+  };
+}
+
+function invalidateAllWorkerResults(reason){
+  sims.forEach(sim => sim.invalidateWorkerResult(reason));
+}
+
+function refreshThreadAssignments(){
+  const autoCandidates = [];
+  sims.forEach(sim => {
+    const mode = sim.getThreadMode();
+    if(mode === 'main'){
+      sim.setAssignedBackend('main', 'manual_main');
+      return;
+    }
+    if(mode === 'worker'){
+      sim.setAssignedBackend(workerSupported ? 'worker' : 'main', workerSupported ? 'manual_worker' : 'worker_unavailable');
+      return;
+    }
+    autoCandidates.push(sim);
+  });
+  autoCandidates.sort((a, b) => b.estimateWork() - a.estimateWork());
+  let budget = maxAutoWorkers;
+  for(const sim of autoCandidates){
+    const backend = workerSupported && budget > 0 && sim.shouldPreferWorker() ? 'worker' : 'main';
+    sim.setAssignedBackend(backend, backend === 'worker' ? 'auto_schedule' : 'auto_local');
+    if(backend === 'worker') budget--;
+  }
+}
+
 function createSimulation(initialParams){
   const fragment = simTemplate.content.cloneNode(true);
   const node = fragment.querySelector('.sim-tile');
@@ -970,10 +1057,17 @@ function createSimulation(initialParams){
   node.dataset.simId = String(simId);
   const titleEl = node.querySelector('.sim-title');
   if(titleEl) titleEl.textContent = `Sim ${simId}`;
+  const orderCanvas = node.querySelector('.order-canvas');
+  const orderCtx = orderCanvas?.getContext('2d') ?? null;
+  const orderStateEl = node.querySelector('.order-state');
+  const orderReadoutEls = Array.from(node.querySelectorAll('.order-readout span'));
+  const threadSelectEl = node.querySelector('.sim-thread-select');
+  const threadStatusEl = node.querySelector('.sim-thread-status');
   const removeBtn = node.querySelector('.sim-remove');
   const addBtn = node.querySelector('.sim-add');
   const duplicateBtn = node.querySelector('.sim-duplicate');
   const resetBtn = node.querySelector('.sim-reset');
+  const expandBtn = node.querySelector('.sim-expand');
   const viewEl = node.querySelector('.sim-view');
   const canvas = node.querySelector('.sim-canvas');
   const ctx = canvas.getContext('2d');
@@ -1000,30 +1094,345 @@ function createSimulation(initialParams){
     dpad.querySelectorAll('button').forEach(btn => { btn.tabIndex = hidden ? -1 : 0; });
   }
 
-  let fishes = [];
-  let velocities = [];
-  let wBuffer = [];
-  let baits = [];
-  let sharkGoal = null;
-  let cp = {x:0,y:0};
-  let pointerActive = false;
-  let pointerInside = false;
-
-  let sharkState = {pos:{x:-25,y:0},theta:0};
-  let whaleState = {pos:{x:0,y:-25},theta:Math.PI/2};
-  let startTime = performance.now();
+  function setExpandedView(expanded, hidden){
+    node.classList.toggle('sim-expanded', !!expanded);
+    node.classList.toggle('sim-hidden', !!hidden);
+    if(!expandBtn) return;
+    expandBtn.classList.toggle('restore', !!expanded);
+    expandBtn.setAttribute('aria-label', expanded ? 'Restore grid view' : 'Expand this instance');
+    expandBtn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+    expandBtn.title = expanded ? 'Restore grid view' : 'Expand this instance';
+  }
 
   let viewState = {follow: true, centerX: 0, centerY: 0, worldHeight: 40};
   const MIN_WORLD_H = 10;
   const MAX_WORLD_H = 200;
   const activePointers = new Map();
+  let lastPointerLocal = null;
   let pinchLastDist = 0;
   let twoPanLastMidWorld = null;
-
   let instanceParams = normalizeInstanceParams(initialParams ?? bufferedInstanceParams);
+  let simState = createSimulationState(instanceParams, controls.initMode?.value || 'random');
+  let threadMode = threadSelectEl?.value || 'auto';
+  let assignedBackend = 'main';
+  let lastComputeMs = 0;
+  let lastDrawMs = 0;
+  let worker = null;
+  let workerPending = false;
+  let workerRequestId = 0;
+  let stateVersion = 0;
+  let lastWorkerError = '';
+  let orderHistory = [];
+  let lastOrderSampleMs = -Infinity;
+  let currentOrderMetrics = computeFrameMetrics(simState);
+  let currentOrderState = classifyOrderState(currentOrderMetrics);
+  let orderPanelPinned = false;
+
+  function setOrderPanelVisible(visible){
+    node.classList.toggle('order-panel-visible', !!visible);
+    titleEl?.setAttribute('aria-expanded', visible ? 'true' : 'false');
+  }
+
+  function isCoarsePointerEvent(ev){
+    return ev.pointerType === 'touch' || ev.pointerType === 'pen' || window.matchMedia?.('(hover: none)')?.matches;
+  }
+
+  if(titleEl){
+    titleEl.tabIndex = 0;
+    titleEl.setAttribute('role', 'button');
+    titleEl.setAttribute('aria-expanded', 'false');
+    titleEl.title = 'Hover or tap to show P and Π history';
+    titleEl.addEventListener('pointerenter', ev => {
+      if(!isCoarsePointerEvent(ev)) setOrderPanelVisible(true);
+    });
+    titleEl.addEventListener('pointerleave', ev => {
+      if(!isCoarsePointerEvent(ev) && !orderPanelPinned) setOrderPanelVisible(false);
+    });
+    titleEl.addEventListener('pointerup', ev => {
+      if(!isCoarsePointerEvent(ev)) return;
+      orderPanelPinned = !orderPanelPinned;
+      setOrderPanelVisible(orderPanelPinned);
+      ev.preventDefault();
+    });
+    titleEl.addEventListener('click', ev => {
+      if(window.PointerEvent || !window.matchMedia?.('(hover: none)')?.matches) return;
+      orderPanelPinned = !orderPanelPinned;
+      setOrderPanelVisible(orderPanelPinned);
+      ev.preventDefault();
+    });
+    titleEl.addEventListener('keydown', ev => {
+      if(ev.key !== 'Enter' && ev.key !== ' ') return;
+      orderPanelPinned = !orderPanelPinned;
+      setOrderPanelVisible(orderPanelPinned);
+      ev.preventDefault();
+    });
+  }
+
+  function hideMessage(){
+    messageEl.style.display = 'none';
+  }
+
+  function showMessage(msg){
+    messageEl.textContent = msg;
+    messageEl.style.display = 'block';
+    setTimeout(() => {
+      if(messageEl.textContent === msg){
+        messageEl.style.display = 'none';
+      }
+    }, 4000);
+  }
+
+  function markStateDirty(){
+    stateVersion++;
+  }
+
+  function updateOrderLabels(){
+    if(titleEl){
+      titleEl.textContent = `Sim ${simId} - ${currentOrderState.label}`;
+      titleEl.style.color = currentOrderState.color;
+    }
+    if(orderStateEl){
+      orderStateEl.textContent = currentOrderState.label;
+      orderStateEl.style.color = currentOrderState.color;
+    }
+    if(orderReadoutEls[0]){
+      orderReadoutEls[0].textContent = `P ${currentOrderMetrics.pol.toFixed(2)}`;
+      orderReadoutEls[0].style.color = ORDER_P_COLOR;
+    }
+    if(orderReadoutEls[1]){
+      orderReadoutEls[1].textContent = `Π ${currentOrderMetrics.pi.toFixed(2)}`;
+      orderReadoutEls[1].style.color = ORDER_PI_COLOR;
+    }
+  }
+
+  function resetOrderHistory(){
+    orderHistory = [];
+    lastOrderSampleMs = -Infinity;
+  }
+
+  function sampleOrderParameters(nowMs = performance.now(), force = false){
+    if(!force && nowMs - lastOrderSampleMs < ORDER_SAMPLE_INTERVAL_MS) return;
+    currentOrderMetrics = computeFrameMetrics(simState);
+    currentOrderState = classifyOrderState(currentOrderMetrics);
+    orderHistory.push({
+      p: Math.max(0, Math.min(1, currentOrderMetrics.pol)),
+      pi: Math.max(0, Math.min(1, currentOrderMetrics.pi)),
+      state: currentOrderState.label,
+    });
+    if(orderHistory.length > ORDER_HISTORY_LIMIT){
+      orderHistory.splice(0, orderHistory.length - ORDER_HISTORY_LIMIT);
+    }
+    lastOrderSampleMs = nowMs;
+    updateOrderLabels();
+  }
+
+  function resizeOrderCanvas(){
+    if(!orderCanvas || !orderCtx) return;
+    const rect = orderCanvas.getBoundingClientRect();
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if(orderCanvas.width !== w || orderCanvas.height !== h){
+      orderCanvas.width = w;
+      orderCanvas.height = h;
+    }
+    orderCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawOrderPanel(){
+    if(!orderCanvas || !orderCtx) return;
+    resizeOrderCanvas();
+    const rect = orderCanvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    orderCtx.clearRect(0, 0, w, h);
+    orderCtx.fillStyle = '#ffffff';
+    orderCtx.fillRect(0, 0, w, h);
+    orderCtx.lineWidth = 1;
+    orderCtx.strokeStyle = 'rgba(17,24,39,.18)';
+    orderCtx.beginPath();
+    for(const v of [0.25, 0.5, 0.75]){
+      const y = h - v * h;
+      orderCtx.moveTo(0, y);
+      orderCtx.lineTo(w, y);
+    }
+    orderCtx.stroke();
+
+    orderCtx.setLineDash([4, 3]);
+    orderCtx.strokeStyle = 'rgba(17,24,39,.35)';
+    orderCtx.beginPath();
+    for(const v of [ORDER_THRESHOLDS.low, ORDER_THRESHOLDS.high]){
+      const y = h - v * h;
+      orderCtx.moveTo(0, y);
+      orderCtx.lineTo(w, y);
+    }
+    orderCtx.stroke();
+    orderCtx.setLineDash([]);
+
+    const strokeSeries = (key, color) => {
+      if(orderHistory.length < 2) return;
+      orderCtx.strokeStyle = color;
+      orderCtx.lineWidth = 2;
+      orderCtx.beginPath();
+      for(let i = 0; i < orderHistory.length; i++){
+        const x = w - ((orderHistory.length - 1 - i) / (ORDER_HISTORY_LIMIT - 1)) * w;
+        const y = h - orderHistory[i][key] * h;
+        if(i === 0) orderCtx.moveTo(x, y);
+        else orderCtx.lineTo(x, y);
+      }
+      orderCtx.stroke();
+    };
+    strokeSeries('p', ORDER_P_COLOR);
+    strokeSeries('pi', ORDER_PI_COLOR);
+
+    const latest = orderHistory[orderHistory.length - 1];
+    if(latest){
+      const x = Math.max(2.5, w - 2.5);
+      orderCtx.fillStyle = ORDER_P_COLOR;
+      orderCtx.beginPath();
+      orderCtx.arc(x, h - latest.p * h, 2.5, 0, Math.PI * 2);
+      orderCtx.fill();
+      orderCtx.fillStyle = ORDER_PI_COLOR;
+      orderCtx.beginPath();
+      orderCtx.arc(x, h - latest.pi * h, 2.5, 0, Math.PI * 2);
+      orderCtx.fill();
+    }
+
+    orderCtx.strokeStyle = '#111827';
+    orderCtx.lineWidth = 1;
+    orderCtx.strokeRect(0, 0, w, h);
+  }
+
+  function maybeShowGameOver(){
+    if(simState.n <= 2 && stateFlags.death && (stateFlags.shark || stateFlags.whale)){
+      showMessage('Game over - the school was eaten. Respawn to continue.');
+    }
+  }
 
   function getInstanceParams(){
     return {...instanceParams};
+  }
+
+  function updateThreadUi(){
+    if(!threadStatusEl) return;
+    const label = assignedBackend === 'worker'
+      ? (workerPending ? 'Worker*' : 'Worker')
+      : (threadMode === 'worker' && !workerSupported ? 'Main!' : 'Main');
+    threadStatusEl.textContent = label;
+    threadStatusEl.dataset.backend = assignedBackend;
+    threadStatusEl.dataset.pending = workerPending ? 'true' : 'false';
+    threadStatusEl.title = assignedBackend === 'worker'
+      ? (workerPending ? 'Worker step in flight' : 'Worker backend active')
+      : (threadMode === 'worker' && !workerSupported ? 'Worker unavailable, using main thread' : 'Main-thread backend active');
+  }
+
+  function ensureWorker(){
+    if(worker || !workerSupported) return worker;
+    try {
+      worker = new Worker(workerScriptUrl);
+    } catch (err) {
+      lastWorkerError = err?.message ?? String(err);
+      return null;
+    }
+    worker.addEventListener('message', (event) => {
+      const data = event.data ?? {};
+      if(data.simId !== simId) return;
+      if(data.type === 'step_result'){
+        workerPending = false;
+        if(data.stateVersion === stateVersion && isPlaying){
+          simState = stateFromPayload(data.state);
+          updatePointerWorldFromScreen();
+          lastComputeMs = Number(data.computeMs) || 0;
+          lastWorkerError = '';
+          maybeShowGameOver();
+          sampleOrderParameters(performance.now());
+        }
+        updateThreadUi();
+        return;
+      }
+      if(data.type === 'error'){
+        workerPending = false;
+        lastWorkerError = data.message || 'Worker error';
+        showMessage(`Worker fallback: ${lastWorkerError}`);
+        disposeWorker();
+        assignedBackend = 'main';
+        updateThreadUi();
+        recorder?.logEvent({type:'worker_error', simId, mode: threadMode, backend:'worker', message: lastWorkerError});
+      }
+    });
+    worker.addEventListener('error', (event) => {
+      workerPending = false;
+      lastWorkerError = event?.message || 'Worker crashed';
+      showMessage(`Worker fallback: ${lastWorkerError}`);
+      disposeWorker();
+      assignedBackend = 'main';
+      updateThreadUi();
+      recorder?.logEvent({type:'worker_error', simId, mode: threadMode, backend:'worker', message: lastWorkerError});
+    });
+    return worker;
+  }
+
+  function disposeWorker(){
+    if(worker){
+      try { worker.terminate(); } catch {}
+      worker = null;
+    }
+    workerPending = false;
+  }
+
+  function setAssignedBackend(next, reason = 'manual'){
+    const target = (next === 'worker' && workerSupported) ? 'worker' : 'main';
+    if(assignedBackend === target){
+      updateThreadUi();
+      return;
+    }
+    if(target === 'main'){
+      markStateDirty();
+      disposeWorker();
+    } else if(!ensureWorker()){
+      assignedBackend = 'main';
+      updateThreadUi();
+      return;
+    }
+    assignedBackend = target;
+    updateThreadUi();
+    recorder?.logEvent({type:'thread_backend_set', simId, mode: threadMode, backend: assignedBackend, reason});
+  }
+
+  function setThreadMode(next, reason = 'user'){
+    const mode = ['auto', 'main', 'worker'].includes(next) ? next : 'auto';
+    if(threadMode === mode) return;
+    threadMode = mode;
+    if(threadSelectEl) threadSelectEl.value = threadMode;
+    recorder?.logEvent({type:'thread_mode_set', simId, mode: threadMode, reason});
+    refreshThreadAssignments();
+    updateThreadUi();
+  }
+
+  function estimateWork(){
+    const n = simState.n;
+    const hydro = getHydroOptions();
+    if(!hydro.hydroEnabled) return n * 12;
+    if(hydro.hydroShellOnly) return n * 48;
+    if(hydro.hydroRangeOnly){
+      const radiusWeight = Math.max(1, hydro.rCut * hydro.rCut * 2);
+      return n * Math.min(n, radiusWeight * 12);
+    }
+    return n * n;
+  }
+
+  function shouldPreferWorker(){
+    if(!workerSupported) return false;
+    const n = simState.n;
+    const work = estimateWork();
+    const active = activeSimId === simId;
+    if(sims.size <= 1 && n < 2200) return false;
+    if(active && n < 4500) return false;
+    return work >= 120000 || (sims.size > 1 && work >= 40000);
+  }
+
+  function invalidateWorkerResult(_reason = 'local_change'){
+    markStateDirty();
   }
 
   function setInstanceParams(next, {respawn=false, log=false, reason=''} = {}){
@@ -1039,70 +1448,22 @@ function createSimulation(initialParams){
         respawn: !!respawn,
       });
     }
+    markStateDirty();
     if(respawn) resetSchool();
   }
 
   function snapshotForRecording(tSec){
-    const n = fishes.length;
-    const fish = new Float32Array(n*3);
-    let cx = 0, cy = 0;
-    let sumCos = 0, sumSin = 0;
-    for(let i=0;i<n;i++){
-      const f = fishes[i];
-      const theta = f.theta;
-      cx += f.x; cy += f.y;
-      const c = Math.cos(theta);
-      const s = Math.sin(theta);
-      sumCos += c; sumSin += s;
-      const k = i*3;
-      fish[k] = f.x;
-      fish[k+1] = f.y;
-      fish[k+2] = theta;
-    }
-    if(n > 0){ cx /= n; cy /= n; }
-    const pol = n > 0 ? Math.hypot(sumCos/n, sumSin/n) : 0;
-
-    let millSum = 0;
-    if(n > 0){
-      for(let i=0;i<n;i++){
-        const f = fishes[i];
-        const rx = f.x - cx;
-        const ry = f.y - cy;
-        const r = Math.hypot(rx, ry);
-        if(r < 1e-9) continue;
-        const rhatx = rx / r;
-        const rhaty = ry / r;
-        const ex = Math.cos(f.theta);
-        const ey = Math.sin(f.theta);
-        millSum += (rhatx*ey - rhaty*ex);
-      }
-    }
-    const mill = n > 0 ? Math.abs(millSum / n) : 0;
-
-    const sharkOn = !!stateFlags.shark;
-    const whaleOn = !!stateFlags.whale;
-    const shark = new Float32Array([sharkOn ? sharkState.pos.x : NaN, sharkOn ? sharkState.pos.y : NaN, sharkOn ? sharkState.theta : NaN]);
-    const whale = new Float32Array([whaleOn ? whaleState.pos.x : NaN, whaleOn ? whaleState.pos.y : NaN, whaleOn ? whaleState.theta : NaN]);
-    return {tSec, simId, n, fish, pol, mill, shark, whale, sharkOn, whaleOn};
-  }
-
-  function meanX(){
-    if(!fishes.length) return 0;
-    return fishes.reduce((acc,f) => acc + f.x, 0)/fishes.length;
-  }
-  function meanY(){
-    if(!fishes.length) return 0;
-    return fishes.reduce((acc,f) => acc + f.y, 0)/fishes.length;
+    return buildRecordingSnapshot(simState, simId, stateFlags, tSec);
   }
 
   function getViewCenter(){
-    if(viewState.follow){ return {x: meanX(), y: meanY()}; }
+    if(viewState.follow){ return meanPoint(simState); }
     return {x: viewState.centerX, y: viewState.centerY};
   }
 
   function nudgeView(dx, dy){
     if(viewState.follow){
-      const c = {x: meanX(), y: meanY()};
+      const c = meanPoint(simState);
       viewState.centerX = c.x;
       viewState.centerY = c.y;
       viewState.follow = false;
@@ -1112,509 +1473,62 @@ function createSimulation(initialParams){
   }
 
   function resetSchool(){
-    fishes = [];
-    velocities = [];
-    wBuffer = [];
-    const mode = controls.initMode?.value || 'random';
-    if(mode === 'line'){
-      const n = instanceParams.n;
-      for(let i=0;i<n;i++){
-        const t = n > 1 ? (i/(n-1)) : 0.5;
-        const y = -10 + 20*t+gaussian();
-        const x = gaussian();
-        const theta = 0;
-        fishes.push({x:x, y:y + gaussian(), theta});
-        velocities.push({x:0,y:0});
-        wBuffer.push(0);
-      }
-    } else {
-      for(let i=0;i<instanceParams.n;i++){
-        const theta = Math.random()*Math.PI*2;
-        fishes.push({x:gaussian()*10,y:gaussian()*10,theta});
-        velocities.push({x:0,y:0});
-        wBuffer.push(0);
-      }
-    }
+    resetSimulationState(simState, instanceParams, controls.initMode?.value || 'random');
+    hideMessage();
+    resetOrderHistory();
+    sampleOrderParameters(performance.now(), true);
+    markStateDirty();
   }
 
-  function getSharkHeadPos(dir){
-    const ex = dir?.x ?? Math.cos(sharkState.theta);
-    const ey = dir?.y ?? Math.sin(sharkState.theta);
+  function makeStepConfig(){
     return {
-      x: sharkState.pos.x + ex * sharkHeadOffset,
-      y: sharkState.pos.y + ey * sharkHeadOffset,
+      params,
+      instanceParams: {...instanceParams},
+      stateFlags: {...stateFlags},
+      ...getHydroOptions(),
     };
   }
 
-  function getWhaleHeadPos(dir){
-    const ex = dir?.x ?? Math.cos(whaleState.theta);
-    const ey = dir?.y ?? Math.sin(whaleState.theta);
-    return {
-      x: whaleState.pos.x + ex * whaleHeadOffset,
-      y: whaleState.pos.y + ey * whaleHeadOffset,
-    };
+  function runLocalStep(){
+    const t0 = performance.now();
+    computeStateStep(simState, {
+      ...makeStepConfig(),
+      Delaunay,
+      random: Math.random,
+    });
+    lastComputeMs = performance.now() - t0;
+    maybeShowGameOver();
   }
 
-  function computeStep(){
-    const dt = params.dt;
-    const Ia = instanceParams.Ia;
-    const In = instanceParams.In;
-    const n = fishes.length;
-    if(!n) return;
-
-    const hydroEnabled = controls.hydro.checked;
-    const hydroShellOnly = hydroEnabled && controls.hydroShell?.checked;
-    const hydroRangeOnly = hydroEnabled && controls.hydroRange?.checked;
-    const rCut = parseFloat(controls.hydroRadius?.value ?? '3');
-    const cosT = fishes.map(f => Math.cos(f.theta));
-    const sinT = fishes.map(f => Math.sin(f.theta));
-
-    const delaunay = n >= 3 ? Delaunay.from(fishes, f => f.x, f => f.y) : null;
-    const delaunayNeighbors = delaunay ? Array.from({length:n}, (_,i) => Array.from(delaunay.neighbors(i))) : null;
-    const wVision = new Float64Array(n).fill(0);
-    const minDist = new Float64Array(n).fill(Infinity);
-
-    if(delaunay){
-      for(let i=0;i<n;i++){
-        const neighbors = delaunayNeighbors[i];
-        let sum = 0;
-        let denom = 0;
-        let minR = Infinity;
-        for(const j of neighbors){
-          if(j === i) continue;
-          const dx = fishes[j].x - fishes[i].x;
-          const dy = fishes[j].y - fishes[i].y;
-          const dist = Math.hypot(dx, dy);
-          const theta = getAngle(fishes[i].theta, dx, dy, dist);
-          const phi = wrapAngle(fishes[j].theta - fishes[i].theta);
-          const weight = 1 + Math.cos(theta);
-          sum += (Ia*Math.sin(phi) + dist*Math.sin(theta))*weight;
-          denom += weight;
-          if(dist < minR) minR = dist;
-        }
-        wVision[i] = denom > errTol ? sum / denom : 0;
-        minDist[i] = minR;
-      }
-    }
-
-    if(baits.length){
-      const attrNum = Math.min(n, 5);
-      for(const bait of baits){
-        const distList = fishes.map((f,idx) => ({idx, dist: Math.hypot(bait.x - f.x, bait.y - f.y)}));
-        distList.sort((a,b) => a.dist - b.dist);
-        const attrD = (distList[0].dist + distList[Math.min(attrNum-1, distList.length-1)].dist)/2;
-        for(let k=0;k<attrNum && k<distList.length;k++){
-          const {idx, dist} = distList[k];
-          const dvx = bait.x - fishes[idx].x;
-          const dvy = bait.y - fishes[idx].y;
-          const wBait = getAngle(fishes[idx].theta, dvx, dvy, dist);
-          const blend = Math.exp(params.attrS * (dist - attrD));
-          wVision[idx] = (wVision[idx]*blend + wBait)/(1 + blend);
-        }
-      }
-    }
-
-    if(stateFlags.mouse && pointerActive){
-      for(let i=0;i<n;i++){
-        const dx = cp.x - fishes[i].x;
-        const dy = cp.y - fishes[i].y;
-        const dist = Math.hypot(dx, dy);
-        if(dist === 0) continue;
-        const wCp = getAngle(fishes[i].theta, -dy, -dx, dist);
-        const blend = Math.exp(params.replS * (params.replD - dist));
-        wVision[i] = (wVision[i] + wCp*blend)/(1 + blend);
-      }
-    }
-
-    const wNoise = new Array(n).fill(0).map(() => In*Math.sqrt(dt)*gaussian());
-    if(stateFlags.shark){
-      const head = getSharkHeadPos();
-      for(let i=0;i<n;i++){
-        const d = Math.hypot(head.x - fishes[i].x, head.y - fishes[i].y);
-        const sig = 1/(1 + Math.exp(-(params.sharkH - d)));
-        wNoise[i] *= (1 + 2*In*sig);
-      }
-    }
-    if(stateFlags.whale){
-      const head = getWhaleHeadPos();
-      for(let i=0;i<n;i++){
-        const d = Math.hypot(head.x - fishes[i].x, head.y - fishes[i].y);
-        const sig = 1/(1 + Math.exp(-(params.whaleH - d)));
-        wNoise[i] *= (1 + 2*In*sig);
-      }
-    }
-    const Ux = new Float64Array(n).fill(0);
-    const Uy = new Float64Array(n).fill(0);
-    const wHydro = new Float64Array(n).fill(0);
-
-    if(hydroEnabled){
-      if(hydroShellOnly && delaunayNeighbors){
-        for(let i=0;i<n;i++){
-          let uR = 0, uI = 0, wSum = 0;
-          const neighbors = delaunayNeighbors[i];
-          for(const j of neighbors){
-            if(i === j) continue;
-            const dx = fishes[i].x - fishes[j].x;
-            const dy = fishes[i].y - fishes[j].y;
-            const r2 = dx*dx + dy*dy;
-            if(r2 < errTol) continue;
-            const invr4 = 1/(r2*r2);
-            const invr6 = invr4/r2;
-            const c2r = dx*dx - dy*dy;
-            const c2i = -2*dx*dy;
-            const c3r = c2r*dx + c2i*dy;
-            const c3i = c2r*(-dy) + c2i*dx;
-            const expOjR = cosT[j];
-            const expOjI = sinT[j];
-            const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
-            const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
-            const termUr = expOjR*c2r - expOjI*c2i;
-            const termUi = expOjR*c2i + expOjI*c2r;
-            const termWr = expTermR*c3r - expTermI*c3i;
-            const termWi = expTermR*c3i + expTermI*c3r;
-            uR += termUr * invr4;
-            uI += termUi * invr4;
-            wSum += termWi * invr6 * 2;
-          }
-          const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
-          Ux[i] = uR / Math.PI * params.If * avoid;
-          Uy[i] = -uI / Math.PI * params.If * avoid;
-          wHydro[i] = wSum / Math.PI * params.If * avoid;
-        }
-      } else if(hydroRangeOnly){
-        const cell = rCut > 0 ? rCut : 1.0;
-        const r2cut = rCut*rCut;
-        const grid = new Map();
-        const key = (ix,iy) => ix + ',' + iy;
-        for(let i=0;i<n;i++){
-          const ix = Math.floor(fishes[i].x / cell);
-          const iy = Math.floor(fishes[i].y / cell);
-          const k = key(ix,iy);
-          let arr = grid.get(k);
-          if(!arr){ arr = []; grid.set(k, arr); }
-          arr.push(i);
-        }
-        for(let i=0;i<n;i++){
-          let uR = 0, uI = 0, wSum = 0;
-          const ix = Math.floor(fishes[i].x / cell);
-          const iy = Math.floor(fishes[i].y / cell);
-          for(let gx=ix-1; gx<=ix+1; gx++){
-            for(let gy=iy-1; gy<=iy+1; gy++){
-              const arr = grid.get(key(gx,gy));
-              if(!arr) continue;
-              for(const j of arr){
-                if(i === j) continue;
-                const dx = fishes[i].x - fishes[j].x;
-                const dy = fishes[i].y - fishes[j].y;
-                const r2 = dx*dx + dy*dy;
-                if(r2 > r2cut || r2 < errTol) continue;
-                const invr4 = 1/(r2*r2);
-                const invr6 = invr4/r2;
-                const c2r = dx*dx - dy*dy;
-                const c2i = -2*dx*dy;
-                const c3r = c2r*dx + c2i*dy;
-                const c3i = c2r*(-dy) + c2i*dx;
-                const expOjR = cosT[j];
-                const expOjI = sinT[j];
-                const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
-                const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
-                const termUr = expOjR*c2r - expOjI*c2i;
-                const termUi = expOjR*c2i + expOjI*c2r;
-                const termWr = expTermR*c3r - expTermI*c3i;
-                const termWi = expTermR*c3i + expTermI*c3r;
-                uR += termUr * invr4;
-                uI += termUi * invr4;
-                wSum += termWi * invr6 * 2;
-              }
-            }
-          }
-          const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
-          Ux[i] = uR / Math.PI * params.If * avoid;
-          Uy[i] = -uI / Math.PI * params.If * avoid;
-          wHydro[i] = wSum / Math.PI * params.If * avoid;
-        }
-      } else {
-        for(let i=0;i<n;i++){
-          let uR = 0, uI = 0, wSum = 0;
-          for(let j=0;j<n;j++){
-            if(i === j) continue;
-            const dx = fishes[i].x - fishes[j].x;
-            const dy = fishes[i].y - fishes[j].y;
-            const r2 = dx*dx + dy*dy;
-            if(r2 < errTol) continue;
-            const invr4 = 1/(r2*r2);
-            const invr6 = invr4/r2;
-            const c2r = dx*dx - dy*dy;
-            const c2i = -2*dx*dy;
-            const c3r = c2r*dx + c2i*dy;
-            const c3i = c2r*(-dy) + c2i*dx;
-            const expOjR = cosT[j];
-            const expOjI = sinT[j];
-            const expTermR = Math.cos(2*fishes[i].theta + fishes[j].theta);
-            const expTermI = Math.sin(2*fishes[i].theta + fishes[j].theta);
-            const termUr = expOjR*c2r - expOjI*c2i;
-            const termUi = expOjR*c2i + expOjI*c2r;
-            const termWr = expTermR*c3r - expTermI*c3i;
-            const termWi = expTermR*c3i + expTermI*c3r;
-            uR += termUr * invr4;
-            uI += termUi * invr4;
-            wSum += termWi * invr6 * 2;
-          }
-          const avoid = 1 / (1 + Math.exp((params.fishH - minDist[i]) / params.fishH * 10));
-          Ux[i] = uR / Math.PI * params.If * avoid;
-          Uy[i] = -uI / Math.PI * params.If * avoid;
-          wHydro[i] = wSum / Math.PI * params.If * avoid;
-        }
-      }
-    }
-
-    if(stateFlags.shark){
-      if(hydroEnabled){
-        addPredatorFlow(sharkState, params.sharkH, 1000, Ux, Uy, wHydro);
-      }
-    }else{
-      sharkState.pos = {x:meanX()-25, y:meanY()};
-      sharkState.theta = 0;
-    }
-    if(stateFlags.whale){
-      if(hydroEnabled){
-        addPredatorFlow(whaleState, params.whaleH, 6, Ux, Uy, wHydro);
-      }
-    }else{
-      whaleState.pos = {x:meanX(), y:meanY()-25};
-      whaleState.theta = Math.PI/2;
-    }
-
-    if(stateFlags.evade){
-      if(stateFlags.shark) applySharkEvade(wVision);
-      if(stateFlags.whale) applyWhaleEvade(wVision);
-    }
-
-    const thetaDot = new Float64Array(n);
-    for(let i=0;i<n;i++){
-      thetaDot[i] = wVision[i] + wNoise[i] + wHydro[i];
-    }
-    wBuffer = thetaDot.slice();
-
-    for(let i=0;i<n;i++){
-      fishes[i].x += (Math.cos(fishes[i].theta) + Ux[i]) * dt;
-      fishes[i].y += (Math.sin(fishes[i].theta) + Uy[i]) * dt;
-      fishes[i].theta = wrapAngle(fishes[i].theta + thetaDot[i] * dt);
-      velocities[i].x = Math.cos(fishes[i].theta) + Ux[i];
-      velocities[i].y = Math.sin(fishes[i].theta) + Uy[i];
-    }
-
-    if(stateFlags.shark){
-      updateShark(Ux, Uy);
-    }
-    if(stateFlags.whale){
-      updateWhale(Ux, Uy);
-    }
-
-    if(stateFlags.death && (stateFlags.shark || stateFlags.whale)){
-      const survivors = [];
-      const survivorVel = [];
-      const survivorTheta = [];
-      const sharkHead = stateFlags.shark ? getSharkHeadPos() : null;
-      const whaleHead = stateFlags.whale ? getWhaleHeadPos() : null;
-      for(let i=0;i<fishes.length;i++){
-        const fish = fishes[i];
-        let dead = false;
-        if(stateFlags.shark){
-          const d = Math.hypot(fish.x - sharkHead.x, fish.y - sharkHead.y);
-          if(d <= params.sharkH/3) dead = true;
-        }
-        if(!dead && stateFlags.whale){
-          const d = Math.hypot(fish.x - whaleHead.x, fish.y - whaleHead.y);
-          if(d <= params.whaleH/3) dead = true;
-        }
-        if(!dead){
-          survivors.push(fish);
-          survivorVel.push(velocities[i]);
-          survivorTheta.push(wBuffer[i]);
-        }
-      }
-      fishes = survivors;
-      velocities = survivorVel;
-      wBuffer = survivorTheta;
-      if(fishes.length <= 2){
-        showMessage('Game over - the school was eaten. Respawn to continue.');
-      }
-    }
-  }
-
-  function addPredatorFlow(predState, scaleH, factor, Ux, Uy, wHydro){
-    const n = fishes.length;
-    for(let i=0;i<n;i++){
-      const dx = fishes[i].x - predState.pos.x;
-      const dy = fishes[i].y - predState.pos.y;
-      const r2 = dx*dx + dy*dy;
-      if(r2 < errTol) continue;
-      const invr4 = 1/(r2*r2);
-      const invr6 = invr4 / r2;
-      const c2r = dx*dx - dy*dy;
-      const c2i = -2*dx*dy;
-      const c3r = c2r*dx + c2i*dy;
-      const c3i = c2r*(-dy) + c2i*dx;
-      const expR = Math.cos(predState.theta);
-      const expI = Math.sin(predState.theta);
-      const expTermR = Math.cos(2*fishes[i].theta + predState.theta);
-      const expTermI = Math.sin(2*fishes[i].theta + predState.theta);
-      const termUr = expR*c2r - expI*c2i;
-      const termUi = expR*c2i + expI*c2r;
-      const termWr = expTermR*c3r - expTermI*c3i;
-      const termWi = expTermR*c3i + expTermI*c3r;
-      Ux[i] += termUr * invr4 / Math.PI * params.If * factor;
-      Uy[i] += -termUi * invr4 / Math.PI * params.If * factor;
-      wHydro[i] += termWi * invr6 * 2 / Math.PI * params.If * factor;
-    }
-  }
-
-  function applySharkEvade(wVision){
-    const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
-    const orth = {x: -esk.y, y: esk.x};
-    const Sharkhead = getSharkHeadPos(esk);
-    for(let i=0;i<fishes.length;i++){
-      const fish = fishes[i];
-      const d = Math.hypot(Sharkhead.x - fish.x, Sharkhead.y - fish.y);
-      if(d === 0) continue;
-      const dop1 = Math.hypot(Sharkhead.x - orth.x - fish.x, Sharkhead.y - orth.y - fish.y);
-      const dop2 = Math.hypot(Sharkhead.x + orth.x - fish.x, Sharkhead.y + orth.y - fish.y);
-      const sign = dop1 <= dop2 ? -1 : 1;
-      const wSk = getAngle(fish.theta, orth.x * sign, orth.y * sign);
-      const blend = Math.exp((params.sharkH - d));
-      wVision[i] = (wVision[i] + wSk*blend)/(1 + blend);
-    }
-  }
-
-  function applyWhaleEvade(wVision){
-    const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
-    const orth = {x: -ewh.y, y: ewh.x};
-    for(let i=0;i<fishes.length;i++){
-      const fish = fishes[i];
-      const dVec = {x: whaleState.pos.x - fish.x, y: whaleState.pos.y - fish.y};
-      const d = Math.hypot(dVec.x, dVec.y);
-      if(d === 0) continue;
-      const dop1 = Math.hypot(whaleState.pos.x - orth.x - fish.x, whaleState.pos.y - orth.y - fish.y);
-      const dop2 = Math.hypot(whaleState.pos.x + orth.x - fish.x, whaleState.pos.y + orth.y - fish.y);
-      const sign = dop1 <= dop2 ? -1 : 1;
-      const unit = {x: dVec.x/d, y: dVec.y/d};
-      const wWh = getAngle(fish.theta, orth.x*sign - unit.x, orth.y*sign - unit.y);
-      const blend = Math.exp((params.whaleH - d));
-      wVision[i] = (wVision[i] + wWh*blend)/(1 + blend);
-    }
-  }
-
-  function updateShark(Ux, Uy){
-    const dt = params.dt;
-    const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
-    const head = getSharkHeadPos(esk);
-    if(stateFlags.hard && fishes.length){
-      let best = null;
-      let bestDist = Infinity;
-      const phiC = Math.PI/2;
-      for(const fish of fishes){
-        const dx = fish.x - head.x;
-        const dy = fish.y - head.y;
-        const dist = Math.hypot(dx, dy);
-        const phi = getAngle(sharkState.theta, dx, dy, dist);
-        if(Math.abs(phi) < phiC && dist < bestDist){
-          best = {dx, dy, dist};
-          bestDist = dist;
-        }
-      }
-      if(!best){
-        for(const fish of fishes){
-          const dx = fish.x - head.x;
-          const dy = fish.y - head.y;
-          const dist = Math.hypot(dx, dy);
-          if(dist < bestDist){
-            best = {dx, dy, dist};
-            bestDist = dist;
-          }
-        }
-      }
-      if(best){
-        let w = getAngle(sharkState.theta, best.dx, best.dy, best.dist);
-        w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
-        sharkState.theta = wrapAngle(sharkState.theta + w*dt);
-      }
-      sharkState.pos.x += esk.x * dt * 1.5;
-      sharkState.pos.y += esk.y * dt * 1.5;
-    }else if(sharkGoal){
-      const dx = sharkGoal.x - head.x;
-      const dy = sharkGoal.y - head.y;
-      const dist = Math.hypot(dx, dy);
-      let w = getAngle(sharkState.theta, dx, dy, dist);
-      w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
-      sharkState.theta = wrapAngle(sharkState.theta + w*dt);
-      sharkState.pos.x += esk.x * dt * 1.5;
-      sharkState.pos.y += esk.y * dt * 1.5;
-    }else if(fishes.length){
-      const idx = Math.min(fishes.length-1, Math.floor(fishes.length*187/500));
-      const noise = gaussian()/Math.sqrt(dt);
-      sharkState.pos.x += esk.x * dt * 1.5 + Ux[idx] * dt;
-      sharkState.pos.y += esk.y * dt * 1.5 + Uy[idx] * dt;
-      sharkState.theta = wrapAngle(sharkState.theta + ((wBuffer[idx] ?? 0) + noise)*0.1*dt);
-    }
-  }
-
-  function updateWhale(Ux, Uy){
-    const dt = params.dt;
-    const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
-    if(stateFlags.whale && stateFlags.whaleFollow && pointerInside){
-      const dx = cp.x - whaleState.pos.x;
-      const dy = cp.y - whaleState.pos.y;
-      const dist = Math.hypot(dx, dy);
-      if(dist > errTol){
-        let w = getAngle(whaleState.theta, dx, dy, dist);
-        w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
-        whaleState.theta = wrapAngle(whaleState.theta + w*dt);
-      }
-      const e = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
-      whaleState.pos.x += e.x * dt / 1.5;
-      whaleState.pos.y += e.y * dt / 1.5;
+  function dispatchWorkerStep(){
+    if(workerPending) return;
+    const workerRef = ensureWorker();
+    if(!workerRef){
+      showMessage(`Worker fallback: ${lastWorkerError || 'worker unavailable'}`);
+      assignedBackend = 'main';
+      updateThreadUi();
       return;
     }
-    if(stateFlags.hard && fishes.length){
-      const phiC = Math.PI/2;
-      const subset = fishes.filter(fish => {
-        const dx = fish.x - whaleState.pos.x;
-        const dy = fish.y - whaleState.pos.y;
-        const dist = Math.hypot(dx, dy);
-        const phi = getAngle(whaleState.theta, dx, dy, dist);
-        return Math.abs(phi) < phiC;
-      });
-      const targetSet = subset.length ? subset : fishes;
-      const target = medianPoint(targetSet);
-      const dx = target.x - whaleState.pos.x;
-      const dy = target.y - whaleState.pos.y;
-      const dist = Math.hypot(dx, dy);
-      let w = getAngle(whaleState.theta, dx, dy, dist);
-      w = Math.exp(-w*w/(Math.PI*Math.PI)) * w;
-      whaleState.theta = wrapAngle(whaleState.theta + w*dt);
-      whaleState.pos.x += ewh.x * dt;
-      whaleState.pos.y += ewh.y * dt;
-    }else if(fishes.length){
-      const idx = Math.min(fishes.length-1, Math.floor(fishes.length*234/500));
-      const noise = gaussian()/Math.sqrt(dt);
-      whaleState.pos.x += ewh.x * dt / 1.5 + Ux[idx] * dt;
-      whaleState.pos.y += ewh.y * dt / 1.5 + Uy[idx] * dt;
-      whaleState.theta = wrapAngle(whaleState.theta + ((wBuffer[idx] ?? 0) + noise)*0.1*dt);
-    }
-  }
-
-  function showMessage(msg){
-    messageEl.textContent = msg;
-    messageEl.style.display = 'block';
-    setTimeout(() => {
-      messageEl.style.display = 'none';
-    }, 4000);
+    workerPending = true;
+    updateThreadUi();
+    const payload = cloneStatePayload(simState, {copyArrays: true});
+    workerRef.postMessage({
+      type: 'step',
+      simId,
+      requestId: ++workerRequestId,
+      stateVersion,
+      state: payload,
+      config: makeStepConfig(),
+    }, getTransferListFromPayload(payload));
   }
 
   function updateStats(){
-    const elapsed = (performance.now() - startTime);
-    statsEl.textContent = `N = ${fishes.length}\nIp = ${instanceParams.Ia.toFixed(2)}\nIn = ${instanceParams.In.toFixed(2)}\nRender time ${elapsed.toFixed(1)} ms`;
+    const backendLabel = assignedBackend === 'worker' ? (workerPending ? 'worker*' : 'worker') : 'main';
+    const modeLabel = workerSupported ? threadMode : `${threadMode} (fallback)`;
+    statsEl.textContent = `N = ${simState.n}\nIp = ${instanceParams.Ia.toFixed(2)}\nIn = ${instanceParams.In.toFixed(2)}\nMode = ${modeLabel}\nBackend = ${backendLabel}\nStep ms ${lastComputeMs.toFixed(1)}\nDraw ms ${lastDrawMs.toFixed(1)}`;
+    if(lastWorkerError){
+      statsEl.textContent += `\nErr = ${lastWorkerError.slice(0, 28)}`;
+    }
   }
 
   function resize(){
@@ -1627,6 +1541,7 @@ function createSimulation(initialParams){
       canvas.height = h;
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    resizeOrderCanvas();
     if(dpad){
       const viewRect = viewEl.getBoundingClientRect();
       const viewArea = viewRect.width * viewRect.height;
@@ -1638,7 +1553,7 @@ function createSimulation(initialParams){
     }
   }
 
-  function screenToWorld(clientX, clientY){
+  function screenToWorld(localX, localY){
     const rect = canvas.getBoundingClientRect();
     const worldHeight = viewState.worldHeight;
     const c = getViewCenter();
@@ -1646,14 +1561,30 @@ function createSimulation(initialParams){
     const cy = c.y;
     const scale = rect.height/(worldHeight);
     return {
-      x: cx + (clientX - rect.width/2)/scale,
-      y: cy - (clientY - rect.height/2)/scale,
+      x: cx + (localX - rect.width/2)/scale,
+      y: cy - (localY - rect.height/2)/scale,
     };
   }
 
   function getLocalPosFromClient(e){
     const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function setPointerLocalFromEvent(e){
+    lastPointerLocal = getLocalPosFromClient(e);
+    return lastPointerLocal;
+  }
+
+  function updatePointerWorldFromScreen(){
+    const active = activePointers.size > 0 || simState.pointerInside;
+    if(!active || !lastPointerLocal){
+      simState.pointerActive = false;
+      return false;
+    }
+    simState.pointerActive = true;
+    simState.cp = screenToWorld(lastPointerLocal.x, lastPointerLocal.y);
+    return true;
   }
 
   function zoomAtLocal(localX, localY, zoom){
@@ -1691,8 +1622,8 @@ function createSimulation(initialParams){
     ctx.lineWidth = 1/scale;
     drawBackdrop();
     drawBaits();
-    if(!stateFlags.shark) sharkGoal = null;
-    if(sharkGoal) drawSharkGoal();
+    if(!stateFlags.shark) simState.sharkGoal = null;
+    if(simState.sharkGoal) drawSharkGoal();
     if(stateFlags.shark) drawShark();
     if(stateFlags.whale) drawWhale();
     drawFishes();
@@ -1767,7 +1698,7 @@ function createSimulation(initialParams){
   function drawBaits(){
     ctx.strokeStyle = '#ffd166';
     ctx.lineWidth = 2/ctx.getTransform().a;
-    for(const bait of baits){
+    for(const bait of simState.baits){
       ctx.beginPath();
       ctx.moveTo(bait.x-0.3, bait.y);
       ctx.lineTo(bait.x+0.3, bait.y);
@@ -1783,17 +1714,17 @@ function createSimulation(initialParams){
     ctx.strokeStyle = '#ff4444';
     ctx.lineWidth = 3/ctx.getTransform().a;
     ctx.beginPath();
-    ctx.moveTo(sharkGoal.x - size/2, sharkGoal.y - size/2);
-    ctx.lineTo(sharkGoal.x + size/2, sharkGoal.y + size/2);
-    ctx.moveTo(sharkGoal.x - size/2, sharkGoal.y + size/2);
-    ctx.lineTo(sharkGoal.x + size/2, sharkGoal.y - size/2);
+    ctx.moveTo(simState.sharkGoal.x - size/2, simState.sharkGoal.y - size/2);
+    ctx.lineTo(simState.sharkGoal.x + size/2, simState.sharkGoal.y + size/2);
+    ctx.moveTo(simState.sharkGoal.x - size/2, simState.sharkGoal.y + size/2);
+    ctx.lineTo(simState.sharkGoal.x + size/2, simState.sharkGoal.y - size/2);
     ctx.stroke();
     ctx.restore();
   }
 
   function drawShark(){
-    const esk = {x: Math.cos(sharkState.theta), y: Math.sin(sharkState.theta)};
-    const rot = (x,y) => ({x: x*esk.x - y*esk.y + sharkState.pos.x, y: x*esk.y + y*esk.x + sharkState.pos.y});
+    const esk = {x: Math.cos(simState.sharkState.theta), y: Math.sin(simState.sharkState.theta)};
+    const rot = (x,y) => ({x: x*esk.x - y*esk.y + simState.sharkState.x, y: x*esk.y + y*esk.x + simState.sharkState.y});
     ctx.fillStyle = '#30333a';
     ctx.beginPath();
     const head = sharkShape.head;
@@ -1819,8 +1750,8 @@ function createSimulation(initialParams){
   }
 
   function drawWhale(){
-    const ewh = {x: Math.cos(whaleState.theta), y: Math.sin(whaleState.theta)};
-    const rot = (x,y) => ({x: x*ewh.x - y*ewh.y + whaleState.pos.x, y: x*ewh.y + y*ewh.x + whaleState.pos.y});
+    const ewh = {x: Math.cos(simState.whaleState.theta), y: Math.sin(simState.whaleState.theta)};
+    const rot = (x,y) => ({x: x*ewh.x - y*ewh.y + simState.whaleState.x, y: x*ewh.y + y*ewh.x + simState.whaleState.y});
     ctx.fillStyle = '#4c6ef5';
     ctx.beginPath();
     whaleShape.x.forEach((x,i) => {
@@ -1831,17 +1762,16 @@ function createSimulation(initialParams){
   }
 
   function drawFishes(){
-    for(let i=0;i<fishes.length;i++){
-      const fish = fishes[i];
-      const speed = Math.hypot(velocities[i].x, velocities[i].y);
+    for(let i=0;i<simState.n;i++){
+      const speed = Math.hypot(simState.vx[i], simState.vy[i]);
       const color = speedColor(speed);
       ctx.fillStyle = color;
       ctx.beginPath();
       for(let k=0;k<fishShape.x.length;k++){
         const x = fishShape.x[k];
         const y = fishShape.y[k];
-        const px = x*Math.cos(fish.theta) - y*Math.sin(fish.theta) + fish.x;
-        const py = x*Math.sin(fish.theta) + y*Math.cos(fish.theta) + fish.y;
+        const px = x*Math.cos(simState.theta[i]) - y*Math.sin(simState.theta[i]) + simState.x[i];
+        const py = x*Math.sin(simState.theta[i]) + y*Math.cos(simState.theta[i]) + simState.y[i];
         if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
       }
       ctx.closePath();
@@ -1849,23 +1779,34 @@ function createSimulation(initialParams){
     }
   }
 
-  function step(){
-    if(isPlaying){
-      computeStep();
+  function step({visible = true, advance = isPlaying, sampleOrder = true} = {}){
+    updatePointerWorldFromScreen();
+    if(advance){
+      if(assignedBackend === 'worker') dispatchWorkerStep();
+      else runLocalStep();
+    }
+    updatePointerWorldFromScreen();
+    if(sampleOrder) sampleOrderParameters(performance.now());
+    if(visible){
+      const drawStarted = performance.now();
+      draw();
+      drawOrderPanel();
+      lastDrawMs = performance.now() - drawStarted;
+    } else {
+      lastDrawMs = 0;
     }
     updateStats();
-    draw();
-    startTime = performance.now();
   }
 
-  function resetTimer(){
-    startTime = performance.now();
-  }
+  function resetTimer(){}
 
   canvas.addEventListener('pointerdown', e => {
     setActiveSimId(simId);
-    const pos = getLocalPosFromClient(e);
+    const pos = setPointerLocalFromEvent(e);
     activePointers.set(e.pointerId, pos);
+    simState.pointerInside = true;
+    simState.pointerActive = true;
+    updatePointerWorldFromScreen();
     pinchLastDist = 0;
     if(activePointers.size >= 2){
       const it = activePointers.values();
@@ -1875,7 +1816,7 @@ function createSimulation(initialParams){
         const midY = (p1.y + p2.y)/2;
         twoPanLastMidWorld = screenToWorld(midX, midY);
         if(viewState.follow){
-          const c = {x: meanX(), y: meanY()};
+          const c = meanPoint(simState);
           viewState.centerX = c.x;
           viewState.centerY = c.y;
           viewState.follow = false;
@@ -1886,7 +1827,7 @@ function createSimulation(initialParams){
   });
 
   canvas.addEventListener('pointermove', e => {
-    const pos = getLocalPosFromClient(e);
+    const pos = setPointerLocalFromEvent(e);
     if(activePointers.has(e.pointerId)){
       activePointers.set(e.pointerId, pos);
     }
@@ -1900,10 +1841,11 @@ function createSimulation(initialParams){
         const dist = Math.hypot(dx, dy);
         const midX = (p1.x + p2.x)/2;
         const midY = (p1.y + p2.y)/2;
-        pointerActive = true;
-        pointerInside = true;
+        lastPointerLocal = {x: midX, y: midY};
+        simState.pointerActive = true;
+        simState.pointerInside = true;
         if(viewState.follow){
-          const c = {x: meanX(), y: meanY()};
+          const c = meanPoint(simState);
           viewState.centerX = c.x;
           viewState.centerY = c.y;
           viewState.follow = false;
@@ -1918,46 +1860,62 @@ function createSimulation(initialParams){
         viewState.centerY += (beforeWorld.y - afterWorld.y);
         twoPanLastMidWorld = screenToWorld(midX, midY);
         pinchLastDist = dist;
+        updatePointerWorldFromScreen();
         e.preventDefault();
         return;
       }
     }
 
-    const world = screenToWorld(pos.x, pos.y);
-    cp = world;
-    pointerActive = true;
+    updatePointerWorldFromScreen();
   });
 
   canvas.addEventListener('pointerup', e => {
     activePointers.delete(e.pointerId);
+    simState.pointerActive = activePointers.size > 0 || simState.pointerInside;
+    updatePointerWorldFromScreen();
     if(activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
   });
   canvas.addEventListener('pointercancel', e => {
     activePointers.delete(e.pointerId);
+    simState.pointerActive = activePointers.size > 0 || simState.pointerInside;
+    updatePointerWorldFromScreen();
     if(activePointers.size < 2){ pinchLastDist = 0; twoPanLastMidWorld = null; }
   });
-  canvas.addEventListener('pointerenter', () => { pointerInside = true; setActiveSimId(simId); });
-  canvas.addEventListener('pointerleave', () => { pointerInside = false; });
+  canvas.addEventListener('pointerenter', e => {
+    simState.pointerInside = true;
+    setPointerLocalFromEvent(e);
+    updatePointerWorldFromScreen();
+    setActiveSimId(simId);
+  });
+  canvas.addEventListener('pointerleave', () => {
+    simState.pointerInside = false;
+    simState.pointerActive = activePointers.size > 0;
+    if(!simState.pointerActive) lastPointerLocal = null;
+  });
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const zoom = Math.exp(-e.deltaY * 0.001);
     const hasOffset = Number.isFinite(e.offsetX) && Number.isFinite(e.offsetY);
+    const pos = hasOffset ? {x: e.offsetX, y: e.offsetY} : getLocalPosFromClient(e);
+    lastPointerLocal = pos;
     if(hasOffset){
       zoomAtLocal(e.offsetX, e.offsetY, zoom);
     } else {
-      const pos = getLocalPosFromClient(e);
       zoomAtLocal(pos.x, pos.y, zoom);
     }
+    updatePointerWorldFromScreen();
   }, { passive: false });
 
   canvas.addEventListener('click', e => {
     const world = screenToWorld(e.offsetX, e.offsetY);
     if(armedPlacers.bait){
-      baits.push(world);
+      simState.baits.push(world);
+      markStateDirty();
       recorder?.logEvent({type:'bait_add', simId, x: world.x, y: world.y});
     }else if(armedPlacers.goal){
-      sharkGoal = world;
+      simState.sharkGoal = world;
+      markStateDirty();
       recorder?.logEvent({type:'goal_set', simId, x: world.x, y: world.y});
     }
   });
@@ -1971,6 +1929,10 @@ function createSimulation(initialParams){
 
   const ro = new ResizeObserver(() => requestAnimationFrame(resize));
   ro.observe(viewEl);
+
+  threadSelectEl?.addEventListener('change', () => {
+    setThreadMode(threadSelectEl.value, 'ui_change');
+  });
 
   if(removeBtn){
     removeBtn.addEventListener('click', () => removeSimulation(simId));
@@ -1988,9 +1950,17 @@ function createSimulation(initialParams){
       resetSchool();
     });
   }
+  if(expandBtn){
+    expandBtn.addEventListener('click', () => {
+      setActiveSimId(simId);
+      setExpandedSimId(simId);
+    });
+  }
 
-  resetSchool();
   resize();
+  sampleOrderParameters(performance.now(), true);
+  drawOrderPanel();
+  updateThreadUi();
 
   return {
     id: simId,
@@ -2000,13 +1970,29 @@ function createSimulation(initialParams){
     resize,
     resetSchool,
     resetTimer,
-    clearBaits: () => { baits = []; },
-    clearGoal: () => { sharkGoal = null; },
+    clearBaits: () => {
+      simState.baits = [];
+      markStateDirty();
+    },
+    clearGoal: () => {
+      simState.sharkGoal = null;
+      markStateDirty();
+    },
     nudgeView,
     getInstanceParams,
     setInstanceParams,
     snapshotForRecording,
-    dispose: () => ro.disconnect(),
+    setExpandedView,
+    dispose: () => {
+      disposeWorker();
+      ro.disconnect();
+    },
+    getThreadMode: () => threadMode,
+    setThreadMode,
+    setAssignedBackend,
+    estimateWork,
+    shouldPreferWorker,
+    invalidateWorkerResult,
   };
 }
 
@@ -2020,6 +2006,7 @@ function addSimulation(initialParams, {reason='add', sourceSimId=null} = {}){
   setActiveSimId(sim.id);
   updateGridLayout();
   updateInstanceCount();
+  refreshThreadAssignments();
   recorder?.logEvent({type:'sim_add', simId: sim.id, reason, sourceSimId, ...sim.getInstanceParams()});
 }
 
@@ -2030,6 +2017,7 @@ function removeSimulation(simId){
   sim.dispose();
   sim.node.remove();
   sims.delete(simId);
+  if(expandedSimId === simId) expandedSimId = null;
   if(activeSimId === simId){
     setActiveSimId(null);
     const next = sims.values().next().value;
@@ -2037,6 +2025,7 @@ function removeSimulation(simId){
   }
   updateGridLayout();
   updateInstanceCount();
+  refreshThreadAssignments();
 }
 
 addInstanceBtn?.addEventListener('click', () => addSimulation(undefined, {reason:'header_add'}));
@@ -2046,22 +2035,26 @@ controls.Ia.addEventListener('input', () => {
   bufferedInstanceParams = readInstanceParamsFromControls();
   const sim = getActiveSim();
   sim?.setInstanceParams(bufferedInstanceParams);
+  refreshThreadAssignments();
 });
 controls.Ia.addEventListener('change', () => {
   bufferedInstanceParams = readInstanceParamsFromControls();
   const sim = getActiveSim();
   sim?.setInstanceParams(bufferedInstanceParams, {log:true, reason:'slider_change'});
+  refreshThreadAssignments();
 });
 controls.In.addEventListener('input', () => {
   controls.InVal.textContent = parseFloat(controls.In.value).toFixed(2);
   bufferedInstanceParams = readInstanceParamsFromControls();
   const sim = getActiveSim();
   sim?.setInstanceParams(bufferedInstanceParams);
+  refreshThreadAssignments();
 });
 controls.In.addEventListener('change', () => {
   bufferedInstanceParams = readInstanceParamsFromControls();
   const sim = getActiveSim();
   sim?.setInstanceParams(bufferedInstanceParams, {log:true, reason:'slider_change'});
+  refreshThreadAssignments();
 });
 controls.hydroRadius?.addEventListener('input', () => {
   if(controls.hydroRVal){
@@ -2069,6 +2062,8 @@ controls.hydroRadius?.addEventListener('input', () => {
   }
 });
 controls.hydroRadius?.addEventListener('change', () => {
+  invalidateAllWorkerResults('hydro_radius');
+  refreshThreadAssignments();
   recorder?.logEvent({
     type:'hydro_set',
     hydro: !!controls.hydro?.checked,
@@ -2087,6 +2082,8 @@ function updateHydroUiDisabled(){
 
 controls.hydro?.addEventListener('change', () => {
   updateHydroUiDisabled();
+  invalidateAllWorkerResults('hydro_toggle');
+  refreshThreadAssignments();
   recorder?.logEvent({
     type:'hydro_set',
     hydro: !!controls.hydro?.checked,
@@ -2098,6 +2095,8 @@ controls.hydro?.addEventListener('change', () => {
 controls.hydroShell?.addEventListener('change', () => {
   if(controls.hydroShell.checked && controls.hydroRange) controls.hydroRange.checked = false;
   updateHydroUiDisabled();
+  invalidateAllWorkerResults('hydro_shell');
+  refreshThreadAssignments();
   recorder?.logEvent({
     type:'hydro_set',
     hydro: !!controls.hydro?.checked,
@@ -2109,6 +2108,8 @@ controls.hydroShell?.addEventListener('change', () => {
 controls.hydroRange?.addEventListener('change', () => {
   if(controls.hydroRange.checked && controls.hydroShell) controls.hydroShell.checked = false;
   updateHydroUiDisabled();
+  invalidateAllWorkerResults('hydro_range');
+  refreshThreadAssignments();
   recorder?.logEvent({
     type:'hydro_set',
     hydro: !!controls.hydro?.checked,
@@ -2134,12 +2135,14 @@ controls.N.addEventListener('input', () => {
   const sim = getActiveSim();
   sim?.setInstanceParams(bufferedInstanceParams);
   updateHydroUiDisabled();
+  refreshThreadAssignments();
 });
 controls.N.addEventListener('change', () => {
   bufferedInstanceParams = readInstanceParamsFromControls();
   const sim = getActiveSim();
   sim?.setInstanceParams(bufferedInstanceParams, {respawn:true, log:true, reason:'slider_change'});
   updateHydroUiDisabled();
+  refreshThreadAssignments();
 });
 
 updateGoalUiDisabled();
@@ -2173,8 +2176,8 @@ updateInstanceCount();
 updateGridLayout();
 
 function tick(){
-  sims.forEach(sim => sim.step());
-  recorder?.maybeSample(performance.now());
+  stepAllSims({advance:isPlaying, sampleOrder:isPlaying});
+  if(isPlaying) recorder?.maybeSample(performance.now());
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
