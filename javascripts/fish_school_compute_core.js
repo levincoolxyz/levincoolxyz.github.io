@@ -2,6 +2,14 @@
 const ERR_TOL = 1e-12;
 const SHARK_HEAD_OFFSET = 1.5;
 const WHALE_HEAD_OFFSET = 0.8;
+const DEFAULT_GAUSSIAN_SPREAD = 10;
+const DEFAULT_LINE_LENGTH = 20;
+const DEFAULT_LINE_TRANSVERSE_SPREAD = 1;
+const DEFAULT_LINE_AXIAL_SPREAD = Math.SQRT2;
+const DEFAULT_GAUSSIAN_HEADING_DEG = 0;
+const DEFAULT_GAUSSIAN_HEADING_SPREAD_DEG = 180;
+const DEFAULT_LINE_HEADING_DEG = 0;
+const DEFAULT_LINE_HEADING_SPREAD_DEG = 0;
 
 export function gaussian(rand = Math.random){
   let u = 0;
@@ -9,6 +17,15 @@ export function gaussian(rand = Math.random){
   while(u === 0) u = 1 - rand();
   while(v === 0) v = rand();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function finiteNumber(value, fallback){
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function degreesToRadians(value){
+  return value * Math.PI / 180;
 }
 
 export function wrapAngle(a){
@@ -56,6 +73,14 @@ export function createSimulationState(instanceParams, initMode = 'random', rand 
 
 export function resetSimulationState(state, instanceParams, initMode = 'random', rand = Math.random){
   const n = Math.max(0, Math.round(Number(instanceParams?.n ?? 0) || 0));
+  const gaussianSpread = Math.max(0, finiteNumber(instanceParams?.gaussianSpread, DEFAULT_GAUSSIAN_SPREAD));
+  const lineLength = Math.max(0, finiteNumber(instanceParams?.lineLength, DEFAULT_LINE_LENGTH));
+  const lineTransverseSpread = Math.max(0, finiteNumber(instanceParams?.lineTransverseSpread, DEFAULT_LINE_TRANSVERSE_SPREAD));
+  const lineAxialSpread = Math.max(0, finiteNumber(instanceParams?.lineAxialSpread, DEFAULT_LINE_AXIAL_SPREAD));
+  const gaussianHeading = degreesToRadians(finiteNumber(instanceParams?.gaussianHeadingDeg, DEFAULT_GAUSSIAN_HEADING_DEG));
+  const gaussianHeadingSpread = degreesToRadians(Math.max(0, finiteNumber(instanceParams?.gaussianHeadingSpreadDeg, DEFAULT_GAUSSIAN_HEADING_SPREAD_DEG)));
+  const lineHeading = degreesToRadians(finiteNumber(instanceParams?.lineHeadingDeg, DEFAULT_LINE_HEADING_DEG));
+  const lineHeadingSpread = degreesToRadians(Math.max(0, finiteNumber(instanceParams?.lineHeadingSpreadDeg, DEFAULT_LINE_HEADING_SPREAD_DEG)));
   const x = new Float64Array(n);
   const y = new Float64Array(n);
   const theta = new Float64Array(n);
@@ -66,15 +91,15 @@ export function resetSimulationState(state, instanceParams, initMode = 'random',
   if(initMode === 'line'){
     for(let i = 0; i < n; i++){
       const t = n > 1 ? (i / (n - 1)) : 0.5;
-      y[i] = -10 + 20 * t + gaussian(rand) + gaussian(rand);
-      x[i] = gaussian(rand);
-      theta[i] = 0;
+      y[i] = (t - 0.5) * lineLength + gaussian(rand) * lineAxialSpread;
+      x[i] = gaussian(rand) * lineTransverseSpread;
+      theta[i] = wrapAngle(lineHeading + (2 * rand() - 1) * lineHeadingSpread);
     }
   } else {
     for(let i = 0; i < n; i++){
-      x[i] = gaussian(rand) * 10;
-      y[i] = gaussian(rand) * 10;
-      theta[i] = rand() * Math.PI * 2;
+      x[i] = gaussian(rand) * gaussianSpread;
+      y[i] = gaussian(rand) * gaussianSpread;
+      theta[i] = wrapAngle(gaussianHeading + (2 * rand() - 1) * gaussianHeadingSpread);
     }
   }
 

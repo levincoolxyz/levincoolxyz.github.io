@@ -35,6 +35,10 @@
     .btn-toggle{background:#10192a;color:var(--fg);border:1px solid #233047;border-radius:10px;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .2s ease,border .2s ease,color .2s ease}
     .btn-toggle:hover{background:#17253b}
     .algo-note{margin:16px 4px 0;padding:12px 14px;border:1px solid rgba(143,160,181,.35);border-radius:12px;background:rgba(15,23,42,.55);color:var(--muted);font-size:12px;line-height:1.5}
+    .control-group{display:flex;flex-direction:column;gap:10px;margin:2px 0 4px;padding:12px 14px;border:1px solid rgba(143,160,181,.35);border-radius:12px;background:rgba(15,23,42,.45)}
+    .control-group h3{margin:0;font-size:12px;line-height:1.2;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .control-group .control{grid-template-columns:minmax(0,1fr) minmax(112px,150px)}
+    .control[hidden]{display:none !important}
     .app.collapsed aside{pointer-events:none;opacity:0;transform:translateX(-12px);border-right-color:transparent}
     .app.collapsed main{grid-column:1 / -1}
     .app:not(.collapsed) aside{pointer-events:auto;opacity:1;transform:translateX(0)}
@@ -108,6 +112,7 @@
       header h1{font-size:16px}
       .btn-toggle{width:34px;height:34px}
       .control{grid-template-columns:1fr}
+      .control-group .control{grid-template-columns:1fr}
       .control input[type=checkbox]{justify-self:start}
       .toggles{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
       .sim-header{flex-wrap:wrap}
@@ -143,12 +148,47 @@
   <aside id="panel" tabindex="-1">
     <h2>Controls</h2>
     <div class="controls">
-      <div class="control">
-        <label for="initMode">Initial condition</label>
-        <select id="initMode">
-          <option value="random">2D Gaussian</option>
-          <option value="line">Line formation</option>
-        </select>
+      <div class="control-group" aria-labelledby="initialConditionsHeading">
+        <h3 id="initialConditionsHeading">Initial Conditions</h3>
+        <div class="control">
+          <label for="initMode">Initial condition</label>
+          <select id="initMode">
+            <option value="random" selected>Blob formation</option>
+            <option value="line">Line formation</option>
+          </select>
+        </div>
+        <div class="control" data-init-modes="random">
+          <label for="blobSpread">Blob spread: <span class="value" id="blobSpreadVal">10.0</span></label>
+          <input id="blobSpread" type="range" min="0.5" max="60" step="0.5" value="10">
+        </div>
+        <div class="control" data-init-modes="random">
+          <label for="blobHeadingDeg">Blob heading: <span class="value" id="blobHeadingDegVal">0 deg</span></label>
+          <input id="blobHeadingDeg" type="range" min="-180" max="180" step="1" value="0">
+        </div>
+        <div class="control" data-init-modes="random">
+          <label for="blobHeadingSpreadDeg">Blob heading spread: <span class="value" id="blobHeadingSpreadDegVal">180 deg</span></label>
+          <input id="blobHeadingSpreadDeg" type="range" min="0" max="180" step="1" value="180">
+        </div>
+        <div class="control" data-init-modes="line">
+          <label for="lineLength">Line length: <span class="value" id="lineLengthVal">20.0</span></label>
+          <input id="lineLength" type="range" min="1" max="120" step="0.5" value="20">
+        </div>
+        <div class="control" data-init-modes="line">
+          <label for="lineTransverseSpread">Line transverse spread: <span class="value" id="lineTransverseSpreadVal">1.0</span></label>
+          <input id="lineTransverseSpread" type="range" min="0" max="20" step="0.1" value="1">
+        </div>
+        <div class="control" data-init-modes="line">
+          <label for="lineAxialSpread">Line axial spread: <span class="value" id="lineAxialSpreadVal">1.4</span></label>
+          <input id="lineAxialSpread" type="range" min="0" max="20" step="0.1" value="1.41421356237">
+        </div>
+        <div class="control" data-init-modes="line">
+          <label for="lineHeadingDeg">Line heading: <span class="value" id="lineHeadingDegVal">0 deg</span></label>
+          <input id="lineHeadingDeg" type="range" min="-180" max="180" step="1" value="0">
+        </div>
+        <div class="control" data-init-modes="line">
+          <label for="lineHeadingSpreadDeg">Line heading spread: <span class="value" id="lineHeadingSpreadDegVal">0 deg</span></label>
+          <input id="lineHeadingSpreadDeg" type="range" min="0" max="180" step="1" value="0">
+        </div>
       </div>
       <div class="control">
         <label for="N">School size (force respawn): <span class="value" id="NVal">150</span></label>
@@ -379,6 +419,22 @@ const controls = {
   N: document.getElementById('N'),
   NVal: document.getElementById('NVal'),
   initMode: document.getElementById('initMode'),
+  blobSpread: document.getElementById('blobSpread'),
+  blobSpreadVal: document.getElementById('blobSpreadVal'),
+  blobHeadingDeg: document.getElementById('blobHeadingDeg'),
+  blobHeadingDegVal: document.getElementById('blobHeadingDegVal'),
+  blobHeadingSpreadDeg: document.getElementById('blobHeadingSpreadDeg'),
+  blobHeadingSpreadDegVal: document.getElementById('blobHeadingSpreadDegVal'),
+  lineLength: document.getElementById('lineLength'),
+  lineLengthVal: document.getElementById('lineLengthVal'),
+  lineTransverseSpread: document.getElementById('lineTransverseSpread'),
+  lineTransverseSpreadVal: document.getElementById('lineTransverseSpreadVal'),
+  lineAxialSpread: document.getElementById('lineAxialSpread'),
+  lineAxialSpreadVal: document.getElementById('lineAxialSpreadVal'),
+  lineHeadingDeg: document.getElementById('lineHeadingDeg'),
+  lineHeadingDegVal: document.getElementById('lineHeadingDegVal'),
+  lineHeadingSpreadDeg: document.getElementById('lineHeadingSpreadDeg'),
+  lineHeadingSpreadDegVal: document.getElementById('lineHeadingSpreadDegVal'),
   Ia: document.getElementById('Ia'),
   In: document.getElementById('In'),
   IpVal: document.getElementById('IpVal'),
@@ -568,10 +624,38 @@ function normalizeInstanceParams(next){
   const rawN = Number(next?.n ?? 150);
   const rawIa = Number(next?.Ia ?? 1.5);
   const rawIn = Number(next?.In ?? 0.3);
+  const rawGaussianSpread = Number(next?.gaussianSpread ?? 10);
+  const rawGaussianHeadingDeg = Number(next?.gaussianHeadingDeg ?? 0);
+  const rawGaussianHeadingSpreadDeg = Number(next?.gaussianHeadingSpreadDeg ?? 180);
+  const rawLineLength = Number(next?.lineLength ?? 20);
+  const rawLineTransverseSpread = Number(next?.lineTransverseSpread ?? 1);
+  const rawLineAxialSpread = Number(next?.lineAxialSpread ?? Math.SQRT2);
+  const rawLineHeadingDeg = Number(next?.lineHeadingDeg ?? 0);
+  const rawLineHeadingSpreadDeg = Number(next?.lineHeadingSpreadDeg ?? 0);
   const n = Math.max(10, Math.min(10000, Math.round(Number.isFinite(rawN) ? rawN : 150)));
   const Ia = Math.max(0.01, Math.min(10, Number.isFinite(rawIa) ? rawIa : 1.5));
   const In = Math.max(0, Math.min(5, Number.isFinite(rawIn) ? rawIn : 0.3));
-  return {n, Ia, In};
+  const gaussianSpread = Math.max(0.5, Math.min(60, Number.isFinite(rawGaussianSpread) ? rawGaussianSpread : 10));
+  const gaussianHeadingDeg = Math.max(-180, Math.min(180, Number.isFinite(rawGaussianHeadingDeg) ? rawGaussianHeadingDeg : 0));
+  const gaussianHeadingSpreadDeg = Math.max(0, Math.min(180, Number.isFinite(rawGaussianHeadingSpreadDeg) ? rawGaussianHeadingSpreadDeg : 180));
+  const lineLength = Math.max(1, Math.min(120, Number.isFinite(rawLineLength) ? rawLineLength : 20));
+  const lineTransverseSpread = Math.max(0, Math.min(20, Number.isFinite(rawLineTransverseSpread) ? rawLineTransverseSpread : 1));
+  const lineAxialSpread = Math.max(0, Math.min(20, Number.isFinite(rawLineAxialSpread) ? rawLineAxialSpread : Math.SQRT2));
+  const lineHeadingDeg = Math.max(-180, Math.min(180, Number.isFinite(rawLineHeadingDeg) ? rawLineHeadingDeg : 0));
+  const lineHeadingSpreadDeg = Math.max(0, Math.min(180, Number.isFinite(rawLineHeadingSpreadDeg) ? rawLineHeadingSpreadDeg : 0));
+  return {
+    n,
+    Ia,
+    In,
+    gaussianSpread,
+    gaussianHeadingDeg,
+    gaussianHeadingSpreadDeg,
+    lineLength,
+    lineTransverseSpread,
+    lineAxialSpread,
+    lineHeadingDeg,
+    lineHeadingSpreadDeg,
+  };
 }
 
 function readInstanceParamsFromControls(){
@@ -579,10 +663,54 @@ function readInstanceParamsFromControls(){
     n: parseInt(controls.N?.value ?? '150', 10),
     Ia: parseFloat(controls.Ia?.value ?? '1.5'),
     In: parseFloat(controls.In?.value ?? '0.3'),
+    gaussianSpread: parseFloat(controls.blobSpread?.value ?? '10'),
+    gaussianHeadingDeg: parseFloat(controls.blobHeadingDeg?.value ?? '0'),
+    gaussianHeadingSpreadDeg: parseFloat(controls.blobHeadingSpreadDeg?.value ?? '180'),
+    lineLength: parseFloat(controls.lineLength?.value ?? '20'),
+    lineTransverseSpread: parseFloat(controls.lineTransverseSpread?.value ?? '1'),
+    lineAxialSpread: parseFloat(controls.lineAxialSpread?.value ?? String(Math.SQRT2)),
+    lineHeadingDeg: parseFloat(controls.lineHeadingDeg?.value ?? '0'),
+    lineHeadingSpreadDeg: parseFloat(controls.lineHeadingSpreadDeg?.value ?? '0'),
   });
 }
 
 let bufferedInstanceParams = readInstanceParamsFromControls();
+
+function syncInitialConditionLabels(){
+  if(controls.blobSpreadVal) controls.blobSpreadVal.textContent = parseFloat(controls.blobSpread?.value ?? '10').toFixed(1);
+  if(controls.blobHeadingDegVal) controls.blobHeadingDegVal.textContent = `${Math.round(parseFloat(controls.blobHeadingDeg?.value ?? '0'))} deg`;
+  if(controls.blobHeadingSpreadDegVal) controls.blobHeadingSpreadDegVal.textContent = `${Math.round(parseFloat(controls.blobHeadingSpreadDeg?.value ?? '180'))} deg`;
+  if(controls.lineLengthVal) controls.lineLengthVal.textContent = parseFloat(controls.lineLength?.value ?? '20').toFixed(1);
+  if(controls.lineTransverseSpreadVal) controls.lineTransverseSpreadVal.textContent = parseFloat(controls.lineTransverseSpread?.value ?? '1').toFixed(1);
+  if(controls.lineAxialSpreadVal) controls.lineAxialSpreadVal.textContent = parseFloat(controls.lineAxialSpread?.value ?? String(Math.SQRT2)).toFixed(1);
+  if(controls.lineHeadingDegVal) controls.lineHeadingDegVal.textContent = `${Math.round(parseFloat(controls.lineHeadingDeg?.value ?? '0'))} deg`;
+  if(controls.lineHeadingSpreadDegVal) controls.lineHeadingSpreadDegVal.textContent = `${Math.round(parseFloat(controls.lineHeadingSpreadDeg?.value ?? '0'))} deg`;
+}
+
+function syncInitialConditionVisibility(){
+  const mode = controls.initMode?.value || 'random';
+  document.querySelectorAll('[data-init-modes]').forEach(row => {
+    const modes = (row.dataset.initModes || '').split(/\s+/).filter(Boolean);
+    const visible = modes.includes(mode);
+    row.hidden = !visible;
+    row.querySelectorAll('input, select, button').forEach(input => {
+      input.disabled = !visible;
+    });
+  });
+}
+
+function syncInitialConditionUi(){
+  syncInitialConditionLabels();
+  syncInitialConditionVisibility();
+}
+
+function updateBufferedInitialConditionParams({log=false, reason='initial_condition_change'} = {}){
+  syncInitialConditionUi();
+  bufferedInstanceParams = readInstanceParamsFromControls();
+  const sim = getActiveSim();
+  sim?.setInstanceParams(bufferedInstanceParams, {log, reason});
+  refreshThreadAssignments();
+}
 
 function updateInstanceCount(){
   const count = sims.size;
@@ -1442,9 +1570,7 @@ function createSimulation(initialParams){
         type: 'instance_params',
         simId,
         reason,
-        n: instanceParams.n,
-        Ia: instanceParams.Ia,
-        In: instanceParams.In,
+        ...instanceParams,
         respawn: !!respawn,
       });
     }
@@ -2030,6 +2156,16 @@ function removeSimulation(simId){
 
 addInstanceBtn?.addEventListener('click', () => addSimulation(undefined, {reason:'header_add'}));
 
+controls.initMode?.addEventListener('change', () => {
+  syncInitialConditionUi();
+  recorder?.logEvent({type:'initial_condition_mode', mode: controls.initMode.value});
+});
+
+[controls.blobSpread, controls.blobHeadingDeg, controls.blobHeadingSpreadDeg, controls.lineLength, controls.lineTransverseSpread, controls.lineAxialSpread, controls.lineHeadingDeg, controls.lineHeadingSpreadDeg].forEach(control => {
+  control?.addEventListener('input', () => updateBufferedInitialConditionParams());
+  control?.addEventListener('change', () => updateBufferedInitialConditionParams({log:true}));
+});
+
 controls.Ia.addEventListener('input', () => {
   controls.IpVal.textContent = parseFloat(controls.Ia.value).toFixed(2);
   bufferedInstanceParams = readInstanceParamsFromControls();
@@ -2122,7 +2258,7 @@ updateHydroUiDisabled();
 
 controls.respawn.addEventListener('click', () => {
   bufferedInstanceParams = readInstanceParamsFromControls();
-  recorder?.logEvent({type:'reset_all', ...bufferedInstanceParams});
+  recorder?.logEvent({type:'reset_all', initMode: controls.initMode?.value || 'random', ...bufferedInstanceParams});
   resetAllSchools({applyBuffered:true});
 });
 controls.clearBaits.addEventListener('click', () => {
@@ -2146,6 +2282,7 @@ controls.N.addEventListener('change', () => {
 });
 
 updateGoalUiDisabled();
+syncInitialConditionUi();
 
 document.addEventListener('keydown', e => {
   const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
