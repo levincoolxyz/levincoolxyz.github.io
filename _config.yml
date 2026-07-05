@@ -1,3 +1,16 @@
 name: Feng Ling
 markdown: kramdown
 permalink: /movrev/:year/:month/:day/:title
+exclude:
+  # Keep the GitHub Pages artifact below the deployment service's sync limit.
+  - vendor/
+  - ciliary_clearance_visualizer.bac.html
+  - cilia_bundle_tracer_visualizer.bac.html
+  - cilia_bundle_visualizer.bac.html
+  - ciliary_carpet_3d_editor.bac.html
+  - collection/subscriptions.csv.bak
+  - cv/Ling,Feng - cv.log
+  - cv/Ling,Feng - cv.synctex.gz
+  - images/MrFoxWolf.png
+  - paper/csrdraft.pdf
+  - javascripts/vendor/three/0.160.0/three.min.js
