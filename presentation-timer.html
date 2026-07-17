@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Presentation Timer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --green: #167a45;
+      --red: #b4232e;
+      --ink: #fff;
+      --panel: rgba(8, 18, 14, .28);
+      --line: rgba(255, 255, 255, .28);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--green);
+      color: var(--ink);
+    }
+
+    button, input { font: inherit; }
+
+    .app {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      width: 100%;
+      height: 100%;
+      min-height: 100svh;
+      padding: clamp(18px, 3vw, 42px);
+      background: var(--green);
+      transition: background-color 350ms ease;
+      isolation: isolate;
+    }
+
+    .app.warning,
+    .app.finished { background: var(--red); }
+
+    .app.finished::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: rgba(255,255,255,.16);
+      animation: flash .75s ease-in-out 6 alternate;
+    }
+
+    @keyframes flash { to { opacity: 0; } }
+
+    .topbar,
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      font-size: clamp(.78rem, 1.5vw, 1rem);
+      font-weight: 750;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      opacity: .82;
+    }
+
+    .icon-button,
+    .button,
+    .preset {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(0,0,0,.18);
+      color: white;
+      cursor: pointer;
+      font-weight: 720;
+      transition: transform 120ms ease, background 120ms ease;
+    }
+
+    .icon-button:hover,
+    .button:hover,
+    .preset:hover { background: rgba(0,0,0,.3); }
+
+    button:active { transform: scale(.97); }
+    button:focus-visible, input:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+
+    .icon-button {
+      min-width: 46px;
+      min-height: 46px;
+      padding: 10px 16px;
+    }
+
+    .timer-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 0;
+      text-align: center;
+    }
+
+    .time {
+      margin: 0;
+      font-size: clamp(8rem, 31vw, 31rem);
+      font-weight: 820;
+      line-height: .78;
+      letter-spacing: -.07em;
+      font-variant-numeric: tabular-nums lining-nums;
+      text-shadow: 0 .03em .15em rgba(0,0,0,.14);
+      user-select: none;
+    }
+
+    .status {
+      min-height: 1.5em;
+      margin: clamp(24px, 4vh, 48px) 0 0;
+      font-size: clamp(1rem, 2.2vw, 1.5rem);
+      font-weight: 720;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: .88;
+    }
+
+    .bottom {
+      display: grid;
+      gap: 14px;
+    }
+
+    .controls { justify-content: center; }
+
+    .button {
+      min-width: 128px;
+      padding: 14px 24px;
+      font-size: 1rem;
+    }
+
+    .button.primary {
+      border-color: white;
+      background: white;
+      color: #17251e;
+    }
+
+    .button.primary:hover { background: #f0f4f2; }
+
+    details {
+      width: min(760px, 100%);
+      margin-inline: auto;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      backdrop-filter: blur(10px);
+    }
+
+    summary {
+      padding: 12px 18px;
+      cursor: pointer;
+      text-align: center;
+      font-weight: 720;
+      list-style-position: inside;
+    }
+
+    .settings {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: center;
+      gap: 12px;
+      padding: 4px 16px 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    input {
+      width: 112px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(0,0,0,.2);
+      color: white;
+      font-weight: 750;
+    }
+
+    .preset { padding: 10px 13px; }
+
+    .hint {
+      position: absolute;
+      right: clamp(18px, 3vw, 42px);
+      bottom: clamp(18px, 3vw, 42px);
+      margin: 0;
+      font-size: .75rem;
+      opacity: .62;
+    }
+
+    @media (max-width: 650px), (max-height: 680px) {
+      .app { padding: 16px; }
+      .time { font-size: clamp(6rem, 29vw, 14rem); }
+      .hint { display: none; }
+      .button { min-width: 105px; padding: 12px 17px; }
+      details { max-height: 42vh; overflow: auto; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <header class="topbar">
+      <p class="eyebrow">Presentation timer</p>
+      <button class="icon-button" id="fullscreen" type="button" title="Toggle fullscreen (F)" aria-label="Toggle fullscreen">⛶</button>
+    </header>
+
+    <section class="timer-wrap" aria-live="polite">
+      <div>
+        <p class="time" id="time">10:00</p>
+        <p class="status" id="status">Ready</p>
+      </div>
+    </section>
+
+    <section class="bottom">
+      <div class="controls">
+        <button class="button primary" id="startPause" type="button">Start</button>
+        <button class="button" id="restart" type="button">Restart</button>
+      </div>
+
+      <details id="customPanel">
+        <summary>Custom time</summary>
+        <div class="settings">
+          <button class="preset" type="button" data-green="4" data-red="1">4+1</button>
+          <button class="preset" type="button" data-green="8" data-red="2">8+2</button>
+          <button class="preset" type="button" data-green="12" data-red="3">12+3</button>
+          <label>
+            Green minutes
+            <input id="greenMinutes" type="number" min="0.1" max="999" step="0.5" value="8">
+          </label>
+          <label>
+            Final red minutes
+            <input id="redMinutes" type="number" min="0" max="998" step="0.5" value="2">
+          </label>
+          <button class="preset" id="apply" type="button">Apply</button>
+        </div>
+      </details>
+    </section>
+
+    <p class="hint">Space: start/pause · R: restart · F: fullscreen</p>
+  </main>
+
+  <script>
+    (() => {
+      const app = document.querySelector('#app');
+      const timeEl = document.querySelector('#time');
+      const statusEl = document.querySelector('#status');
+      const startPauseBtn = document.querySelector('#startPause');
+      const restartBtn = document.querySelector('#restart');
+      const fullscreenBtn = document.querySelector('#fullscreen');
+      const greenInput = document.querySelector('#greenMinutes');
+      const redInput = document.querySelector('#redMinutes');
+      const applyBtn = document.querySelector('#apply');
+
+      let totalMs = 10 * 60 * 1000;
+      let warningMs = 2 * 60 * 1000;
+      let remainingMs = totalMs;
+      let endAt = 0;
+      let running = false;
+      let timerId = null;
+      let audioContext = null;
+
+      function formatTime(ms) {
+        const seconds = Math.max(0, Math.ceil(ms / 1000));
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      }
+
+      function render() {
+        timeEl.textContent = formatTime(remainingMs);
+        app.classList.toggle('warning', remainingMs > 0 && remainingMs <= warningMs);
+        app.classList.toggle('finished', remainingMs <= 0);
+        startPauseBtn.textContent = running ? 'Pause' : (remainingMs <= 0 ? 'Start again' : 'Start');
+
+        if (remainingMs <= 0) statusEl.textContent = 'Time is up';
+        else if (!running && remainingMs === totalMs) statusEl.textContent = 'Ready';
+        else if (!running) statusEl.textContent = 'Paused';
+        else if (remainingMs <= warningMs) statusEl.textContent = 'Final minutes';
+        else statusEl.textContent = 'Presenting';
+
+        document.title = `${formatTime(remainingMs)} — Presentation Timer`;
+      }
+
+      function ensureAudio() {
+        if (!audioContext) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) audioContext = new AudioCtx();
+        }
+        if (audioContext?.state === 'suspended') audioContext.resume();
+      }
+
+      function tone(frequency, start, duration, volume = 0.16, type = 'sine') {
+        if (!audioContext) return;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(volume, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        oscillator.connect(gain).connect(audioContext.destination);
+        oscillator.start(start);
+        oscillator.stop(start + duration + 0.03);
+      }
+
+      function playChime() {
+        ensureAudio();
+        if (!audioContext) return;
+        const now = audioContext.currentTime;
+        tone(659.25, now, 0.55, 0.14);
+        tone(987.77, now + 0.08, 0.8, 0.12);
+      }
+
+      function playAlarm() {
+        ensureAudio();
+        if (!audioContext) return;
+        const now = audioContext.currentTime;
+        for (let i = 0; i < 6; i++) {
+          tone(i % 2 ? 740 : 880, now + i * 0.38, 0.3, 0.19, 'square');
+        }
+      }
+
+      function tick() {
+        if (!running) return;
+        const previous = remainingMs;
+        remainingMs = Math.max(0, endAt - Date.now());
+
+        if (previous > warningMs && remainingMs <= warningMs && remainingMs > 0) playChime();
+
+        if (remainingMs <= 0) {
+          running = false;
+          window.clearInterval(timerId);
+          timerId = null;
+          playAlarm();
+        }
+        render();
+      }
+
+      function start() {
+        ensureAudio();
+        if (remainingMs <= 0) remainingMs = totalMs;
+        running = true;
+        endAt = Date.now() + remainingMs;
+        window.clearInterval(timerId);
+        timerId = window.setInterval(tick, 100);
+        render();
+      }
+
+      function pause() {
+        remainingMs = Math.max(0, endAt - Date.now());
+        running = false;
+        window.clearInterval(timerId);
+        timerId = null;
+        render();
+      }
+
+      function toggleTimer() {
+        if (running) pause();
+        else start();
+      }
+
+      function restart() {
+        ensureAudio();
+        remainingMs = totalMs;
+        start();
+      }
+
+      function setPeriods(greenMinutes, redMinutes) {
+        const green = Number(greenMinutes);
+        const red = Number(redMinutes);
+        if (!Number.isFinite(green) || !Number.isFinite(red) || green <= 0 || red < 0) {
+          window.alert('Enter green minutes above 0 and final red minutes of 0 or more.');
+          return;
+        }
+        greenInput.value = green;
+        redInput.value = red;
+        totalMs = Math.round((green + red) * 60 * 1000);
+        warningMs = Math.round(red * 60 * 1000);
+        remainingMs = totalMs;
+        running = false;
+        window.clearInterval(timerId);
+        timerId = null;
+        render();
+      }
+
+      async function toggleFullscreen() {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch (_) {
+          // Fullscreen can be blocked by browser or embedded-page permissions.
+        }
+      }
+
+      startPauseBtn.addEventListener('click', toggleTimer);
+      restartBtn.addEventListener('click', restart);
+      fullscreenBtn.addEventListener('click', toggleFullscreen);
+      applyBtn.addEventListener('click', () => setPeriods(greenInput.value, redInput.value));
+
+      document.querySelectorAll('.preset').forEach((button) => {
+        if (!button.dataset.green) return;
+        button.addEventListener('click', () => setPeriods(button.dataset.green, button.dataset.red));
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.target.matches('input')) return;
+        if (event.code === 'Space') {
+          event.preventDefault();
+          toggleTimer();
+        } else if (event.key.toLowerCase() === 'r') {
+          restart();
+        } else if (event.key.toLowerCase() === 'f') {
+          toggleFullscreen();
+        }
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
