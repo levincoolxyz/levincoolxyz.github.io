@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#167a45">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Presentation Timer</title>
   <style>
     :root {
@@ -17,16 +21,22 @@
 
     * { box-sizing: border-box; }
 
-    html, body { height: 100%; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overscroll-behavior: none;
+    }
 
     body {
       margin: 0;
       overflow: hidden;
       background: var(--green);
       color: var(--ink);
+      -webkit-tap-highlight-color: transparent;
     }
 
     button, input { font: inherit; }
+    button { touch-action: manipulation; }
 
     .app {
       position: relative;
@@ -35,10 +45,33 @@
       width: 100%;
       height: 100%;
       min-height: 100svh;
-      padding: clamp(18px, 3vw, 42px);
+      min-height: 100dvh;
+      padding:
+        max(clamp(14px, 3vw, 42px), env(safe-area-inset-top))
+        max(clamp(14px, 3vw, 42px), env(safe-area-inset-right))
+        max(clamp(14px, 3vw, 42px), env(safe-area-inset-bottom))
+        max(clamp(14px, 3vw, 42px), env(safe-area-inset-left));
       background: var(--green);
-      transition: background-color 350ms ease;
+      transform-origin: center;
+      transition: background-color 350ms ease, transform 220ms ease;
       isolation: isolate;
+    }
+
+    .app.rotated {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 100dvh;
+      height: 100dvw;
+      min-height: 0;
+      padding: max(
+        14px,
+        env(safe-area-inset-top),
+        env(safe-area-inset-right),
+        env(safe-area-inset-bottom),
+        env(safe-area-inset-left)
+      );
+      transform: translate(-50%, -50%) rotate(90deg);
     }
 
     .app.warning,
@@ -63,6 +96,12 @@
       gap: 14px;
     }
 
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .eyebrow {
       margin: 0;
       font-size: clamp(.78rem, 1.5vw, 1rem);
@@ -84,6 +123,16 @@
       transition: transform 120ms ease, background 120ms ease;
     }
 
+    .icon-button[aria-pressed="true"] {
+      border-color: rgba(255,255,255,.8);
+      background: rgba(255,255,255,.18);
+    }
+
+    .icon-button:disabled {
+      cursor: not-allowed;
+      opacity: .5;
+    }
+
     .icon-button:hover,
     .button:hover,
     .preset:hover { background: rgba(0,0,0,.3); }
@@ -97,6 +146,28 @@
       padding: 10px 16px;
     }
 
+    .wake-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: .82rem;
+    }
+
+    .wake-dot {
+      width: .62em;
+      height: .62em;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 0 .22em rgba(255,255,255,.14);
+    }
+
+    .wake-button.active .wake-dot {
+      background: #8fffb8;
+      box-shadow: 0 0 12px rgba(143,255,184,.85);
+    }
+
     .timer-wrap {
       display: grid;
       place-items: center;
@@ -106,13 +177,17 @@
 
     .time {
       margin: 0;
-      font-size: clamp(8rem, 31vw, 31rem);
+      font-size: clamp(4.5rem, min(30vw, 42dvh), 31rem);
       font-weight: 820;
-      line-height: .78;
+      line-height: .84;
       letter-spacing: -.07em;
       font-variant-numeric: tabular-nums lining-nums;
       text-shadow: 0 .03em .15em rgba(0,0,0,.14);
       user-select: none;
+    }
+
+    .app.rotated .time {
+      font-size: clamp(4.5rem, min(30dvh, 42dvw), 31rem);
     }
 
     .status {
@@ -203,11 +278,47 @@
     }
 
     @media (max-width: 650px), (max-height: 680px) {
-      .app { padding: 16px; }
-      .time { font-size: clamp(6rem, 29vw, 14rem); }
       .hint { display: none; }
       .button { min-width: 105px; padding: 12px 17px; }
       details { max-height: 42vh; overflow: auto; }
+    }
+
+    @media (max-width: 480px) {
+      .topbar { gap: 8px; }
+      .eyebrow {
+        max-width: 9em;
+        font-size: .7rem;
+        letter-spacing: .11em;
+      }
+      .icon-button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 9px 12px;
+      }
+      .wake-button { gap: 6px; font-size: .72rem; }
+      .controls { gap: 9px; }
+      .button { min-width: 0; flex: 1 1 0; }
+      .status { margin-top: 18px; }
+    }
+
+    @media (max-width: 340px) {
+      .eyebrow { display: none; }
+    }
+
+    .app.short-layout { grid-template-rows: auto minmax(0, 1fr) auto; }
+    .app.short-layout .time { font-size: clamp(4rem, 36dvh, 10rem); }
+    .app.rotated.short-layout .time { font-size: clamp(4rem, 36dvw, 10rem); }
+    .app.short-layout .status { margin-top: 12px; font-size: .86rem; }
+    .app.short-layout .bottom { gap: 8px; }
+    .app.short-layout .button { padding-block: 9px; }
+    .app.short-layout summary { padding-block: 8px; }
+    .app.short-layout details[open] {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      left: 12px;
+      z-index: 2;
+      background: rgba(10, 25, 18, .96);
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -219,7 +330,14 @@
   <main class="app" id="app">
     <header class="topbar">
       <p class="eyebrow">Presentation timer</p>
-      <button class="icon-button" id="fullscreen" type="button" title="Toggle fullscreen (F)" aria-label="Toggle fullscreen">⛶</button>
+      <div class="topbar-actions">
+        <button class="icon-button wake-button" id="wakeLock" type="button" aria-pressed="true" title="Keep the screen awake while this page is visible">
+          <span class="wake-dot" aria-hidden="true"></span>
+          <span class="wake-label" id="wakeLabel">Keep awake</span>
+        </button>
+        <button class="icon-button" id="rotate" type="button" aria-pressed="false" title="Rotate the timer 90 degrees" aria-label="Rotate the timer 90 degrees">↻</button>
+        <button class="icon-button" id="fullscreen" type="button" title="Toggle fullscreen (F)" aria-label="Toggle fullscreen">⛶</button>
+      </div>
     </header>
 
     <section class="timer-wrap" aria-live="polite">
@@ -254,7 +372,7 @@
       </details>
     </section>
 
-    <p class="hint">Space: start/pause · R: restart · F: fullscreen</p>
+    <p class="hint">Space: start/pause · R: restart · O: rotate · F: fullscreen</p>
   </main>
 
   <script>
@@ -265,6 +383,9 @@
       const startPauseBtn = document.querySelector('#startPause');
       const restartBtn = document.querySelector('#restart');
       const fullscreenBtn = document.querySelector('#fullscreen');
+      const rotateBtn = document.querySelector('#rotate');
+      const wakeLockBtn = document.querySelector('#wakeLock');
+      const wakeLabel = document.querySelector('#wakeLabel');
       const greenInput = document.querySelector('#greenMinutes');
       const redInput = document.querySelector('#redMinutes');
       const applyBtn = document.querySelector('#apply');
@@ -276,6 +397,10 @@
       let running = false;
       let timerId = null;
       let audioContext = null;
+      let wakeLock = null;
+      let keepAwake = true;
+      let wakeLockMessage = '';
+      let rotated = false;
 
       function formatTime(ms) {
         const seconds = Math.max(0, Math.ceil(ms / 1000));
@@ -299,12 +424,85 @@
         document.title = `${formatTime(remainingMs)} — Presentation Timer`;
       }
 
+      function renderWakeLock() {
+        const supported = 'wakeLock' in navigator;
+        const active = Boolean(wakeLock && !wakeLock.released);
+        wakeLockBtn.disabled = !supported;
+        wakeLockBtn.classList.toggle('active', active);
+        wakeLockBtn.setAttribute('aria-pressed', String(keepAwake));
+
+        if (!supported) {
+          wakeLabel.textContent = 'Unavailable';
+          wakeLockBtn.title = 'This browser does not support screen wake lock';
+        } else if (!keepAwake) {
+          wakeLabel.textContent = 'Wake off';
+          wakeLockBtn.title = 'Allow the screen to turn off';
+        } else if (active) {
+          wakeLabel.textContent = 'Awake';
+          wakeLockBtn.title = 'Screen wake lock is active. Tap to turn it off.';
+        } else {
+          wakeLabel.textContent = 'Keep awake';
+          wakeLockBtn.title = wakeLockMessage || 'Tap Start to activate the screen wake lock';
+        }
+      }
+
+      async function requestWakeLock() {
+        if (wakeLock?.released) wakeLock = null;
+        if (!keepAwake || wakeLock || !('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+        try {
+          wakeLockMessage = '';
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => {
+            wakeLock = null;
+            renderWakeLock();
+          }, { once: true });
+        } catch (error) {
+          wakeLock = null;
+          wakeLockMessage = `Wake lock was refused: ${error.message || error.name}`;
+        }
+        renderWakeLock();
+      }
+
+      async function releaseWakeLock() {
+        const currentLock = wakeLock;
+        wakeLock = null;
+        if (currentLock && !currentLock.released) {
+          try { await currentLock.release(); } catch (_) { /* Already released by the browser. */ }
+        }
+        renderWakeLock();
+      }
+
+      async function toggleWakeLock() {
+        keepAwake = !keepAwake;
+        if (keepAwake) await requestWakeLock();
+        else await releaseWakeLock();
+        renderWakeLock();
+      }
+
+      function renderOrientation() {
+        app.classList.toggle('rotated', rotated);
+        rotateBtn.setAttribute('aria-pressed', String(rotated));
+        rotateBtn.title = rotated ? 'Return to normal orientation' : 'Rotate the timer 90 degrees';
+        rotateBtn.setAttribute('aria-label', rotateBtn.title);
+
+        const logicalHeight = rotated ? window.innerWidth : window.innerHeight;
+        app.classList.toggle('short-layout', logicalHeight <= 520);
+      }
+
+      function toggleOrientation() {
+        rotated = !rotated;
+        renderOrientation();
+      }
+
       function ensureAudio() {
         if (!audioContext) {
           const AudioCtx = window.AudioContext || window.webkitAudioContext;
           if (AudioCtx) audioContext = new AudioCtx();
         }
-        if (audioContext?.state === 'suspended') audioContext.resume();
+        if (audioContext && audioContext.state !== 'running' && audioContext.state !== 'closed') {
+          const resumeAttempt = audioContext.resume();
+          if (resumeAttempt?.catch) resumeAttempt.catch(() => {});
+        }
       }
 
       function tone(frequency, start, duration, volume = 0.16, type = 'sine') {
@@ -356,6 +554,7 @@
 
       function start() {
         ensureAudio();
+        requestWakeLock();
         if (remainingMs <= 0) remainingMs = totalMs;
         running = true;
         endAt = Date.now() + remainingMs;
@@ -413,6 +612,8 @@
       startPauseBtn.addEventListener('click', toggleTimer);
       restartBtn.addEventListener('click', restart);
       fullscreenBtn.addEventListener('click', toggleFullscreen);
+      rotateBtn.addEventListener('click', toggleOrientation);
+      wakeLockBtn.addEventListener('click', toggleWakeLock);
       applyBtn.addEventListener('click', () => setPeriods(greenInput.value, redInput.value));
 
       document.querySelectorAll('.preset').forEach((button) => {
@@ -429,10 +630,24 @@
           restart();
         } else if (event.key.toLowerCase() === 'f') {
           toggleFullscreen();
+        } else if (event.key.toLowerCase() === 'o') {
+          toggleOrientation();
+        }
+      });
+
+      window.addEventListener('resize', renderOrientation);
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          ensureAudio();
+          tick();
+          requestWakeLock();
         }
       });
 
       render();
+      renderWakeLock();
+      renderOrientation();
     })();
   </script>
 </body>
